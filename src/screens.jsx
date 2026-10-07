@@ -1,3 +1,7 @@
+import { useState } from 'react'
+import { useAuth } from './auth/AuthProvider.jsx'
+import { supabase } from './lib/supabase.js'
+
 function ScreenHeader({ title, intro }) {
   return (
     <header className="mb-8">
@@ -79,14 +83,40 @@ function RehabScreen() {
   )
 }
 
+function AccountPanel() {
+  const { session } = useAuth()
+  const [signingOut, setSigningOut] = useState(false)
+
+  async function handleSignOut() {
+    setSigningOut(true)
+    const { error } = await supabase.auth.signOut()
+    if (error) setSigningOut(false)
+  }
+
+  return (
+    <section className="rounded-2xl border border-line bg-panel p-5">
+      <h2 className="font-display text-2xl font-semibold">Account</h2>
+      <p className="mt-2 text-neutral-300">
+        Signed in as <span className="font-semibold text-white">{session?.user?.email}</span>
+      </p>
+      <button
+        type="button"
+        onClick={handleSignOut}
+        disabled={signingOut}
+        className="mt-5 rounded-xl border border-line px-5 py-2.5 font-semibold text-white transition-colors hover:border-gold hover:text-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:opacity-60"
+      >
+        {signingOut ? 'Signing out…' : 'Sign out'}
+      </button>
+    </section>
+  )
+}
+
 function ProfileScreen() {
   return (
     <>
       <ScreenHeader title="Profile" intro="Your goals, settings and professional connection." />
       <div className="space-y-4">
-        <Panel heading="Account" note="Arrives next session">
-          Sign in to save your programme and progress across devices.
-        </Panel>
+        <AccountPanel />
         <Panel heading="Connect a professional" note="Arrives in phase 6">
           Share a code with your physio or PT so they can see your programme, progress and rehab.
         </Panel>
