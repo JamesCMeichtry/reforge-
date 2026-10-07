@@ -18,6 +18,12 @@ body {
   color: #ffffff;
 }
 
+/* Anything scrolled into view (like a focused input) stays clear of the sticky bar, rest timer and tab bar */
+html {
+  scroll-padding-top: calc(env(safe-area-inset-top) + 4.5rem);
+  scroll-padding-bottom: calc(env(safe-area-inset-bottom) + 11rem);
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -64,9 +70,89 @@ button:not(:disabled):active {
   }
 }
 
+/* Loading placeholders shimmer gently */
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.skeleton {
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Active tab icon gives a small pop */
+@keyframes tab-pop {
+  0% {
+    transform: scale(0.85);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+nav button[aria-current='page'] svg {
+  animation: tab-pop 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* A logged set's tick pops */
+.tick-pop {
+  animation: tab-pop 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* The rest timer slides up from the tab bar */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.slide-up {
+  animation: slide-up 280ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Session complete: the tick ring scales in with a gold glow */
+@keyframes celebrate {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+    box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.6);
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+    box-shadow: 0 0 0 18px rgba(201, 162, 39, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 40px 0 rgba(201, 162, 39, 0.25);
+  }
+}
+
+.celebrate {
+  animation: celebrate 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   main > *,
-  button:not(:disabled):active {
+  button:not(:disabled):active,
+  nav button[aria-current='page'] svg,
+  .tick-pop,
+  .slide-up,
+  .celebrate,
+  .skeleton {
     animation: none;
     transform: none;
   }
