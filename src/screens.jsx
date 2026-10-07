@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from './auth/AuthProvider.jsx'
 import { supabase } from './lib/supabase.js'
+import BodyMap from './components/BodyMap.jsx'
 
 function ScreenHeader({ title, intro }) {
   return (
@@ -53,10 +54,8 @@ function ProgrammeScreen() {
 function BodyMapScreen() {
   return (
     <>
-      <ScreenHeader title="Body map" intro="Injuries, today's session and weekly load on one body." />
-      <Panel heading="Your body map" note="Arrives in phase 4">
-        Injured areas show in red and amber, today's muscles in gold, and weekly volume as intensity.
-      </Panel>
+      <ScreenHeader title="Body map" intro="Tap an area to mark an injury, then flip to see the back." />
+      <BodyMap />
     </>
   )
 }
