@@ -5,6 +5,7 @@ import BodyMap from './components/BodyMap.jsx'
 import { Panel, ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
+import RehabScreen from './screens/RehabScreen.jsx'
 
 function BodyMapScreen() {
   return (
@@ -19,20 +20,8 @@ function ProgressScreen() {
   return (
     <>
       <ScreenHeader title="Progress" intro="Strength, volume and consistency over time." />
-      <Panel heading="Nothing to chart yet" note="Arrives in phase 7">
-        Every set you log is already being saved. Strength charts, your training calendar and milestones build from
-        it.
-      </Panel>
-    </>
-  )
-}
-
-function RehabScreen() {
-  return (
-    <>
-      <ScreenHeader title="Rehab" intro="Track each injury and move up its progression ladder." />
-      <Panel heading="Check-ins and ladders" note="Arrives in phase 4">
-        After each session you'll rate how your injured areas responded, and the body map colours will move with it.
+      <Panel heading="Nothing to chart yet" note="Coming soon">
+        Every set you log is already being saved. Strength charts, your training calendar and milestones build from it.
       </Panel>
     </>
   )
@@ -72,7 +61,7 @@ function ProfileScreen() {
       <ScreenHeader title="Profile" intro="Your goals, settings and professional connection." />
       <div className="space-y-4">
         <AccountPanel />
-        <Panel heading="Connect a professional" note="Arrives in phase 9">
+        <Panel heading="Connect a professional" note="Coming soon">
           Share a code with your physio or PT so they can see your programme, progress and rehab.
         </Panel>
       </div>
