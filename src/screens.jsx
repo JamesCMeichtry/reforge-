@@ -2,16 +2,43 @@ import { useState } from 'react'
 import { useAuth } from './auth/AuthProvider.jsx'
 import { supabase } from './lib/supabase.js'
 import BodyMap from './components/BodyMap.jsx'
+import MuscleMap from './components/MuscleMap.jsx'
 import { Panel, ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
 import RehabScreen from './screens/RehabScreen.jsx'
 
 function BodyMapScreen() {
+  const [mode, setMode] = useState('injuries')
   return (
     <>
-      <ScreenHeader title="Body map" intro="Add your injuries and see every area they affect." />
-      <BodyMap />
+      <ScreenHeader
+        title="Body map"
+        intro={
+          mode === 'injuries'
+            ? 'Add your injuries and see every area they affect.'
+            : 'Every muscle head, and which exercises in your plan train it.'
+        }
+      />
+      <div className="mb-4 flex gap-2" role="group" aria-label="Map mode">
+        {[
+          ['injuries', 'Injuries'],
+          ['muscles', 'Muscles'],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setMode(value)}
+            aria-pressed={mode === value}
+            className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${
+              mode === value ? 'border-gold text-gold' : 'border-line text-muted hover:text-white'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {mode === 'injuries' ? <BodyMap /> : <MuscleMap />}
     </>
   )
 }
