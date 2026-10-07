@@ -113,3 +113,45 @@ export function formatPrevious(previous) {
   }
   return sets.map((s) => `${loadOf(s)} × ${s.reps ?? '–'}`).join(', ')
 }
+
+const toDate = (value) => new Date(`${value}T12:00:00`)
+
+export function daysAgo(dateString) {
+  const diff = Math.round((toDate(todayDate()) - toDate(dateString)) / 86400000)
+  if (diff <= 0) return 'Today'
+  if (diff === 1) return 'Yesterday'
+  return `${diff} days ago`
+}
+
+// Every training date in the last few weeks, with the most recent date per programme day
+export async function fetchRecentTraining(days = 42) {
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+  const { data, error } = await supabase
+    .from('set_logs')
+    .select('session_date, day_name')
+    .gte('session_date', since.toLocaleDateString('en-CA'))
+    .order('session_date', { ascending: false })
+    .limit(2000)
+  if (error) throw error
+
+  const dates = new Set()
+  const lastByDay = {}
+  for (const row of data) {
+    dates.add(row.session_date)
+    if (row.day_name && !lastByDay[row.day_name]) lastByDay[row.day_name] = row.session_date
+  }
+  return { dates, lastByDay }
+}
+
+// Monday-to-Sunday dates for the current week
+export function currentWeek() {
+  const today = toDate(todayDate())
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(monday)
+    day.setDate(monday.getDate() + i)
+    return { date: day.toLocaleDateString('en-CA'), label: day.toLocaleDateString('en-GB', { weekday: 'narrow' }) }
+  })
+}
