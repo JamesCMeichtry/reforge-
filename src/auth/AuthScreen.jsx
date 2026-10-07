@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 
 function friendlyError(error) {
@@ -29,8 +29,24 @@ export default function AuthScreen() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const passwordRef = useRef(null)
 
   const isSignUp = mode === 'signUp'
+
+  // Keeps the keyboard up and the cursor at the end when showing or hiding the password
+  function togglePassword() {
+    const input = passwordRef.current
+    setShowPassword((shown) => !shown)
+    input?.focus()
+    requestAnimationFrame(() => {
+      const end = input?.value.length ?? 0
+      try {
+        input?.setSelectionRange(end, end)
+      } catch {
+        // Some browsers don't allow moving the cursor on this input type
+      }
+    })
+  }
 
   function switchMode() {
     setMode(isSignUp ? 'signIn' : 'signUp')
@@ -104,6 +120,7 @@ export default function AuthScreen() {
           <div className="relative">
             <input
               id="password"
+              ref={passwordRef}
               type={showPassword ? 'text' : 'password'}
               required
               minLength={isSignUp ? 6 : undefined}
@@ -114,7 +131,9 @@ export default function AuthScreen() {
             />
             <button
               type="button"
-              onClick={() => setShowPassword((shown) => !shown)}
+              onPointerDown={(event) => event.preventDefault()}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={togglePassword}
               aria-pressed={showPassword}
               className="absolute top-2 right-2 bottom-0 my-auto h-10 rounded-lg px-3 text-sm font-semibold text-muted hover:text-white focus-visible:outline-2 focus-visible:outline-gold"
             >
