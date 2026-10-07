@@ -1,19 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ScreenHeader, buttonPrimary, buttonSecondary, inputBase } from '../components/ui.jsx'
+import { useEffect, useState } from 'react'
+import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary, inputBase } from '../components/ui.jsx'
 import { STARTER_PLAN } from '../data/starterPlan.js'
 import {
   createProgramme,
-  deleteSet,
+  daysAgo,
   fetchActiveProgramme,
   fetchLastDayName,
-  fetchPreviousSets,
-  fetchTodaySets,
-  formatLoad,
-  formatPrevious,
-  logSet,
+  fetchRecentTraining,
   nextDay,
   saveProgrammeDays,
 } from '../lib/programme.js'
+import SessionLog from './SessionLog.jsx'
 
 const SECTION_ORDER = ['Warm-up', 'Physio', 'Rehab', 'Main']
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
@@ -29,18 +26,11 @@ function useDayFromHash() {
   return dayId
 }
 
-function groupBySection(exercises) {
-  const groups = {}
-  for (const exercise of exercises) (groups[exercise.section || 'Main'] ??= []).push(exercise)
-  return SECTION_ORDER.filter((name) => groups[name]).map((name) => [name, groups[name]])
-}
-
-const targetLine = (exercise) => `${exercise.sets} × ${exercise.reps} · ${formatLoad(exercise.load)}`
-
 export default function ProgrammeScreen() {
   const dayId = useDayFromHash()
   const [programme, setProgramme] = useState(null)
   const [lastDayName, setLastDayName] = useState(null)
+  const [lastByDay, setLastByDay] = useState({})
   const [status, setStatus] = useState('loading')
   const [creating, setCreating] = useState(false)
 
@@ -61,12 +51,15 @@ export default function ProgrammeScreen() {
     }
   }, [status])
 
-  // Refresh "Up next" when coming back to the day list after a session
+  // Refresh "Up next" and "Last done" whenever the day list is showing
   const programmeId = programme?.id
   useEffect(() => {
     if (dayId || !programmeId) return
     fetchLastDayName(programmeId)
       .then(setLastDayName)
+      .catch(() => {})
+    fetchRecentTraining(90)
+      .then(({ lastByDay: last }) => setLastByDay(last))
       .catch(() => {})
   }, [dayId, programmeId])
 
@@ -87,7 +80,14 @@ export default function ProgrammeScreen() {
     setProgramme({ ...programme, days })
   }
 
-  if (status === 'loading') return <ScreenHeader title="Programme" intro="Loading your plan…" />
+  if (status === 'loading') {
+    return (
+      <>
+        <ScreenHeader title="Programme" intro="Loading your plan…" />
+        <LoadingCards count={4} label="Loading your plan" />
+      </>
+    )
+  }
   if (status === 'error') {
     return (
       <>
@@ -130,7 +130,9 @@ export default function ProgrammeScreen() {
           <li key={item.id}>
             <a
               href={`#programme/${item.id}`}
-              className="block rounded-2xl border border-line bg-panel p-5 transition-colors hover:border-gold focus-visible:outline-2 focus-visible:outline-gold"
+              className={`block rounded-2xl border bg-panel p-5 transition-colors hover:border-gold focus-visible:outline-2 focus-visible:outline-gold ${
+                item.id === upNext?.id ? 'border-gold/60' : 'border-line'
+              }`}
             >
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-display text-3xl font-bold uppercase leading-none">{item.name}</h2>
@@ -141,7 +143,10 @@ export default function ProgrammeScreen() {
                 )}
               </div>
               <p className="mt-2 text-neutral-300">{item.focus}</p>
-              <p className="mt-1 text-sm text-muted">{item.exercises.length} exercises</p>
+              <p className="mt-1 text-sm text-muted">
+                {item.exercises.length} exercises ·{' '}
+                {lastByDay[item.name] ? `Last done ${daysAgo(lastByDay[item.name]).toLowerCase()}` : 'Not done yet'}
+              </p>
             </a>
           </li>
         ))}
@@ -190,243 +195,6 @@ function DayView({ programme, day, onSaveDay }) {
         <SessionLog programme={programme} day={day} />
       )}
     </>
-  )
-}
-
-function SessionLog({ programme, day }) {
-  const [previous, setPrevious] = useState({})
-  const [todaySets, setTodaySets] = useState([])
-  const [status, setStatus] = useState('loading')
-
-  useEffect(() => {
-    if (status !== 'loading') return
-    let cancelled = false
-    Promise.all([fetchPreviousSets(day.exercises.map((e) => e.name)), fetchTodaySets(programme.id, day.name)])
-      .then(([prev, today]) => {
-        if (cancelled) return
-        setPrevious(prev)
-        setTodaySets(today)
-        setStatus('ready')
-      })
-      .catch(() => !cancelled && setStatus('error'))
-    return () => {
-      cancelled = true
-    }
-  }, [status, day, programme.id])
-
-  const totalSets = day.exercises.reduce((sum, e) => sum + Number(e.sets || 0), 0)
-  const [doneCount, setDoneCount] = useState(0)
-  useEffect(() => setDoneCount(todaySets.length), [todaySets])
-
-  if (status === 'loading') return <p className="text-muted">Loading your last session…</p>
-  if (status === 'error') {
-    return (
-      <div>
-        <p className="text-red-400">Couldn't load this session. Check your connection.</p>
-        <button type="button" onClick={() => setStatus('loading')} className={`mt-4 ${buttonSecondary}`}>
-          Try again
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <div className="mb-6">
-        <div className="flex justify-between text-sm">
-          <span className="font-semibold text-white">Today's progress</span>
-          <span className="text-muted">
-            {doneCount} of {totalSets} sets
-          </span>
-        </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
-          <div
-            className="h-full rounded-full bg-gold transition-[width] duration-300"
-            style={{ width: `${totalSets ? Math.min(100, (doneCount / totalSets) * 100) : 0}%` }}
-          />
-        </div>
-      </div>
-
-      {groupBySection(day.exercises).map(([section, exercises]) => (
-        <section key={section} className="mb-8">
-          <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-gold">{section}</h2>
-          <div className="space-y-3">
-            {exercises.map((exercise) => (
-              <ExerciseLog
-                key={exercise.id}
-                programme={programme}
-                day={day}
-                exercise={exercise}
-                previous={previous[exercise.name]}
-                todaySets={todaySets.filter((s) => s.exercise === exercise.name)}
-                onChangeCount={(delta) => setDoneCount((count) => count + delta)}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
-
-      <a href="#programme" className={`block text-center ${buttonPrimary}`}>
-        Finish session
-      </a>
-      <p className="mt-3 text-center text-xs text-muted">Every ticked set is saved straight away.</p>
-    </div>
-  )
-}
-
-function ExerciseLog({ programme, day, exercise, previous, todaySets, onChangeCount }) {
-  const setCount = Math.max(1, Number(exercise.sets) || 1)
-  const hasReps = /\d/.test(exercise.reps)
-  const repsUnit = /\bs\b/.test(exercise.reps) ? 's' : 'reps'
-  const kind = exercise.load?.kind ?? 'bodyweight'
-
-  const initialRows = useMemo(
-    () =>
-      Array.from({ length: setCount }, (_, index) => {
-        const number = index + 1
-        const logged = todaySets.find((s) => s.set_number === number)
-        const prev = previous?.sets.find((s) => s.set_number === number)
-        if (logged) {
-          return {
-            id: logged.id,
-            weight: logged.weight_kg != null ? String(Number(logged.weight_kg)) : '',
-            band: logged.band ?? '',
-            reps: logged.reps != null ? String(logged.reps) : '',
-          }
-        }
-        return {
-          id: null,
-          weight:
-            prev?.weight_kg != null
-              ? String(Number(prev.weight_kg))
-              : kind === 'kg'
-                ? String(exercise.load.value ?? '')
-                : '',
-          band: prev?.band ?? (kind === 'band' ? exercise.load.value : ''),
-          reps: '',
-        }
-      }),
-    // Rows are set up once when the session opens
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  )
-  const [rows, setRows] = useState(initialRows)
-  const [busy, setBusy] = useState(null)
-  const [error, setError] = useState('')
-  const lastTime = formatPrevious(previous)
-
-  const update = (index, field, value) =>
-    setRows((current) => current.map((row, i) => (i === index ? { ...row, [field]: value } : row)))
-
-  async function toggle(index) {
-    const row = rows[index]
-    setError('')
-    if (hasReps && !row.id && !row.reps.trim()) {
-      setError(`Enter the ${repsUnit === 's' ? 'seconds' : 'reps'} for set ${index + 1} first.`)
-      return
-    }
-    setBusy(index)
-    try {
-      if (row.id) {
-        await deleteSet(row.id)
-        update(index, 'id', null)
-        onChangeCount(-1)
-      } else {
-        const weight = kind === 'kg' ? parseFloat(row.weight.replace(',', '.')) : null
-        const id = await logSet({
-          programme_id: programme.id,
-          day_name: day.name,
-          exercise: exercise.name,
-          set_number: index + 1,
-          weight_kg: Number.isFinite(weight) ? weight : null,
-          band: kind === 'band' ? row.band.trim() || null : null,
-          reps: hasReps ? parseInt(row.reps, 10) || 0 : null,
-        })
-        update(index, 'id', id)
-        onChangeCount(1)
-      }
-    } catch {
-      setError("Couldn't save that set. Check your connection and try again.")
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  return (
-    <article className="rounded-2xl border border-line bg-panel p-4">
-      <h3 className="font-display text-xl font-semibold leading-tight">{exercise.name}</h3>
-      <p className="mt-1 text-sm text-neutral-300">{targetLine(exercise)}</p>
-      {lastTime && <p className="mt-1 text-sm text-gold">Last time: {lastTime}</p>}
-      {exercise.note && <p className="mt-2 text-sm leading-relaxed text-muted">{exercise.note}</p>}
-
-      <div className="mt-4 space-y-2">
-        {rows.map((row, index) => {
-          const done = Boolean(row.id)
-          return (
-            <div key={index} className="flex items-center gap-2">
-              <span className="w-10 shrink-0 text-sm font-semibold text-muted">Set {index + 1}</span>
-              {kind === 'kg' && (
-                <label className="flex min-w-0 flex-1 items-center gap-1.5">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={row.weight}
-                    disabled={done}
-                    onChange={(event) => update(index, 'weight', event.target.value)}
-                    className={`${inputBase} text-center disabled:opacity-60`}
-                    aria-label={`Set ${index + 1} weight in kilograms`}
-                  />
-                  <span className="text-xs text-muted">kg</span>
-                </label>
-              )}
-              {kind === 'band' && (
-                <input
-                  type="text"
-                  value={row.band}
-                  disabled={done}
-                  onChange={(event) => update(index, 'band', event.target.value)}
-                  className={`${inputBase} min-w-0 flex-1 disabled:opacity-60`}
-                  aria-label={`Set ${index + 1} band`}
-                />
-              )}
-              {kind === 'bodyweight' && <span className="flex-1 text-sm text-muted">Bodyweight</span>}
-              {hasReps && (
-                <label className="flex w-24 shrink-0 items-center gap-1.5">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={row.reps}
-                    placeholder={exercise.reps.replace(/[^\d-]/g, '') || '0'}
-                    disabled={done}
-                    onChange={(event) => update(index, 'reps', event.target.value.replace(/\D/g, ''))}
-                    className={`${inputBase} text-center disabled:opacity-60`}
-                    aria-label={`Set ${index + 1} ${repsUnit === 's' ? 'seconds' : 'reps'}`}
-                  />
-                  <span className="w-6 text-xs text-muted">{repsUnit}</span>
-                </label>
-              )}
-              <button
-                type="button"
-                onClick={() => toggle(index)}
-                disabled={busy === index}
-                aria-pressed={done}
-                aria-label={done ? `Undo set ${index + 1}` : `Log set ${index + 1}`}
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-lg font-bold ${
-                  done ? 'border-gold bg-gold text-ink' : 'border-line text-muted hover:border-gold hover:text-white'
-                }`}
-              >
-                ✓
-              </button>
-            </div>
-          )
-        })}
-      </div>
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-red-400">
-          {error}
-        </p>
-      )}
-    </article>
   )
 }
 
