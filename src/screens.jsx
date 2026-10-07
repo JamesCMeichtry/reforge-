@@ -54,7 +54,7 @@ function ProgrammeScreen() {
 function BodyMapScreen() {
   return (
     <>
-      <ScreenHeader title="Body map" intro="Tap an area to mark an injury, then flip to see the back." />
+         <ScreenHeader title="Body map" intro="Add your injuries and see every area they affect." />
       <BodyMap />
     </>
   )
