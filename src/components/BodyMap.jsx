@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { CENTRAL_AREAS, INJURIES, INJURY_GROUPS, TIERS } from '../data/injuries.js'
 
 const WIDTH = 200
-const STORAGE_KEY = 'reforge.bodymap.v1'
-
-const STATUS = {
-  active: { label: 'Active injury', short: 'Active', fill: '#dc2626' },
-  monitor: { label: 'Monitor', short: 'Monitor', fill: '#f59e0b' },
-}
+const STORAGE_KEY = 'reforge.injuries.v1'
+const BASE_FILL = '#1c1c1c'
 
 // Areas down the middle of the body
 const CENTRAL = [
@@ -31,6 +28,8 @@ const PAIRED = [
 ]
 
 const slug = (text) => text.toLowerCase().replace(/\s+/g, '-')
+const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
+const areaId = (area, side) => (CENTRAL_AREAS.includes(area) ? slug(area) : `${side}-${slug(area)}`)
 
 function mirror(shape) {
   if (shape.type === 'rect') return { ...shape, x: WIDTH - shape.x - shape.w }
@@ -49,33 +48,52 @@ function regionsFor(view) {
       [leftOfScreen, area.shape],
       [rightOfScreen, mirror(area.shape)],
     ]) {
-      regions.push({
-        id: `${side}-${slug(name)}`,
-        label: `${side === 'right' ? 'Right' : 'Left'} ${name.toLowerCase()}`,
-        shape,
-      })
+      regions.push({ id: `${side}-${slug(name)}`, label: `${sideName(side)} ${name.toLowerCase()}`, shape })
     }
   }
   return regions
 }
 
 const REGIONS = { front: regionsFor('front'), back: regionsFor('back') }
+const injuryById = (id) => INJURIES.find((injury) => injury.id === id)
 
-function findRegion(id) {
-  for (const view of ['front', 'back']) {
-    const region = REGIONS[view].find((r) => r.id === id)
-    if (region) return { view, region }
+// Works out every affected area from the injuries entered, keeping the most serious tier per area
+function buildEffects(injuries) {
+  const effects = {}
+  for (const entry of injuries) {
+    const injury = injuryById(entry.injuryId)
+    if (!injury) continue
+    const injuryLabel = injury.central ? injury.name : `${sideName(entry.side)}: ${injury.name}`
+
+    for (const effect of injury.effects) {
+      const sides = CENTRAL_AREAS.includes(effect.area)
+        ? [null]
+        : injury.central || effect.bothSides
+          ? ['right', 'left']
+          : [entry.side]
+
+      for (const side of sides) {
+        const id = areaId(effect.area, side)
+        const current = effects[id] ?? { tier: effect.tier, reasons: [] }
+        if (TIERS[effect.tier].rank > TIERS[current.tier].rank) current.tier = effect.tier
+        current.reasons.push({ injuryLabel, tier: effect.tier, note: effect.note })
+        effects[id] = current
+      }
+    }
   }
-  return null
+  return effects
 }
 
-function loadStatuses() {
+function loadInjuries() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? {}
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
+    return Array.isArray(saved) ? saved.filter((entry) => injuryById(entry.injuryId)) : []
   } catch {
-    return {}
+    return []
   }
 }
+
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
 
 function Shape({ shape, ...props }) {
   if (shape.type === 'rect') {
@@ -84,44 +102,99 @@ function Shape({ shape, ...props }) {
   return <ellipse cx={shape.cx} cy={shape.cy} rx={shape.rx} ry={shape.ry} {...props} />
 }
 
+function TierDot({ tier, size = 'h-2.5 w-2.5' }) {
+  return <span className={`${size} shrink-0 rounded-full`} style={{ backgroundColor: TIERS[tier].fill }} />
+}
+
+function AddInjury({ injuries, onAdd }) {
+  const [injuryId, setInjuryId] = useState('')
+  const [side, setSide] = useState('right')
+  const injury = injuryById(injuryId)
+  const isDuplicate = injuries.some((entry) => entry.injuryId === injuryId && (injury?.central || entry.side === side))
+
+  function handleAdd() {
+    if (!injury || isDuplicate) return
+    onAdd({ id: newId(), injuryId, side: injury.central ? null : side })
+    setInjuryId('')
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl border border-line bg-panel p-5">
+      <h3 className="font-display text-xl font-semibold">Add an injury</h3>
+      <label className="mt-3 block text-sm font-medium text-neutral-300">
+        Injury
+        <select
+          value={injuryId}
+          onChange={(event) => setInjuryId(event.target.value)}
+          className="mt-2 w-full appearance-none rounded-xl border border-line bg-ink px-4 py-3 text-base text-white focus:border-gold focus:outline-none"
+        >
+          <option value="">Choose an injury…</option>
+          {INJURY_GROUPS.map((group) => (
+            <optgroup key={group} label={group}>
+              {INJURIES.filter((item) => item.group === group).map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
+
+      {injury && !injury.central && (
+        <div className="mt-4">
+          <p className="text-sm font-medium text-neutral-300">Side</p>
+          <div className="mt-2 flex gap-2" role="group" aria-label="Side">
+            {['right', 'left'].map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSide(option)}
+                aria-pressed={side === option}
+                className={`flex-1 rounded-xl border py-2.5 text-sm font-semibold ${
+                  side === option ? 'border-gold bg-gold text-ink' : 'border-line text-white'
+                }`}
+              >
+                {sideName(option)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isDuplicate && <p className="mt-3 text-sm text-muted">That injury is already on your map.</p>}
+
+      <button
+        type="button"
+        onClick={handleAdd}
+        disabled={!injury || isDuplicate}
+        className="mt-4 w-full rounded-xl bg-gold py-3 font-semibold text-ink hover:bg-gold-light disabled:opacity-40"
+      >
+        Add to body map
+      </button>
+      <p className="mt-3 text-xs text-muted">
+        Not listed? Describing any injury in your own words arrives with AI onboarding.
+      </p>
+    </div>
+  )
+}
+
 export default function BodyMap() {
   const [view, setView] = useState('front')
-  const [statuses, setStatuses] = useState(loadStatuses)
+  const [injuries, setInjuries] = useState(loadInjuries)
   const [selectedId, setSelectedId] = useState(null)
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(statuses))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(injuries))
     } catch {
       // Storage can be unavailable in private browsing; the map still works for this visit
     }
-  }, [statuses])
+  }, [injuries])
 
-  const selected = selectedId ? findRegion(selectedId)?.region : null
-  const marked = useMemo(
-    () =>
-      Object.entries(statuses)
-        .map(([id, status]) => ({ id, status, label: findRegion(id)?.region.label }))
-        .filter((item) => item.label),
-    [statuses],
-  )
-
-  function setStatus(id, status) {
-    setStatuses((current) => {
-      const next = { ...current }
-      if (status) next[id] = status
-      else delete next[id]
-      return next
-    })
-  }
-
-  function selectFromList(id) {
-    const found = findRegion(id)
-    if (!found) return
-    if (!REGIONS[view].some((r) => r.id === id)) setView(found.view)
-    setSelectedId(id)
-  }
-
+  const effects = useMemo(() => buildEffects(injuries), [injuries])
+  const selected = selectedId ? [...REGIONS.front, ...REGIONS.back].find((r) => r.id === selectedId) : null
+  const selectedEffect = selected ? effects[selected.id] : null
   const sideLabels = view === 'front' ? ['Right', 'Left'] : ['Left', 'Right']
 
   return (
@@ -142,30 +215,36 @@ export default function BodyMap() {
         ))}
       </div>
 
-      <svg viewBox="0 0 200 352" className="mx-auto mt-6 block w-full max-w-[280px]" role="group" aria-label={`Body, ${view} view`}>
+      <svg
+        viewBox="0 0 200 352"
+        className="mx-auto mt-6 block w-full max-w-[280px]"
+        role="group"
+        aria-label={`Body, ${view} view`}
+      >
         {REGIONS[view].map((region) => {
-          const status = statuses[region.id]
+          const effect = effects[region.id]
           const isSelected = region.id === selectedId
+          const select = () => setSelectedId(isSelected ? null : region.id)
           return (
             <Shape
               key={`${view}-${region.id}`}
               shape={region.shape}
               role="button"
               tabIndex={0}
-              aria-label={`${region.label}${status ? `, ${STATUS[status].label.toLowerCase()}` : ''}`}
+              aria-label={`${region.label}${effect ? `, ${TIERS[effect.tier].label.toLowerCase()}` : ''}`}
               aria-pressed={isSelected}
-              onClick={() => setSelectedId(isSelected ? null : region.id)}
+              onClick={select}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
-                  setSelectedId(isSelected ? null : region.id)
+                  select()
                 }
               }}
-              fill={status ? STATUS[status].fill : '#1c1c1c'}
-              fillOpacity={status ? 0.85 : 1}
-              stroke={isSelected ? '#c9a227' : '#3a3a3a'}
+              fill={effect ? TIERS[effect.tier].fill : BASE_FILL}
+              fillOpacity={effect ? 0.9 : 1}
+              stroke={isSelected ? '#ffffff' : '#3a3a3a'}
               strokeWidth={isSelected ? 2.5 : 1}
-              className="cursor-pointer outline-none transition-[fill] duration-200 focus-visible:stroke-[#e3c565]"
+              className="cursor-pointer outline-none transition-[fill] duration-300 focus-visible:stroke-[#e3c565]"
             />
           )
         })}
@@ -177,81 +256,87 @@ export default function BodyMap() {
         </text>
       </svg>
 
-      <div className="mt-4 flex justify-center gap-5 text-xs text-muted">
-        {Object.entries(STATUS).map(([key, { label, fill }]) => (
+      <div className="mt-4 flex justify-center gap-4 text-xs text-muted">
+        {Object.entries(TIERS).map(([key, { label }]) => (
           <span key={key} className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: fill }} />
+            <TierDot tier={key} />
             {label}
           </span>
         ))}
       </div>
 
-      <section className="mt-6 rounded-2xl border border-line bg-panel p-5" aria-live="polite">
-        {selected ? (
-          <>
+      {selected && (
+        <section className="mt-6 rounded-2xl border border-line bg-panel p-5" aria-live="polite">
+          <div className="flex items-start justify-between gap-4">
             <h2 className="font-display text-2xl font-semibold">{selected.label}</h2>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {Object.entries(STATUS).map(([key, { short, fill }]) => {
-                const isCurrent = statuses[selected.id] === key
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setStatus(selected.id, key)}
-                    aria-pressed={isCurrent}
-                    className="rounded-xl border px-2 py-2.5 text-sm font-semibold"
-                    style={{
-                      borderColor: isCurrent ? fill : '#262626',
-                      backgroundColor: isCurrent ? fill : 'transparent',
-                      color: isCurrent ? '#000000' : '#ffffff',
-                    }}
-                  >
-                    {short}
-                  </button>
-                )
-              })}
-              <button
-                type="button"
-                onClick={() => setStatus(selected.id, null)}
-                disabled={!statuses[selected.id]}
-                className="rounded-xl border border-line px-2 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
-              >
-                Clear
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <h2 className="font-display text-2xl font-semibold">Tap an area</h2>
-            <p className="mt-2 leading-relaxed text-neutral-300">
-              Mark anywhere that's injured or worth keeping an eye on. Flip to the back for hamstrings, glutes and
-              your lower back.
-            </p>
-          </>
-        )}
-      </section>
-
-      {marked.length > 0 && (
-        <section className="mt-4">
-          <h2 className="text-sm font-semibold text-muted">Marked areas</h2>
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {marked.map(({ id, status, label }) => (
-              <li key={id}>
-                <button
-                  type="button"
-                  onClick={() => selectFromList(id)}
-                  className="flex items-center gap-2 rounded-full border border-line bg-panel px-3 py-1.5 text-sm text-white hover:border-gold"
-                >
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: STATUS[status].fill }} />
-                  {label}
-                </button>
-              </li>
-            ))}
-          </ul>
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              className="text-sm font-semibold text-muted hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+          {selectedEffect ? (
+            <ul className="mt-3 space-y-3">
+              {[...selectedEffect.reasons]
+                .sort((a, b) => TIERS[b.tier].rank - TIERS[a.tier].rank)
+                .map((reason, index) => (
+                  <li key={index} className="flex gap-3">
+                    <TierDot tier={reason.tier} size="mt-1.5 h-2.5 w-2.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {TIERS[reason.tier].label} · {reason.injuryLabel}
+                      </p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-neutral-300">{reason.note}</p>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-neutral-300">Not affected by any injury on your map.</p>
+          )}
         </section>
       )}
 
-      <p className="mt-6 text-xs text-muted">Saved on this device for now. It moves to your account when we add the database.</p>
+      <section className="mt-8">
+        <h2 className="font-display text-3xl font-bold uppercase">Your injuries</h2>
+        {injuries.length === 0 ? (
+          <p className="mt-2 text-neutral-300">
+            Add an injury and the map lights up the areas it affects, coloured by how much they change your training.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {injuries.map((entry) => {
+              const injury = injuryById(entry.injuryId)
+              return (
+                <li
+                  key={entry.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-line bg-panel px-4 py-3"
+                >
+                  <div>
+                    <p className="font-semibold text-white">{injury.name}</p>
+                    {entry.side && <p className="text-sm text-muted">{sideName(entry.side)} side</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setInjuries((current) => current.filter((item) => item.id !== entry.id))}
+                    className="rounded-lg px-3 py-2 text-sm font-semibold text-muted hover:text-red-400"
+                    aria-label={`Remove ${injury.name}`}
+                  >
+                    Remove
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        <AddInjury injuries={injuries} onAdd={(entry) => setInjuries((current) => [...current, entry])} />
+      </section>
+
+      <p className="mt-6 text-xs text-muted">
+        Saved on this device for now. It moves to your account when we add the database.
+      </p>
     </div>
   )
 }
