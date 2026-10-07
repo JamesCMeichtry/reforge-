@@ -28,6 +28,7 @@ export default function AuthScreen() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   const isSignUp = mode === 'signUp'
 
@@ -96,19 +97,32 @@ export default function AuthScreen() {
           />
         </label>
 
-        <label className="block text-sm font-medium text-neutral-300">
-          Password
-          <input
-            type="password"
-            required
-            minLength={isSignUp ? 6 : undefined}
-            autoComplete={isSignUp ? 'new-password' : 'current-password'}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className={inputClass}
-          />
-          {isSignUp && <span className="mt-2 block text-xs text-muted">At least 6 characters.</span>}
-        </label>
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-neutral-300">
+            Password
+          </label>
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              required
+              minLength={isSignUp ? 6 : undefined}
+              autoComplete={isSignUp ? 'new-password' : 'current-password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className={`${inputClass} pr-20`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((shown) => !shown)}
+              aria-pressed={showPassword}
+              className="absolute top-2 right-2 bottom-0 my-auto h-10 rounded-lg px-3 text-sm font-semibold text-muted hover:text-white focus-visible:outline-2 focus-visible:outline-gold"
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          {isSignUp && <p className="mt-2 text-xs text-muted">At least 6 characters.</p>}
+        </div>
 
         {error && (
           <p role="alert" className="text-sm text-red-400">
