@@ -18,6 +18,21 @@ export function Panel({ heading, note, children }) {
   )
 }
 
+// Placeholder blocks shown while data loads, shaped like the content that's coming
+export function Skeleton({ className = '' }) {
+  return <div aria-hidden="true" className={`skeleton rounded-2xl bg-panel ${className}`} />
+}
+
+export function LoadingCards({ count = 3, height = 'h-28', label = 'Loading' }) {
+  return (
+    <div className="space-y-3" role="status" aria-label={label}>
+      {Array.from({ length: count }, (_, i) => (
+        <Skeleton key={i} className={height} />
+      ))}
+    </div>
+  )
+}
+
 export const buttonPrimary =
   'rounded-xl bg-gold px-5 py-3 font-semibold text-ink hover:bg-gold-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:opacity-40'
 
