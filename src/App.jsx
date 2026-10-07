@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import TabBar, { TABS } from './components/TabBar.jsx'
 import { SCREENS } from './screens.jsx'
+import { AuthProvider, useAuth } from './auth/AuthProvider.jsx'
+import AuthScreen from './auth/AuthScreen.jsx'
+import { isSupabaseConfigured } from './lib/supabase.js'
 
 const DEFAULT_TAB = 'today'
 
@@ -9,7 +12,7 @@ function tabFromHash() {
   return TABS.some((tab) => tab.id === id) ? id : DEFAULT_TAB
 }
 
-export default function App() {
+function AppShell() {
   const [activeTab, setActiveTab] = useState(tabFromHash)
 
   // Keeps the tab in sync with the URL, so refresh and the back button work
@@ -42,5 +45,32 @@ export default function App() {
       </main>
       <TabBar activeTab={activeTab} onSelect={selectTab} />
     </div>
+  )
+}
+
+function SetupMissing() {
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6">
+      <h1 className="font-display text-4xl font-bold uppercase">Database not connected</h1>
+      <p className="mt-4 text-muted">
+        Add VITE_SUPABASE_URL and VITE_SUPABASE_KEY to the environment variables, then redeploy or restart the
+        dev server.
+      </p>
+    </main>
+  )
+}
+
+function Gate() {
+  const { session, loading } = useAuth()
+  if (loading) return <div className="min-h-dvh bg-ink" />
+  return session ? <AppShell /> : <AuthScreen />
+}
+
+export default function App() {
+  if (!isSupabaseConfigured) return <SetupMissing />
+  return (
+    <AuthProvider>
+      <Gate />
+    </AuthProvider>
   )
 }
