@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CENTRAL_AREAS, INJURIES, INJURY_GROUPS, TIERS } from '../data/injuries.js'
+import { supabase } from '../lib/supabase.js'
 
 const WIDTH = 200
-const STORAGE_KEY = 'reforge.injuries.v1'
+const LOCAL_KEY = 'reforge.injuries.v1'
 const BASE_FILL = '#1c1c1c'
 
 // Areas down the middle of the body
@@ -84,16 +85,47 @@ function buildEffects(injuries) {
   return effects
 }
 
-function loadInjuries() {
+const fromRow = (row) => ({ id: row.id, injuryId: row.injury_key, side: row.side })
+
+// Injuries saved on this device before accounts existed, moved to the account once
+function readLocalInjuries() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY))
+    const saved = JSON.parse(localStorage.getItem(LOCAL_KEY))
     return Array.isArray(saved) ? saved.filter((entry) => injuryById(entry.injuryId)) : []
   } catch {
     return []
   }
 }
 
-const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
+function clearLocalInjuries() {
+  try {
+    localStorage.removeItem(LOCAL_KEY)
+  } catch {
+    // Nothing to clear
+  }
+}
+
+async function fetchInjuries() {
+  const { data, error } = await supabase.from('injuries').select('id, injury_key, side').order('created_at')
+  if (error) throw error
+
+  const local = readLocalInjuries()
+  const toMove = local.filter(
+    (entry) => !data.some((row) => row.injury_key === entry.injuryId && row.side === (entry.side ?? null)),
+  )
+  if (toMove.length === 0) {
+    if (local.length) clearLocalInjuries()
+    return data.map(fromRow)
+  }
+
+  const { data: moved, error: moveError } = await supabase
+    .from('injuries')
+    .insert(toMove.map((entry) => ({ injury_key: entry.injuryId, side: entry.side ?? null })))
+    .select('id, injury_key, side')
+  if (moveError) return data.map(fromRow)
+  clearLocalInjuries()
+  return [...data, ...moved].map(fromRow)
+}
 
 function Shape({ shape, ...props }) {
   if (shape.type === 'rect') {
@@ -109,13 +141,16 @@ function TierDot({ tier, size = 'h-2.5 w-2.5' }) {
 function AddInjury({ injuries, onAdd }) {
   const [injuryId, setInjuryId] = useState('')
   const [side, setSide] = useState('right')
+  const [saving, setSaving] = useState(false)
   const injury = injuryById(injuryId)
   const isDuplicate = injuries.some((entry) => entry.injuryId === injuryId && (injury?.central || entry.side === side))
 
-  function handleAdd() {
-    if (!injury || isDuplicate) return
-    onAdd({ id: newId(), injuryId, side: injury.central ? null : side })
-    setInjuryId('')
+  async function handleAdd() {
+    if (!injury || isDuplicate || saving) return
+    setSaving(true)
+    const saved = await onAdd({ injuryId, side: injury.central ? null : side })
+    setSaving(false)
+    if (saved) setInjuryId('')
   }
 
   return (
@@ -167,10 +202,10 @@ function AddInjury({ injuries, onAdd }) {
       <button
         type="button"
         onClick={handleAdd}
-        disabled={!injury || isDuplicate}
+        disabled={!injury || isDuplicate || saving}
         className="mt-4 w-full rounded-xl bg-gold py-3 font-semibold text-ink hover:bg-gold-light disabled:opacity-40"
       >
-        Add to body map
+        {saving ? 'Saving…' : 'Add to body map'}
       </button>
       <p className="mt-3 text-xs text-muted">
         Not listed? Describing any injury in your own words arrives with AI onboarding.
@@ -181,162 +216,43 @@ function AddInjury({ injuries, onAdd }) {
 
 export default function BodyMap() {
   const [view, setView] = useState('front')
-  const [injuries, setInjuries] = useState(loadInjuries)
+  const [injuries, setInjuries] = useState([])
+  const [status, setStatus] = useState('loading')
+  const [saveError, setSaveError] = useState('')
   const [selectedId, setSelectedId] = useState(null)
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(injuries))
-    } catch {
-      // Storage can be unavailable in private browsing; the map still works for this visit
+    if (status !== 'loading') return
+    let cancelled = false
+    fetchInjuries()
+      .then((rows) => {
+        if (cancelled) return
+        setInjuries(rows.filter((entry) => injuryById(entry.injuryId)))
+        setStatus('ready')
+      })
+      .catch(() => {
+        if (!cancelled) setStatus('error')
+      })
+    return () => {
+      cancelled = true
     }
-  }, [injuries])
+  }, [status])
 
-  const effects = useMemo(() => buildEffects(injuries), [injuries])
-  const selected = selectedId ? [...REGIONS.front, ...REGIONS.back].find((r) => r.id === selectedId) : null
-  const selectedEffect = selected ? effects[selected.id] : null
-  const sideLabels = view === 'front' ? ['Right', 'Left'] : ['Left', 'Right']
+  async function addInjury({ injuryId, side }) {
+    setSaveError('')
+    const { data, error } = await supabase
+      .from('injuries')
+      .insert({ injury_key: injuryId, side })
+      .select('id, injury_key, side')
+      .single()
+    if (error) {
+      setSaveError("Couldn't save that injury. Check your connection and try again.")
+      return false
+    }
+    setInjuries((current) => [...current, fromRow(data)])
+    return true
+  }
 
-  return (
-    <div>
-      <div className="flex rounded-xl border border-line bg-panel p-1" role="group" aria-label="Body view">
-        {['front', 'back'].map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setView(option)}
-            aria-pressed={view === option}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold capitalize ${
-              view === option ? 'bg-gold text-ink' : 'text-muted hover:text-white'
-            }`}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
-
-      <svg
-        viewBox="0 0 200 352"
-        className="mx-auto mt-6 block w-full max-w-[280px]"
-        role="group"
-        aria-label={`Body, ${view} view`}
-      >
-        {REGIONS[view].map((region) => {
-          const effect = effects[region.id]
-          const isSelected = region.id === selectedId
-          const select = () => setSelectedId(isSelected ? null : region.id)
-          return (
-            <Shape
-              key={`${view}-${region.id}`}
-              shape={region.shape}
-              role="button"
-              tabIndex={0}
-              aria-label={`${region.label}${effect ? `, ${TIERS[effect.tier].label.toLowerCase()}` : ''}`}
-              aria-pressed={isSelected}
-              onClick={select}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  select()
-                }
-              }}
-              fill={effect ? TIERS[effect.tier].fill : BASE_FILL}
-              fillOpacity={effect ? 0.9 : 1}
-              stroke={isSelected ? '#ffffff' : '#3a3a3a'}
-              strokeWidth={isSelected ? 2.5 : 1}
-              className="cursor-pointer outline-none transition-[fill] duration-300 focus-visible:stroke-[#e3c565]"
-            />
-          )
-        })}
-        <text x="20" y="348" fill="#9a9a9a" fontSize="9" fontWeight="600" letterSpacing="1">
-          {sideLabels[0].toUpperCase()}
-        </text>
-        <text x="180" y="348" fill="#9a9a9a" fontSize="9" fontWeight="600" letterSpacing="1" textAnchor="end">
-          {sideLabels[1].toUpperCase()}
-        </text>
-      </svg>
-
-      <div className="mt-4 flex justify-center gap-4 text-xs text-muted">
-        {Object.entries(TIERS).map(([key, { label }]) => (
-          <span key={key} className="flex items-center gap-2">
-            <TierDot tier={key} />
-            {label}
-          </span>
-        ))}
-      </div>
-
-      {selected && (
-        <section className="mt-6 rounded-2xl border border-line bg-panel p-5" aria-live="polite">
-          <div className="flex items-start justify-between gap-4">
-            <h2 className="font-display text-2xl font-semibold">{selected.label}</h2>
-            <button
-              type="button"
-              onClick={() => setSelectedId(null)}
-              className="text-sm font-semibold text-muted hover:text-white"
-            >
-              Close
-            </button>
-          </div>
-          {selectedEffect ? (
-            <ul className="mt-3 space-y-3">
-              {[...selectedEffect.reasons]
-                .sort((a, b) => TIERS[b.tier].rank - TIERS[a.tier].rank)
-                .map((reason, index) => (
-                  <li key={index} className="flex gap-3">
-                    <TierDot tier={reason.tier} size="mt-1.5 h-2.5 w-2.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {TIERS[reason.tier].label} · {reason.injuryLabel}
-                      </p>
-                      <p className="mt-0.5 text-sm leading-relaxed text-neutral-300">{reason.note}</p>
-                    </div>
-                  </li>
-                ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-neutral-300">Not affected by any injury on your map.</p>
-          )}
-        </section>
-      )}
-
-      <section className="mt-8">
-        <h2 className="font-display text-3xl font-bold uppercase">Your injuries</h2>
-        {injuries.length === 0 ? (
-          <p className="mt-2 text-neutral-300">
-            Add an injury and the map lights up the areas it affects, coloured by how much they change your training.
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {injuries.map((entry) => {
-              const injury = injuryById(entry.injuryId)
-              return (
-                <li
-                  key={entry.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-line bg-panel px-4 py-3"
-                >
-                  <div>
-                    <p className="font-semibold text-white">{injury.name}</p>
-                    {entry.side && <p className="text-sm text-muted">{sideName(entry.side)} side</p>}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setInjuries((current) => current.filter((item) => item.id !== entry.id))}
-                    className="rounded-lg px-3 py-2 text-sm font-semibold text-muted hover:text-red-400"
-                    aria-label={`Remove ${injury.name}`}
-                  >
-                    Remove
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-        <AddInjury injuries={injuries} onAdd={(entry) => setInjuries((current) => [...current, entry])} />
-      </section>
-
-      <p className="mt-6 text-xs text-muted">
-        Saved on this device for now. It moves to your account when we add the database.
-      </p>
-    </div>
-  )
-}
+  async function removeInjury(entry) {
+    setSaveError('')
+    setInjuries((current) =>
