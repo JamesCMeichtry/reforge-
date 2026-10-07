@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { LoadingCards, Panel, ScreenHeader, buttonPrimary } from '../components/ui.jsx'
+import { LoadingCards, ScreenHeader, buttonPrimary } from '../components/ui.jsx'
+import MorningCheck from '../components/MorningCheck.jsx'
 import {
   currentWeek,
   daysAgo,
@@ -82,6 +83,7 @@ export default function TodayScreen() {
     <>
       <ScreenHeader title="Today" intro={`${greeting()}. ${date}.`} />
       <div className="space-y-4">
+        <MorningCheck />
         {state.status === 'loading' && <LoadingCards count={2} height="h-36" label="Loading today" />}
         {state.status === 'error' && (
           <p className="text-red-400">Couldn't load your programme. Check your connection.</p>
@@ -113,9 +115,6 @@ export default function TodayScreen() {
           </section>
         )}
         {state.status === 'ready' && <WeekStrip trainedDates={state.recent.dates} />}
-        <Panel heading="Daily check-in" note="Coming soon">
-          A quick question about how your body feels, so the session can adapt before you start.
-        </Panel>
       </div>
     </>
   )
