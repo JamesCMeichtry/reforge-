@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingCards, buttonPrimary, buttonSecondary, inputBase } from '../components/ui.jsx'
+import CheckInForm from '../components/CheckInForm.jsx'
+import { fetchInjurySites } from '../lib/checkins.js'
 import { deleteSet, fetchPreviousSets, fetchTodaySets, formatLoad, formatPrevious, logSet } from '../lib/programme.js'
 
 const SECTION_ORDER = ['Warm-up', 'Physio', 'Rehab', 'Main']
@@ -75,6 +77,13 @@ function RestTimer({ endsAt, total, onAdd, onSkip }) {
 }
 
 function SessionSummary({ day, stats, onDone }) {
+  const [sites, setSites] = useState(null)
+  useEffect(() => {
+    fetchInjurySites()
+      .then(setSites)
+      .catch(() => setSites([]))
+  }, [])
+
   return (
     <div className="pt-4 text-center">
       <div className="celebrate mx-auto flex h-24 w-24 items-center justify-center rounded-full border-2 border-gold text-5xl text-gold">
@@ -94,7 +103,16 @@ function SessionSummary({ day, stats, onDone }) {
           </div>
         ))}
       </dl>
-      <button type="button" onClick={onDone} className={`mt-8 w-full ${buttonPrimary}`}>
+      {sites?.length > 0 && (
+        <div className="mt-6">
+          <CheckInForm sites={sites} />
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onDone}
+        className={`mt-6 w-full ${sites?.length ? buttonSecondary : buttonPrimary}`}
+      >
         Back to programme
       </button>
     </div>
