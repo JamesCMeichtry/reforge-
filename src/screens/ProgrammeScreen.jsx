@@ -13,6 +13,7 @@ import {
 import SessionLog from './SessionLog.jsx'
 
 const SECTION_ORDER = ['Warm-up', 'Physio', 'Rehab', 'Main']
+const REST_DEFAULTS = { 'Warm-up': 30, Physio: 45, Rehab: 45, Main: 90 }
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
 
 function useDayFromHash() {
@@ -216,6 +217,7 @@ function DayEditor({ day, onSave, onCancel }) {
         name: e.name.trim(),
         sets: Math.min(10, Math.max(1, parseInt(e.sets, 10) || 1)),
         reps: e.reps.trim() || '10',
+        rest: Math.min(600, parseInt(e.rest, 10) || 0) || null,
         load:
           e.load.kind === 'bodyweight'
             ? { kind: 'bodyweight' }
@@ -288,6 +290,17 @@ function DayEditor({ day, onSave, onCancel }) {
               />
             </label>
             <label className="text-xs font-medium text-muted">
+              Rest (seconds)
+              <input
+                type="text"
+                inputMode="numeric"
+                value={exercise.rest ?? ''}
+                placeholder={`${REST_DEFAULTS[exercise.section || 'Main'] ?? 60} (default)`}
+                onChange={(event) => update(exercise.id, { rest: event.target.value.replace(/\D/g, '') })}
+                className={`mt-1 ${inputBase}`}
+              />
+            </label>
+            <label className="text-xs font-medium text-muted">
               Load type
               <select
                 value={exercise.load.kind}
@@ -300,7 +313,7 @@ function DayEditor({ day, onSave, onCancel }) {
               </select>
             </label>
             {exercise.load.kind !== 'bodyweight' && (
-              <label className="col-span-2 text-xs font-medium text-muted">
+              <label className="text-xs font-medium text-muted">
                 {exercise.load.kind === 'kg' ? 'Weight (kg)' : 'Band'}
                 <input
                   type="text"
