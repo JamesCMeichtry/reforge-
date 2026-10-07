@@ -255,4 +255,175 @@ export default function BodyMap() {
 
   async function removeInjury(entry) {
     setSaveError('')
-    setInjuries((current) =>
+    setInjuries((current) => current.filter((item) => item.id !== entry.id))
+    const { error } = await supabase.from('injuries').delete().eq('id', entry.id)
+    if (error) {
+      setInjuries((current) => [...current, entry])
+      setSaveError("Couldn't remove that injury. Check your connection and try again.")
+    }
+  }
+
+  const effects = useMemo(() => buildEffects(injuries), [injuries])
+  const selected = selectedId ? [...REGIONS.front, ...REGIONS.back].find((r) => r.id === selectedId) : null
+  const selectedEffect = selected ? effects[selected.id] : null
+  const sideLabels = view === 'front' ? ['Right', 'Left'] : ['Left', 'Right']
+
+  return (
+    <div>
+      <div className="flex rounded-xl border border-line bg-panel p-1" role="group" aria-label="Body view">
+        {['front', 'back'].map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => setView(option)}
+            aria-pressed={view === option}
+            className={`flex-1 rounded-lg py-2 text-sm font-semibold capitalize ${
+              view === option ? 'bg-gold text-ink' : 'text-muted hover:text-white'
+            }`}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+
+      <svg
+        viewBox="0 0 200 352"
+        className="mx-auto mt-6 block w-full max-w-[280px]"
+        role="group"
+        aria-label={`Body, ${view} view`}
+      >
+        {REGIONS[view].map((region) => {
+          const effect = effects[region.id]
+          const isSelected = region.id === selectedId
+          const select = () => setSelectedId(isSelected ? null : region.id)
+          return (
+            <Shape
+              key={`${view}-${region.id}`}
+              shape={region.shape}
+              role="button"
+              tabIndex={0}
+              aria-label={`${region.label}${effect ? `, ${TIERS[effect.tier].label.toLowerCase()}` : ''}`}
+              aria-pressed={isSelected}
+              onClick={select}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  select()
+                }
+              }}
+              fill={effect ? TIERS[effect.tier].fill : BASE_FILL}
+              fillOpacity={effect ? 0.9 : 1}
+              stroke={isSelected ? '#ffffff' : '#3a3a3a'}
+              strokeWidth={isSelected ? 2.5 : 1}
+              className="cursor-pointer outline-none transition-[fill] duration-300 focus-visible:stroke-[#e3c565]"
+            />
+          )
+        })}
+        <text x="20" y="348" fill="#9a9a9a" fontSize="9" fontWeight="600" letterSpacing="1">
+          {sideLabels[0].toUpperCase()}
+        </text>
+        <text x="180" y="348" fill="#9a9a9a" fontSize="9" fontWeight="600" letterSpacing="1" textAnchor="end">
+          {sideLabels[1].toUpperCase()}
+        </text>
+      </svg>
+
+      <div className="mt-4 flex justify-center gap-4 text-xs text-muted">
+        {Object.entries(TIERS).map(([key, { label }]) => (
+          <span key={key} className="flex items-center gap-2">
+            <TierDot tier={key} />
+            {label}
+          </span>
+        ))}
+      </div>
+
+      {selected && (
+        <section className="mt-6 rounded-2xl border border-line bg-panel p-5" aria-live="polite">
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="font-display text-2xl font-semibold">{selected.label}</h2>
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              className="text-sm font-semibold text-muted hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+          {selectedEffect ? (
+            <ul className="mt-3 space-y-3">
+              {[...selectedEffect.reasons]
+                .sort((a, b) => TIERS[b.tier].rank - TIERS[a.tier].rank)
+                .map((reason, index) => (
+                  <li key={index} className="flex gap-3">
+                    <TierDot tier={reason.tier} size="mt-1.5 h-2.5 w-2.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {TIERS[reason.tier].label} · {reason.injuryLabel}
+                      </p>
+                      <p className="mt-0.5 text-sm leading-relaxed text-neutral-300">{reason.note}</p>
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-neutral-300">Not affected by any injury on your map.</p>
+          )}
+        </section>
+      )}
+
+      <section className="mt-8">
+        <h2 className="font-display text-3xl font-bold uppercase">Your injuries</h2>
+        {status === 'loading' ? (
+          <p className="mt-2 text-muted">Loading your injuries…</p>
+        ) : status === 'error' ? (
+          <div className="mt-2">
+            <p className="text-red-400">Couldn't load your injuries. Check your connection.</p>
+            <button
+              type="button"
+              onClick={() => setStatus('loading')}
+              className="mt-3 rounded-xl border border-line px-4 py-2 text-sm font-semibold text-white hover:border-gold"
+            >
+              Try again
+            </button>
+          </div>
+        ) : injuries.length === 0 ? (
+          <p className="mt-2 text-neutral-300">
+            Add an injury and the map lights up the areas it affects, coloured by how much they change your training.
+          </p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {injuries.map((entry) => {
+              const injury = injuryById(entry.injuryId)
+              return (
+                <li
+                  key={entry.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-line bg-panel px-4 py-3"
+                >
+                  <div>
+                    <p className="font-semibold text-white">{injury.name}</p>
+                    {entry.side && <p className="text-sm text-muted">{sideName(entry.side)} side</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeInjury(entry)}
+                    className="rounded-lg px-3 py-2 text-sm font-semibold text-muted hover:text-red-400"
+                    aria-label={`Remove ${injury.name}`}
+                  >
+                    Remove
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        {saveError && (
+          <p role="alert" className="mt-3 text-sm text-red-400">
+            {saveError}
+          </p>
+        )}
+        {status === 'ready' && <AddInjury injuries={injuries} onAdd={addInjury} />}
+      </section>
+
+      <p className="mt-6 text-xs text-muted">Saved to your account, so it's the same on every device.</p>
+    </div>
+  )
+}
