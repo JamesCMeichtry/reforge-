@@ -157,3 +157,47 @@ nav button[aria-current='page'] svg {
     transform: none;
   }
 }
+/* Pain sliders: a gold track that fills as the score rises, with a large thumb for thumbs */
+.pain-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 2.25rem;
+  background: transparent;
+  touch-action: pan-y;
+}
+
+.pain-slider::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #c9a227 var(--fill, 0%), #262626 var(--fill, 0%));
+}
+
+.pain-slider::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #c9a227 var(--fill, 0%), #262626 var(--fill, 0%));
+}
+
+.pain-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 1.75rem;
+  width: 1.75rem;
+  margin-top: -0.625rem;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 3px solid #c9a227;
+}
+
+.pain-slider::-moz-range-thumb {
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 3px solid #c9a227;
+}
+
+.pain-slider:focus-visible {
+  outline: 2px solid #c9a227;
+  outline-offset: 4px;
+  border-radius: 9999px;
+}
