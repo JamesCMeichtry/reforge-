@@ -80,7 +80,7 @@ function StrengthChart({ history }) {
                 className="bar-grow w-full max-w-9 rounded-t-md"
                 style={{
                   height: `${Math.max(6, ((s.weight - floor) / (best - floor || 1)) * 100)}%`,
-                  backgroundColor: isBest ? '#c9a227' : '#5c4d1c',
+                  backgroundColor: isBest ? 'var(--color-gold)' : 'var(--chart-dim)',
                 }}
               />
               <span className="w-full truncate text-center text-[10px] text-muted">{tinyDate(s.date)}</span>
@@ -96,10 +96,7 @@ function StrengthChart({ history }) {
 }
 
 function RehabStreak({ history, rehabExercises }) {
-  const { current, best, rehabDates } = useMemo(
-    () => rehabStreak(history, rehabExercises),
-    [history, rehabExercises],
-  )
+  const { current, best, rehabDates } = useMemo(() => rehabStreak(history, rehabExercises), [history, rehabExercises])
   const weeks = recentWeeks(12)
   const today = todayDate()
   const trainedDates = new Set(history.map((r) => r.session_date))
@@ -123,12 +120,12 @@ function RehabStreak({ history, rehabExercises }) {
                 className={`aspect-square w-full rounded-[3px] ${date === today ? 'ring-1 ring-white/70' : ''}`}
                 style={{
                   backgroundColor: rehabDates.has(date)
-                    ? '#c9a227'
+                    ? 'var(--color-gold)'
                     : trainedDates.has(date)
-                      ? '#5c4d1c'
+                      ? 'var(--chart-dim)'
                       : date > today
                         ? 'transparent'
-                        : '#1a1a1a',
+                        : 'var(--chart-empty)',
                 }}
               />
             ))}
@@ -140,7 +137,8 @@ function RehabStreak({ history, rehabExercises }) {
           <span className="h-2.5 w-2.5 rounded-[3px] bg-gold" /> Rehab done
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-[3px] bg-[#5c4d1c]" /> Trained, rehab skipped
+          <span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: 'var(--chart-dim)' }} /> Trained, rehab
+          skipped
         </span>
       </div>
     </Card>
@@ -185,10 +183,10 @@ function FeelingChart({ checkIns }) {
               x2={W - pad.r}
               y1={y(v)}
               y2={y(v)}
-              stroke="#262626"
+              style={{ stroke: 'var(--chart-grid)' }}
               strokeDasharray={v === 5 ? '3 3' : undefined}
             />
-            <text x={pad.l - 6} y={y(v) + 3} fill="#9a9a9a" fontSize="9" textAnchor="end">
+            <text x={pad.l - 6} y={y(v) + 3} style={{ fill: 'var(--color-muted)' }} fontSize="9" textAnchor="end">
               {v}
             </text>
           </g>
@@ -206,10 +204,10 @@ function FeelingChart({ checkIns }) {
         {points.map((p, i) => (
           <circle key={p.date} cx={x(i)} cy={y(p.feeling)} r={p.flag ? 4 : 2.5} fill={p.flag ? '#dc2626' : '#c9a227'} />
         ))}
-        <text x={pad.l} y={H - 6} fill="#9a9a9a" fontSize="9">
+        <text x={pad.l} y={H - 6} style={{ fill: 'var(--color-muted)' }} fontSize="9">
           {shortDate(points[0].date)}
         </text>
-        <text x={W - pad.r} y={H - 6} fill="#9a9a9a" fontSize="9" textAnchor="end">
+        <text x={W - pad.r} y={H - 6} style={{ fill: 'var(--color-muted)' }} fontSize="9" textAnchor="end">
           {shortDate(points.at(-1).date)}
         </text>
       </svg>
