@@ -2,30 +2,29 @@ import { useState } from 'react'
 import { useAuth } from './auth/AuthProvider.jsx'
 import { supabase } from './lib/supabase.js'
 import BodyMap from './components/BodyMap.jsx'
-import MuscleMap from './components/MuscleMap.jsx'
+import LivingMap from './components/LivingMap.jsx'
 import { Panel, ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
 import RehabScreen from './screens/RehabScreen.jsx'
 import ProgressScreen from './screens/ProgressScreen.jsx'
 
-
 function BodyMapScreen() {
-  const [mode, setMode] = useState('injuries')
+  const [mode, setMode] = useState('living')
   return (
     <>
       <ScreenHeader
         title="Body map"
         intro={
-          mode === 'injuries'
-            ? 'Add your injuries and see every area they affect.'
-            : 'Every muscle head, and which exercises in your plan train it.'
+          mode === 'living'
+            ? 'Injuries and strength on one body, updated as you train.'
+            : 'Add your injuries and see every area they affect.'
         }
       />
       <div className="mb-4 flex gap-2" role="group" aria-label="Map mode">
         {[
-          ['injuries', 'Injuries'],
-          ['muscles', 'Muscles'],
+          ['living', 'Living map'],
+          ['injuries', 'Edit injuries'],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -40,7 +39,7 @@ function BodyMapScreen() {
           </button>
         ))}
       </div>
-      {mode === 'injuries' ? <BodyMap /> : <MuscleMap />}
+      {mode === 'living' ? <LivingMap /> : <BodyMap />}
     </>
   )
 }
