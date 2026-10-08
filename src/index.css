@@ -237,3 +237,24 @@ nav button[aria-current='page'] svg {
     stroke-dasharray: none;
   }
 }
+/* Living body map: a flaring injury pulses */
+@keyframes flare-pulse {
+  0%,
+  100% {
+    fill-opacity: 0.92;
+  }
+  50% {
+    fill-opacity: 0.45;
+  }
+}
+
+.flare-pulse {
+  animation: flare-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flare-pulse {
+    animation: none;
+  }
+}
+
