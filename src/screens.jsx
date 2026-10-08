@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useAuth } from './auth/AuthProvider.jsx'
 import { supabase } from './lib/supabase.js'
-import BodyMap from './components/BodyMap.jsx'
+import InjuryEditor from './components/InjuryEditor.jsx'
 import LivingMap from './components/LivingMap.jsx'
+import ThemeToggle from './components/ThemeToggle.jsx'
 import { Panel, ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
@@ -18,7 +19,7 @@ function BodyMapScreen() {
         intro={
           mode === 'living'
             ? 'Injuries and strength on one body, updated as you train.'
-            : 'Add your injuries and see every area they affect.'
+            : 'Add or remove injuries. Each one lights up every area it affects.'
         }
       />
       <div className="mb-4 flex gap-2" role="group" aria-label="Map mode">
@@ -39,7 +40,7 @@ function BodyMapScreen() {
           </button>
         ))}
       </div>
-      {mode === 'living' ? <LivingMap /> : <BodyMap />}
+      {mode === 'living' ? <LivingMap /> : <InjuryEditor />}
     </>
   )
 }
@@ -78,6 +79,7 @@ function ProfileScreen() {
       <ScreenHeader title="Profile" intro="Your goals, settings and professional connection." />
       <div className="space-y-4">
         <AccountPanel />
+        <ThemeToggle />
         <Panel heading="Connect a professional" note="Coming soon">
           Share a code with your physio or PT so they can see your programme, progress and rehab.
         </Panel>
