@@ -257,4 +257,62 @@ nav button[aria-current='page'] svg {
     animation: none;
   }
 }
+/* Body figure colours, per theme */
+:root {
+  --fig-body: #0c0c0c;
+  --fig-outline: #2a2a2a;
+  --fig-muscle: #222222;
+  --fig-joint: #141414;
+  --fig-edge: #3a3a3a;
+  --fig-tendon: #8c8574;
+  --fig-selected: #ffffff;
+  --chart-empty: #1a1a1a;
+  --chart-dim: #5c4d1c;
+  --chart-grid: #262626;
+}
+
+/* Light theme: Tailwind colours are CSS variables, so swapping them re-themes the whole app */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-ink: #f4f1ea;
+  --color-panel: #ffffff;
+  --color-line: #e2ddd1;
+  --color-muted: #6b665c;
+  --color-gold: #9a7709;
+  --color-gold-light: #b58e12;
+  --color-white: #151515;
+  --color-neutral-200: #2a2824;
+  --color-neutral-300: #3b3832;
+  --color-neutral-600: #a19c90;
+  --color-red-300: #b42318;
+  --color-red-400: #c0261b;
+  --color-red-950: #fdecea;
+
+  --fig-body: #ebe6da;
+  --fig-outline: #cfc8b8;
+  --fig-muscle: #d8d1c2;
+  --fig-joint: #e3ddd0;
+  --fig-edge: #bdb5a4;
+  --fig-tendon: #a39a85;
+  --fig-selected: #151515;
+  --chart-empty: #e6e1d5;
+  --chart-dim: #dccb92;
+  --chart-grid: #ddd6c8;
+}
+
+:root[data-theme='light'],
+:root[data-theme='light'] body {
+  background-color: #f4f1ea;
+  color: #151515;
+}
+
+/* Text on gold buttons stays dark in both themes */
+:root[data-theme='light'] .text-ink {
+  color: #111111;
+}
+
+/* Soften the shadows and glows that only make sense on black */
+:root[data-theme='light'] .shadow-2xl {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
 
