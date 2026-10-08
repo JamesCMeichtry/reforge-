@@ -201,3 +201,39 @@ nav button[aria-current='page'] svg {
   outline-offset: 4px;
   border-radius: 9999px;
 }
+/* Progress charts: bars grow up and the feeling line draws itself */
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.bar-grow {
+  transform-origin: bottom;
+  animation: bar-grow 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes draw-line {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.draw-line {
+  stroke-dasharray: 1000;
+  animation: draw-line 1200ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-grow,
+  .draw-line {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
