@@ -7,6 +7,8 @@ import { Panel, ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
 import RehabScreen from './screens/RehabScreen.jsx'
+import ProgressScreen from './screens/ProgressScreen.jsx'
+
 
 function BodyMapScreen() {
   const [mode, setMode] = useState('injuries')
@@ -39,17 +41,6 @@ function BodyMapScreen() {
         ))}
       </div>
       {mode === 'injuries' ? <BodyMap /> : <MuscleMap />}
-    </>
-  )
-}
-
-function ProgressScreen() {
-  return (
-    <>
-      <ScreenHeader title="Progress" intro="Strength, volume and consistency over time." />
-      <Panel heading="Nothing to chart yet" note="Coming soon">
-        Every set you log is already being saved. Strength charts, your training calendar and milestones build from it.
-      </Panel>
     </>
   )
 }
