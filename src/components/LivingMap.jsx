@@ -35,12 +35,57 @@ function shapesFor(view) {
   const rightOfScreen = view === 'front' ? 'left' : 'right'
   const build = (item, kind) =>
     item.central
-      ? [{ ...item, kind, key: item.id, side: null, d: item.ellipse ? null : smooth(item.points) }]
+      ? [{ ...item, kind, key: item.id, side: null, d: item.ellipse ? null : smooth(item.points), pts: null }]
       : [
-          { ...item, kind, key: shapeKey(item.id, leftOfScreen), side: leftOfScreen, d: smooth(item.points) },
-          { ...item, kind, key: shapeKey(item.id, rightOfScreen), side: rightOfScreen, d: smooth(mirror(item.points)) },
+          {
+            ...item,
+            kind,
+            key: shapeKey(item.id, leftOfScreen),
+            side: leftOfScreen,
+            d: smooth(item.points),
+            pts: item.points,
+          },
+          {
+            ...item,
+            kind,
+            key: shapeKey(item.id, rightOfScreen),
+            side: rightOfScreen,
+            d: smooth(mirror(item.points)),
+            pts: mirror(item.points),
+          },
         ]
   return [...JOINTS.flatMap((j) => build(j, 'joint')), ...MUSCLES[view].flatMap((m) => build(m, 'muscle'))]
+}
+
+// Tendons: a fine line off each end of the limb muscles, following the muscle's direction
+const TENDONS = {
+  'biceps-long': [3, 5],
+  'biceps-short': [3, 5],
+  'triceps-long': [3, 4],
+  'triceps-lateral': [3, 4],
+  'forearm-flexors': [2, 5],
+  'forearm-extensors': [2, 5],
+  'quad-outer': [3, 5],
+  'quad-front': [3, 6],
+  'quad-inner': [0, 4],
+  'hamstring-outer': [3, 5],
+  'hamstring-inner': [3, 5],
+  'calf-outer': [3, 0],
+  'calf-inner': [3, 0],
+  soleus: [0, 7],
+  tibialis: [3, 6],
+}
+
+function tendonsFor(id, points) {
+  const reach = TENDONS[id]
+  if (!reach) return []
+  const top = points.reduce((a, b) => (b[1] < a[1] ? b : a))
+  const bottom = points.reduce((a, b) => (b[1] > a[1] ? b : a))
+  const length = Math.hypot(bottom[0] - top[0], bottom[1] - top[1])
+  const [dx, dy] = [(bottom[0] - top[0]) / length, (bottom[1] - top[1]) / length]
+  const line = (p, sign, r) =>
+    `M${p[0]},${p[1]} L${(p[0] + dx * r * sign).toFixed(1)},${(p[1] + dy * r * sign).toFixed(1)}`
+  return [reach[0] && line(top, -1, reach[0]), reach[1] && line(bottom, 1, reach[1])].filter(Boolean)
 }
 
 const SHAPES = { front: shapesFor('front'), back: shapesFor('back') }
@@ -207,7 +252,7 @@ export default function LivingMap() {
             />
           </linearGradient>
         </defs>
-        <path d={OUTLINE_PATH} fill="#0c0c0c" stroke="#2a2a2a" strokeWidth="1" />
+        <path d={OUTLINE_PATH} style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }} strokeWidth="1" />
         {SHAPES[view].map((shape) => {
           const shown = display[shape.key] ?? { level: 'neutral' }
           const level = shown.level
@@ -218,9 +263,14 @@ export default function LivingMap() {
               ? 'url(#elite-shine)'
               : level === 'neutral'
                 ? shape.kind === 'joint'
-                  ? '#141414'
-                  : '#222222'
+                  ? 'var(--fig-joint)'
+                  : 'var(--fig-muscle)'
                 : LEVELS[level].fill
+          const stroke = isSelected
+            ? 'var(--fig-selected)'
+            : level === 'neutral'
+              ? 'var(--fig-edge)'
+              : 'var(--fig-body)'
           const select = () => setSelected(isSelected ? null : shape.key)
           const props = {
             role: 'button',
@@ -234,15 +284,8 @@ export default function LivingMap() {
                 select()
               }
             },
-            fill,
+            style: { fill, stroke },
             fillOpacity: level === 'neutral' ? 1 : 0.92,
-            stroke: isSelected
-              ? '#ffffff'
-              : level === 'neutral'
-                ? shape.kind === 'joint'
-                  ? '#2c2c2c'
-                  : '#3a3a3a'
-                : '#0c0c0c',
             strokeWidth: isSelected ? 2 : 0.8,
             filter: level === 'strong' || level === 'elite' ? 'url(#glow-strong)' : undefined,
             className: `cursor-pointer outline-none transition-[fill,fill-opacity] duration-500 focus-visible:stroke-[#e3c565] ${
@@ -253,15 +296,41 @@ export default function LivingMap() {
             <g key={`${view}-${shape.key}`}>
               {shape.ellipse ? <ellipse {...shape.ellipse} {...props} /> : <path d={shape.d} {...props} />}
               {shape.lines?.map(([from, to], i) => (
-                <path key={i} d={`M${from} L${to}`} stroke="#0c0c0c" strokeWidth="1.2" pointerEvents="none" />
+                <path
+                  key={i}
+                  d={`M${from} L${to}`}
+                  style={{ stroke: 'var(--fig-body)' }}
+                  strokeWidth="1.2"
+                  pointerEvents="none"
+                />
               ))}
+              {shape.kind === 'muscle' &&
+                shape.pts &&
+                tendonsFor(shape.id, shape.pts).map((d, i) => (
+                  <path
+                    key={`t${i}`}
+                    d={d}
+                    style={{ stroke: 'var(--fig-tendon)' }}
+                    strokeWidth="1.1"
+                    strokeLinecap="round"
+                    pointerEvents="none"
+                  />
+                ))}
             </g>
           )
         })}
-        <text x="30" y="398" fill="#9a9a9a" fontSize="8" fontWeight="600" letterSpacing="1">
+        <text x="30" y="398" style={{ fill: 'var(--color-muted)' }} fontSize="8" fontWeight="600" letterSpacing="1">
           {sideLabels[0].toUpperCase()}
         </text>
-        <text x="170" y="398" fill="#9a9a9a" fontSize="8" fontWeight="600" letterSpacing="1" textAnchor="end">
+        <text
+          x="170"
+          y="398"
+          style={{ fill: 'var(--color-muted)' }}
+          fontSize="8"
+          fontWeight="600"
+          letterSpacing="1"
+          textAnchor="end"
+        >
           {sideLabels[1].toUpperCase()}
         </text>
       </svg>
@@ -269,7 +338,11 @@ export default function LivingMap() {
       <div className="mt-5" aria-label="Scale">
         <div className="flex h-2 overflow-hidden rounded-full">
           {Object.entries(LEVELS).map(([key, { fill }]) => (
-            <span key={key} className="flex-1" style={{ backgroundColor: key === 'neutral' ? '#333333' : fill }} />
+            <span
+              key={key}
+              className="flex-1"
+              style={{ backgroundColor: key === 'neutral' ? 'var(--fig-muscle)' : fill }}
+            />
           ))}
         </div>
         <div className="mt-2 grid grid-cols-7 text-center text-[10px] leading-tight text-muted">
@@ -323,7 +396,7 @@ function AreaPanel({ shape, shown, injury, strength, programme, onClose }) {
           <h2 className="font-display text-2xl font-semibold leading-tight">{labelOf(shape)}</h2>
           <p
             className="mt-1 text-sm font-semibold"
-            style={{ color: level === 'neutral' ? '#9a9a9a' : LEVELS[level].fill }}
+            style={{ color: level === 'neutral' ? 'var(--color-muted)' : LEVELS[level].fill }}
           >
             {LEVELS[level].label}
           </p>
