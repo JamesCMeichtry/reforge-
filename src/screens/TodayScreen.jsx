@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LoadingCards, ScreenHeader, buttonPrimary } from '../components/ui.jsx'
 import MorningCheck from '../components/MorningCheck.jsx'
+import StreakCard from '../components/StreakCard.jsx'
 import {
   currentWeek,
   daysAgo,
@@ -83,6 +84,7 @@ export default function TodayScreen() {
     <>
       <ScreenHeader title="Today" intro={`${greeting()}. ${date}.`} />
       <div className="space-y-4">
+        <StreakCard />
         <MorningCheck />
         {state.status === 'loading' && <LoadingCards count={2} height="h-36" label="Loading today" />}
         {state.status === 'error' && (
