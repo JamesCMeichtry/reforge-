@@ -24,6 +24,7 @@ const FILLS = {
 }
 const tone = (level) => (level === 'watch' ? 'var(--lvl-watch-text)' : FILLS[level])
 const STRENGTH_ORDER = ['neutral', 'building', 'strong', 'elite']
+const ORDER = ['injured', 'affected', 'watch', 'neutral', 'building', 'strong', 'elite']
 
 // Smooth closed outline through a list of points
 function smooth(points, tension = 0.5) {
@@ -178,6 +179,10 @@ export default function LivingMap() {
   const [selected, setSelected] = useState(null)
   const [levelUps, setLevelUps] = useState([])
   const [figureStyle, setFigureStyle] = useState(readStyle)
+  // Testing only: preview colours without real data
+  const [testing, setTesting] = useState(false)
+  const [testAll, setTestAll] = useState(null)
+  const [testOverrides, setTestOverrides] = useState({})
   const figure = FIGURES[figureStyle]
   const chooseStyle = (next) => {
     setFigureStyle(next)
@@ -213,9 +218,13 @@ export default function LivingMap() {
     const out = {}
     for (const shape of ALL_SHAPES) {
       out[shape.key] = combine(state.injuries[shape.key], shape.kind === 'muscle' ? state.strength[shape.id] : null)
+      if (testing) {
+        if (testAll) out[shape.key] = { level: testAll }
+        if (testOverrides[shape.key]) out[shape.key] = { level: testOverrides[shape.key] }
+      }
     }
     return out
-  }, [state])
+  }, [state, testing, testAll, testOverrides])
 
   // Celebrate muscles that reached a higher strength level since the last visit
   useEffect(() => {
@@ -265,6 +274,15 @@ export default function LivingMap() {
       (entry) => entry.side === shape.side && STRUCTURES[entry.id].shape === shape.id,
     )
   const sideLabels = view === 'front' ? ['Right', 'Left'] : ['Left', 'Right']
+  const testLevel = selectedShape ? (display[selectedShape.key]?.level ?? 'neutral') : (testAll ?? 'neutral')
+  const stepTest = (direction) => {
+    const next = ORDER[Math.min(ORDER.length - 1, Math.max(0, ORDER.indexOf(testLevel) + direction))]
+    if (selectedShape) setTestOverrides((current) => ({ ...current, [selectedShape.key]: next }))
+    else {
+      setTestAll(next)
+      setTestOverrides({})
+    }
+  }
 
   return (
     <div>
@@ -508,6 +526,51 @@ export default function LivingMap() {
         </div>
       </div>
 
+      {testing && (
+        <div className="mt-4 rounded-2xl border border-dashed border-gold/60 p-3">
+          <p className="text-center text-[11px] font-bold uppercase tracking-[0.2em] text-gold">Testing only</p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => stepTest(-1)}
+              aria-label="Lower level"
+              className="h-11 w-11 shrink-0 rounded-xl border border-line text-2xl font-bold text-white"
+            >
+              −
+            </button>
+            <div className="min-w-0 text-center">
+              <p className="truncate text-sm font-semibold text-white">
+                {selectedShape ? labelOf(selectedShape) : 'Whole body'}
+              </p>
+              <p className="text-sm font-semibold" style={{ color: testLevel === 'neutral' ? 'var(--color-muted)' : tone(testLevel) }}>
+                {LEVELS[testLevel].label}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => stepTest(1)}
+              aria-label="Raise level"
+              className="h-11 w-11 shrink-0 rounded-xl border border-line text-2xl font-bold text-white"
+            >
+              +
+            </button>
+          </div>
+          <p className="mt-2 text-center text-xs text-muted">
+            Tap an area to change just that one, or tap it again to go back to the whole body.{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setTestAll(null)
+                setTestOverrides({})
+              }}
+              className="font-semibold text-gold"
+            >
+              Reset
+            </button>
+          </p>
+        </div>
+      )}
+
       <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted" role="group" aria-label="Figure style">
         <span>Figure</span>
         {['detailed', 'classic'].map((option) => (
@@ -523,6 +586,20 @@ export default function LivingMap() {
             {option}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => {
+            setTesting((on) => !on)
+            setTestAll(null)
+            setTestOverrides({})
+          }}
+          aria-pressed={testing}
+          className={`rounded-full border border-dashed px-3 py-1 font-semibold ${
+            testing ? 'border-gold text-gold' : 'border-line text-muted'
+          }`}
+        >
+          Test colours
+        </button>
       </div>
 
       {selectedShape && (
