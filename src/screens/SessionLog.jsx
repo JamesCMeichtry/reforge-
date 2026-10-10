@@ -43,13 +43,13 @@ function RestTimer({ endsAt, total, onAdd, onSkip }) {
       <div className="slide-up mx-auto flex max-w-xl items-center gap-3 overflow-hidden rounded-2xl border border-line bg-panel/95 p-3 shadow-2xl backdrop-blur">
         <div className="relative h-11 w-11 shrink-0">
           <svg viewBox="0 0 44 44" className="h-11 w-11 -rotate-90" aria-hidden="true">
-            <circle cx="22" cy="22" r="19" fill="none" stroke="#262626" strokeWidth="4" />
+            <circle cx="22" cy="22" r="19" fill="none" style={{ stroke: 'var(--color-line)' }} strokeWidth="4" />
             <circle
               cx="22"
               cy="22"
               r="19"
               fill="none"
-              stroke="#c9a227"
+              style={{ stroke: 'var(--color-gold)' }}
               strokeWidth="4"
               strokeLinecap="round"
               strokeDasharray={119.4}
