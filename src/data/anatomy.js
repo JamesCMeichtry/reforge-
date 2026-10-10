@@ -73,4 +73,216 @@ export const FIGURE = {
       ['adductors', 'muscle', 0, '91.9,186.6 90.6,186.3 89.6,186.5 88.7,187.4 88.5,188.6 90.2,198.9 91.7,213.5 92.8,219.8 94.1,225.1 95,226 96.2,226.3 97.6,225.7 98.3,224.4 99,191.8 98.7,190.7 98.1,190.1'],
       ['quad-outer', 'muscle', 0, '71.2,178.8 69.8,179.2 69,180.2 68.6,184.7 68.4,193.8 69.2,214.1 70.8,233.9 73.9,258.8 74.8,260.2 76.2,260.6 82,258.7 83,257.9 83.3,256.7 78.8,224.1 76.8,200 76.8,180.3 76.2,179.2 75.1,178.5'],
       ['quad-front', 'muscle', 0, '81.6,179.8 80.5,179.6 79.5,179.9 78.8,180.6 78.4,181.4 78.4,200.1 80.4,223.9 83.4,245.9 84.1,247.2 85.6,247.8 86.8,247.4 87.6,246.4 88.8,240 90,220.1 89.9,211.9 88.6,199.1 86,183.2 85.2,181.9'],
-      ['quad-inner', 'muscle', 0, '87.6,256.4 87.7,257.6 88.6,258.6 94.3,260.4 96,260.1 97,258.8 98,235.7 97.6,234.7 95.9,233.1 94.6,
+      ['quad-inner', 'muscle', 0, '87.6,256.4 87.7,257.6 88.6,258.6 94.3,260.4 96,260.1 97,258.8 98,235.7 97.6,234.7 95.9,233.1 94.6,231.4 93.6,230.7 91.9,231 90.9,232.3 90.4,240.1'],
+      ['tibialis', 'muscle', 0, '80,289.5 77,287.9 75.9,288.1 75.1,288.8 74.7,289.8 73.4,300.1 73.3,316.1 74.4,329 76.6,342.4 77.8,347.2 78.6,348 79.8,348.3 81,347.8 81.8,346.8 82.4,340 83.8,292.3 83.5,291.3 82.7,290.5'],
+      ['calf-inner', 'muscle', 0, '89.9,289.9 87.5,290.7 86.9,291.5 86.7,294.1 87.8,327.3 88.7,334 89.6,335.2 90.9,335.5 91.9,335.2 92.6,334.4 94,330.6 95.4,306 95.9,290.1 95.1,288.6 93.6,288'],
+    ],
+  },
+  back: {
+    outline: '37.3,215.4 37.7,215.4 39.9,213.1 40.5,213 41,215.3 42.3,228.3 43,230.3 44.3,232.5 45.5,234 46.5,234.4 48.8,234.7 50.5,234.5 51.7,233.1 53,230.9 53.5,229.5 53.8,227.7 54.6,218.9 55,209.3 54.8,194 56.5,178.5 59,150 60.5,138.8 62.9,115.2 63.7,108.6 64.8,103.3 66.1,100.4 67,99.5 68.3,102 69.8,107 71,116.8 71.4,124 71.6,131.2 71.1,142 71.6,154 70.4,164.8 68.3,178 67.7,188.6 67.7,196.1 68.3,212 69.6,229.1 70.3,236.2 73,257.7 74.2,273.1 74.5,284 72.6,300 72.5,316.1 73.2,324.9 74.5,337 78.4,358.1 78.4,361.5 77.5,371 77.6,376.7 78,382 79.3,386.3 80.6,389.4 81.5,390.5 83.9,392 86.4,392.9 87.6,392.9 90.7,391.3 92.5,389.5 93.5,386.4 94.5,380 94.4,375.1 93.1,360.1 93,356.7 95,328 96.2,306 97.5,265.9 98.7,240 100,189.1 101.3,240 102.5,265.9 103.8,306 105,328 107,356.7 106.9,360.1 105.6,375.1 105.5,380 106.5,386.4 107.2,388.7 107.9,390.1 110.1,391.8 112.4,392.9 113.6,392.9 115.2,392.4 117.8,391 119.4,389.4 120.7,386.3 122,382 122.4,376.7 122.5,371 121.6,361.5 121.6,358.1 125.5,337 127.4,318 127.6,308.9 127.4,300 125.6,285.5 125.5,278.9 126.8,259.5 129.7,236.2 130.7,226.1 131.8,209.9 132.4,192 131.7,178 129.6,164.8 128.4,154 128.9,142 128.4,127.3 128.9,118 130.2,107 131.7,102 133,99.5 133.9,100.4 135.2,103.3 136.3,108.6 137.1,115.2 139.5,138.8 141,150 143.5,178.5 145.2,194 145,209.3 145.4,218.9 146.2,227.7 146.5,229.5 147,230.9 148.3,233.1 149.5,234.5 151.2,234.7 153.5,234.4 154.5,234 155.7,232.5 157,230.3 157.7,228.3 159,215.3 159.5,213 160.1,213.1 162.5,215.5 163.1,214.8 163.5,212.9 163,210.8 161.5,207.5 158,203 157.1,199.8 156.7,196.9 156.7,193.6 157.4,184 157.1,168.7 156.4,157 155.2,146 154.4,136 153.1,96.3 151.9,85.2 150.9,80.4 148.5,73.6 146.2,70.4 143.5,67.6 140.1,65.8 136,64.2 124,61 115.9,58 114,57 112.6,55.8 110.1,52.6 109.4,51 109.3,50 109.9,43.1 112,40.8 113,39.2 115,33.5 115.5,33 116.8,32.8 117.2,32.1 118.6,28.2 118.7,25.3 118.2,22 117.8,21.5 116.6,21.2 116,20.5 114.7,14.5 114,12.5 112.3,10.1 110.9,8.7 109.4,7.5 107.6,6.6 103.3,5.7 97.8,5.6 93.4,6.3 90.6,7.5 88.3,9.3 86.5,11.7 85.3,14.5 84,20.5 83.4,21.2 82.2,21.5 81.8,22 81.4,23.8 81.2,26.8 81.6,28.9 82.2,30.9 83.2,32.8 84.5,33 85,33.5 87,39.2 88,40.8 90.1,43.1 90.7,50 90.6,51 89.9,52.6 88.7,54.3 86,57 82.8,58.6 76,61 64,64.2 59.9,65.8 57.1,67.2 55.2,68.8 52.5,72.1 51.1,74.4 49.8,77.8 48.3,83.7 47,95 46.4,106.7 46.2,122 45.6,136 44.8,146 43.6,157 42.9,167 42.6,184 43.3,193.6 43.3,196.9 42.9,199.8 42,203 38.5,207.5 36.8,211.5 36.5,213.4',
+    shapes: [
+      ['head', 'joint', 1, '84.7,20.8 82.7,22.7 82.2,23.7 82,26.7 82.4,28.7 83.4,31.4 85.7,33.1 88.1,39.5 90.5,42.4 92.7,44.4 95.8,46.1 98.5,47 100.9,47.1 103.4,46.5 106.6,44.8 109.4,42.5 112.2,38.9 114.3,33.1 116.8,31.1 117.8,28 117.7,23.5 117.2,22.5 116.1,21.9 115.3,20.8 113.9,14.6 112.9,12.2 111.1,10 109,8.2 107.2,7.3 104.4,6.6 100,6.3 95.7,6.6 92.8,7.3 90.4,8.6 88.3,10.5 86.7,13 86,14.8'],
+      ['wrist-and-hand', 'joint', 0, '38.6,209 38.4,210.1 38.7,211.1 39.5,211.8 41,212.4 41.4,213.2 43,227.2 43.7,229.9 46,233.3 48,233.9 49.9,233.7 51,232.7 52.3,230.5 53.2,226.3 54.2,208 54,199.9 53.6,198.7 52.8,198 51.9,197.8 45.7,198.1 44.6,198.5 43.8,199.5 42.4,203.9 39.4,207.6'],
+      ['elbow', 'joint', 0, '45.6,146.2 45.8,147.3 46.6,148.4 48.5,149.5 53.1,149.8 56.6,149 57.9,148 58.6,146.8 59.5,140.6 59.3,139.4 57.9,137.5 55.6,136.6 51,136.4 47.6,137.2 46.7,137.9 46.2,138.9'],
+      ['knee', 'joint', 0, '74.8,265.3 74.6,266.5 75.3,282.6 75.7,283.6 77,285.3 80.8,288.1 82.6,288.7 84.9,288.8 87.6,288.7 89.4,288.3 93.6,285.4 95.7,282.8 96.2,281.4 96.7,266.3 96.1,264.6 94.9,263 93.2,261.6 90.2,260.6 86.7,260.2 82.2,260.4 79.7,260.9 77.8,261.8 76.3,263'],
+      ['ankle-and-foot', 'joint', 0, '81.3,358.7 79.8,359.4 79.2,360.8 78.3,371.1 78.8,381.8 80,386.1 81.6,389.5 84.3,391.3 87.2,392.1 89.6,391.1 91.7,389.3 92.4,387.4 93.2,383.4 93.7,379.9 93.7,376.5 92.3,360.6 91.7,359.5 90.5,358.9 86,358.4'],
+      ['neck', 'joint', 1, '90.9,52.4 90.7,54.1 91.7,55.3 95.1,56.8 98.3,57.4 102.5,57.3 105.5,56.6 108.5,55.2 109.2,54.3 109.4,53.5 108.6,51.1 108.3,48.4 107.5,47.4 106.4,47.1 102.9,48.3 100,48.8 97.1,48.3 94.2,47.2 92.9,47.2 92.2,47.7 91.6,48.6 91.4,51.1'],
+      ['upper-trap', 'muscle', 0, '67.9,63.9 66.7,64.8 66.3,66 66.8,67.5 67.8,68.2 71.5,68.8 82.7,69.4 86.5,70.1 93,72.7 95.6,75 96.6,75.4 98,75.2 99.1,73.9 99.2,61.1 98.9,60 97.9,59 93.8,58.1 90,56.2 88.2,56.2 85.5,58.2 78.7,60.9'],
+      ['rear-delt', 'muscle', 0, '57.5,96.9 57.7,98 58.4,98.8 59.5,99.2 60.6,99 65.3,96 67.5,92.9 69.5,87.1 71,79.8 72,72.4 71.8,71.4 70.9,70.5 62.5,68.6 61.3,68.8 60.4,69.7 58.2,80.1'],
+      ['side-delt', 'muscle', 0, '47.6,97.7 48.7,101.1 49.4,102.2 50.3,102.8 51.3,102.9 52.7,102.4 55,101.2 55.7,100.2 56.6,79.9 58.1,72.6 57.6,71.2 56.5,70.5 55,70.6 53.8,71.7 52.2,74.1 50.6,78.1 49.1,83.9'],
+      ['mid-traps', 'muscle', 0, '85.9,72.4 84.6,72.7 83.6,73.5 83,74.5 82.7,76 82.8,84.8 83.9,90.5 86.2,96.4 88.6,100.5 95.5,107.9 96.6,108.5 97.7,108.4 98.7,107.7 99.2,106.5 99.1,81.2 98.6,80.3 94,75.6 88.6,73.3'],
+      ['infraspinatus', 'muscle', 0, '69.3,92.6 69.3,94.3 70.6,97 72.3,98.6 74.5,99.6 76.1,99.5 78.3,98.5 80.5,96.5 81.6,94.8 82.4,91.5 81.4,86.7 81,81.1 81.1,76 81.7,72.9 81.4,71.9 80.4,71 75.6,70.7 74.6,71.1 73.9,71.9 71.7,84.8'],
+      ['lats', 'muscle', 0, '75.2,101.8 71.7,100.6 70.5,101 69.8,101.8 69.6,102.8 70.8,108.3 72.1,120.6 72.4,130 71.9,140.8 72.1,144.3 73.5,146.8 74.8,148.2 80.2,152.7 85.8,156.3 88.6,157.5 89.9,157.6 91.2,156.5 92.2,153.1 93,141.9 92.9,132.7 92.3,119.8 91.6,112.2 90.9,109.1 89.5,105.5 88,103 86.3,101.1 84.1,99.8 82.3,99.6 78.8,101.7 77,102.2'],
+      ['lower-back', 'muscle', 0, '93.6,154.5 93.6,160.9 94.5,167.1 95.6,169.1 96.6,169.6 97.6,169.5 98.7,168.8 99.2,167.4 99.2,115.1 98.5,113.5 96.9,112 95.7,111.6 94.1,112.2 93.4,113.8 94.3,126.5 94.6,137.1 94.3,148.8'],
+      ['triceps-medial', 'muscle', 0, '46.6,132.8 47,134.2 48.2,135 54.3,134.8 58.3,135.5 59.3,135.2 60,134.4 60.5,131.2 59.7,129.7 57,128.5 48.7,129.3 47.7,129.6 46.9,130.4'],
+      ['triceps-lateral', 'muscle', 0, '46.9,125.4 47.5,127 49,127.7 52.7,127.2 53.6,126.7 54.1,125.7 53.8,106.5 53.3,105.4 52.2,104.7 48.8,104.7 47.8,105.4 47.3,106.3'],
+      ['triceps-long', 'muscle', 0, '56.9,102.3 55.9,103.1 55.4,104.2 55.8,125 56.8,126.6 59.2,127.4 60.5,126.7 61.1,125.4 62.9,109.1 62.4,103.3 61.9,102.1 60.6,101.3 59.6,101.3'],
+      ['forearm-extensors', 'muscle', 0, '44.2,194.4 44.7,195.8 46.3,196.5 52.4,196.1 53.3,195.6 53.9,194.5 55.6,179.9 57.9,153.4 57.5,152 56.3,151.1 50.8,151.4 46.8,150.9 45.6,151.4 44.9,152.4 44.1,161.6 43.5,175 43.4,184'],
+      ['glute-med', 'muscle', 0, '70.2,171 70.3,172 70.7,172.8 71.6,173.4 72.6,173.5 81,171.2 89.2,168.1 91.5,166.7 92.3,165.7 91.8,160.8 90.8,159.7 87.4,158.8 83.7,157 75.7,151.3 74.7,151 73.6,151.3 72.8,152 72.5,152.8 71.8,160.1'],
+      ['glute-max', 'muscle', 0, '71.2,176 70.2,176.9 69.8,178.1 70.1,188.2 70.6,194 71.3,197.4 72.4,200 75.7,205 78.6,207.6 81.2,208.8 83.5,209.4 87.8,209.9 93.5,209.8 96.5,210.3 97.8,209.8 98.6,208.1 99.2,189 99.2,175.6 98.7,174.2 95.5,171.4 93.4,169.2 92,168.7 82.8,172.2 74.4,174.6'],
+      ['hamstring-outer', 'muscle', 0, '75.2,206.9 72,203 70.7,202.8 69.7,203.2 69,204 68.8,205.1 69.1,212 70.8,233.9 73.9,258.6 74.6,260 76.2,260.6 79.4,259.4 82.4,258.6 83.1,258.1 83.6,257.1 83.2,234 83.7,212.7 83.4,211.7 82.6,211 79.6,209.9 76.8,208.3'],
+      ['hamstring-inner', 'muscle', 0, '85.2,256.5 85.6,257.7 86.6,258.5 90.6,259.1 94.5,260.4 96,260.1 97,258.8 97.9,240 98.5,214.2 98,212.8 96.9,212 93.2,211.4 87.2,211.6 86,212.1 85.4,213.2 84.8,234'],
+      ['calf-outer', 'muscle', 0, '80.8,289.9 77.2,287.9 76.1,288.1 75.2,288.7 74.7,289.6 73.4,300.1 73.3,303.1 73.8,310 75.2,319.3 77.4,326.8 80.1,332.6 81.1,333.4 82.2,333.5 83.2,333.2 84,332.2 85.1,326.5 86.2,292.3 85.8,291.3 85,290.6'],
+      ['calf-inner', 'muscle', 0, '92.7,288.2 88.3,290.8 87.9,292 86.9,322.9 87.4,329.8 88,333.9 88.8,335.5 90.4,336.1 91.4,335.8 92.2,335 94,330.7 95.4,306 95.9,290.1 95.3,288.7 93.8,288'],
+      ['soleus', 'muscle', 0, '80,335 77.9,333 76.6,333 75.6,333.8 75.1,335.2 76.9,344 79.1,350.7 81.1,354 83.1,355.7 86.4,356.2 88.4,356.1 89.9,355.6 91.2,354.5 92.4,352.8 93.2,340.9 93,339.7 91.7,338.6 88.9,338.4 86.2,335.3 84.9,335.1 83.2,336 81.5,336.2'],
+    ],
+  },
+}
+
+// Six-pack lines drawn over the abs
+export const ABS_LINES = [
+  [[100, 108.6], [100, 165]],
+  [[85, 120.6], [115, 120.6]],
+  [[84.4, 134.4], [115.6, 134.4]],
+  [[84.8, 148.2], [115.2, 148.2]],
+]
+
+// Fine lines for the neck, fingers and toes
+export const DETAILS = {
+  front: {
+    central: [
+      [[90.5, 39], [94.6, 50.5], [98.2, 59]],
+      [[109.5, 39], [105.4, 50.5], [101.8, 59]],
+    ],
+    sided: [
+      [[45.5, 222], [45.6, 232.5]],
+      [[48.4, 222], [48.5, 233.5]],
+      [[51.2, 222], [51.3, 232.5]],
+      [[79, 387.5], [79.8, 392]],
+      [[83.8, 388.5], [84.2, 393]],
+      [[89, 388.5], [89.4, 392.8]],
+    ],
+  },
+  back: {
+    central: [],
+    sided: [
+      [[45.5, 222], [45.6, 232.5]],
+      [[48.4, 222], [48.5, 233.5]],
+      [[51.2, 222], [51.3, 232.5]],
+    ],
+  },
+}
+
+// Tendons and ligaments. "shape" is the figure shape whose injury colour they take when involved.
+// Internal ones sit inside a joint, so they're listed in the panel rather than drawn.
+export const STRUCTURES = {
+  'quad-tendon': {
+    name: 'Quadriceps tendon', kind: 'Tendon', shape: 'knee',
+    about: 'Joins the quads to the top of the kneecap.',
+    view: 'front', lines: [[[85, 249], [85.4, 262.5]]],
+  },
+  patella: {
+    name: 'Kneecap', kind: 'Bone and cartilage', shape: 'knee',
+    about: 'Glides in a groove at the front of the knee and gives the quads leverage.',
+    view: 'front', closed: [[85.5, 263], [90.5, 266], [91, 272], [87.5, 277.5], [83.5, 277.5], [80.5, 272], [81, 266]],
+  },
+  'patellar-tendon': {
+    name: 'Patellar tendon', kind: 'Tendon', shape: 'knee',
+    about: 'Runs from the kneecap to the shin. Takes a big load when kneeling, squatting and jumping.',
+    view: 'front', lines: [[[85.5, 278], [85.7, 292]]],
+  },
+  mcl: {
+    name: 'MCL (medial collateral ligament)', kind: 'Ligament', shape: 'knee',
+    about: 'On the inner knee. Stops it buckling inwards.',
+    view: 'front', lines: [[[94.5, 261], [96.2, 276], [95, 291]]],
+  },
+  lcl: {
+    name: 'LCL (lateral collateral ligament)', kind: 'Ligament', shape: 'knee',
+    about: 'On the outer knee. Stops it bowing outwards.',
+    view: 'front', lines: [[[75.8, 265], [74.6, 277], [76.5, 289]]],
+  },
+  'adductor-tendon': {
+    name: 'Adductor tendons', kind: 'Tendon', shape: 'adductors',
+    about: 'Where the groin muscles attach to the pelvis.',
+    view: 'front', lines: [[[94.4, 186.6], [98.8, 180.6]]],
+  },
+  'biceps-tendon': {
+    name: 'Distal biceps tendon', kind: 'Tendon', shape: 'elbow',
+    about: 'Attaches the biceps to the forearm in the elbow crease.',
+    view: 'front', lines: [[[55.5, 131], [53.5, 142]]],
+  },
+  'common-flexor-tendon': {
+    name: "Common flexor tendon (golfer's elbow)", kind: 'Tendon', shape: 'elbow',
+    about: 'On the inner elbow, where the wrist and finger flexors start.',
+    view: 'front', lines: [[[58.5, 140], [57, 152]]],
+  },
+  'wrist-flexor-tendons': {
+    name: 'Wrist flexor tendons', kind: 'Tendon', shape: 'wrist-and-hand',
+    about: 'Run through the palm side of the wrist to the fingers.',
+    view: 'front', lines: [[[46.5, 191], [46.5, 204]], [[49.2, 191], [49.2, 205]], [[52, 191], [52, 204]]],
+  },
+  'tibialis-tendon': {
+    name: 'Tibialis anterior tendon', kind: 'Tendon', shape: 'ankle-and-foot',
+    about: 'Crosses the front of the ankle and lifts the foot.',
+    view: 'front', lines: [[[82, 352], [84.5, 364], [90.5, 376]]],
+  },
+  atfl: {
+    name: 'ATFL (anterior talofibular ligament)', kind: 'Ligament', shape: 'ankle-and-foot',
+    about: 'On the outer ankle. The most commonly sprained ligament: it stops the ankle rolling outwards.',
+    view: 'front', lines: [[[77.5, 369], [82.5, 373.5]]],
+  },
+  'deltoid-ligament': {
+    name: 'Deltoid ligament', kind: 'Ligament', shape: 'ankle-and-foot',
+    about: 'A strong fan of ligament on the inner ankle.',
+    view: 'front', lines: [[[93, 366], [93.8, 374]]],
+  },
+  achilles: {
+    name: 'Achilles tendon', kind: 'Tendon', shape: 'ankle-and-foot',
+    about: 'Joins the calves to the heel. The thickest tendon in the body.',
+    view: 'back', lines: [[[86.4, 346], [86.4, 360], [86.6, 374]]], width: 2.2,
+  },
+  'hamstring-tendon-medial': {
+    name: 'Inner hamstring tendons', kind: 'Tendon', shape: 'hamstring-inner',
+    about: 'Semitendinosus and gracilis. These are the tendons usually taken for a hamstring ACL graft.',
+    view: 'back', lines: [[[94, 258], [95, 271], [93, 283]]],
+  },
+  'hamstring-tendon-lateral': {
+    name: 'Outer hamstring tendon', kind: 'Tendon', shape: 'hamstring-outer',
+    about: 'Biceps femoris. The most common spot for a hamstring strain.',
+    view: 'back', lines: [[[80, 258], [77.5, 271], [77.5, 284]]],
+  },
+  'triceps-tendon': {
+    name: 'Triceps tendon', kind: 'Tendon', shape: 'elbow',
+    about: 'Attaches the triceps to the point of the elbow.',
+    view: 'back', lines: [[[57, 130], [55, 141]]],
+  },
+  'common-extensor-tendon': {
+    name: "Common extensor tendon (tennis elbow)", kind: 'Tendon', shape: 'elbow',
+    about: 'On the outer elbow, where the wrist and finger extensors start.',
+    view: 'back', lines: [[[46.5, 140], [46, 152]]],
+  },
+  'wrist-extensor-tendons': {
+    name: 'Wrist extensor tendons', kind: 'Tendon', shape: 'wrist-and-hand',
+    about: 'Run over the back of the wrist to the fingers.',
+    view: 'back', lines: [[[46.5, 191], [46.5, 204]], [[49.2, 191], [49.2, 205]], [[52, 191], [52, 204]]],
+  },
+  'rotator-cuff-tendon': {
+    name: 'Rotator cuff tendons', kind: 'Tendon', shape: 'infraspinatus',
+    about: 'Run under the shoulder muscles to the top of the arm and keep the ball centred in the socket.',
+    view: 'back', lines: [[[73, 86], [64, 83.5], [57, 81]]],
+  },
+  acl: {
+    name: 'ACL (anterior cruciate ligament)', kind: 'Ligament', shape: 'knee', internal: true,
+    about: 'Inside the knee. Stops the shin sliding forwards and controls twisting.',
+  },
+  pcl: {
+    name: 'PCL (posterior cruciate ligament)', kind: 'Ligament', shape: 'knee', internal: true,
+    about: 'Inside the knee. Stops the shin sliding backwards.',
+  },
+  meniscus: {
+    name: 'Meniscus', kind: 'Cartilage', shape: 'knee', internal: true,
+    about: 'Two C-shaped cushions between the thigh and shin bones.',
+  },
+}
+
+// Which structures each injury involves, with a note specific to that injury
+export const INJURY_STRUCTURES = {
+  'acl-hamstring-graft': [
+    ['acl', 'Reconstructed using a graft from your hamstring tendons.'],
+    ['hamstring-tendon-medial', 'Graft donor site. These tendons were used to rebuild your ACL, so this area can stay weaker and cramp-prone for a while.'],
+  ],
+  'acl-patellar-graft': [
+    ['acl', 'Reconstructed using a graft from your patellar tendon.'],
+    ['patellar-tendon', 'Graft donor site. Part of this tendon was used to rebuild your ACL, which is why kneeling can be sore.'],
+  ],
+  meniscus: [['meniscus', 'Deep, loaded bending and twisting are what aggravate it most.']],
+  'kneecap-pain': [
+    ['patella', 'Pain around or behind the kneecap. Building quad and hip strength helps it track well.'],
+    ['patellar-tendon', 'Often sore alongside kneecap pain, especially after kneeling or stairs.'],
+  ],
+  'hamstring-strain': [
+    ['hamstring-tendon-lateral', 'The most common spot for a hamstring strain.'],
+    ['hamstring-tendon-medial', 'Can be involved too, especially with cramping.'],
+  ],
+  'hip-adductor': [['adductor-tendon', 'Groin strains usually sit where these tendons meet the pelvis.']],
+  'rotator-cuff': [['rotator-cuff-tendon', 'Overhead work loads these tendons most.']],
+  'elbow-tendon': [
+    ['common-extensor-tendon', 'Outer elbow pain. Gripping with the palm down loads it.'],
+    ['common-flexor-tendon', 'Inner elbow pain. Gripping with the palm up loads it.'],
+  ],
+  'wrist-pain': [
+    ['wrist-flexor-tendons', 'Load through the palm side of the wrist.'],
+    ['wrist-extensor-tendons', 'Load through the back of the wrist.'],
+  ],
+  'ankle-sprain': [['atfl', 'The ligament most rolled ankles stretch or tear.']],
+}
