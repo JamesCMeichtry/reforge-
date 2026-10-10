@@ -1,19 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import StreakCard from '../components/StreakCard.jsx'
 import { LoadingCards, ScreenHeader, buttonSecondary } from '../components/ui.jsx'
 import { fetchRecentCheckIns } from '../lib/checkins.js'
-import { fetchActiveProgramme, todayDate } from '../lib/programme.js'
-import {
-  feelingTimeline,
-  fetchSetHistory,
-  recentWeeks,
-  rehabStreak,
-  shortDate,
-  tinyDate,
-  topSets,
-  weightedExercises,
-} from '../lib/progress.js'
-
-const REHAB_SECTIONS = new Set(['Rehab', 'Physio'])
+import { feelingTimeline, fetchSetHistory, shortDate, tinyDate, topSets, weightedExercises } from '../lib/progress.js'
 
 function Card({ title, aside, children }) {
   return (
@@ -95,56 +84,6 @@ function StrengthChart({ history }) {
   )
 }
 
-function RehabStreak({ history, rehabExercises }) {
-  const { current, best, rehabDates } = useMemo(() => rehabStreak(history, rehabExercises), [history, rehabExercises])
-  const weeks = recentWeeks(12)
-  const today = todayDate()
-  const trainedDates = new Set(history.map((r) => r.session_date))
-
-  return (
-    <Card title="Rehab streak" aside={`Best ${best}`}>
-      <div className="mt-3 flex items-end gap-3">
-        <span className="font-display text-6xl font-bold leading-none text-gold">{current}</span>
-        <p className="pb-1 text-sm leading-snug text-neutral-300">
-          {current === 1 ? 'session' : 'sessions'} in a row
-          <br />
-          with your rehab done
-        </p>
-      </div>
-      <div className="mt-5 flex justify-between gap-1" role="img" aria-label="Rehab days over the last 12 weeks">
-        {weeks.map((week) => (
-          <div key={week[0]} className="flex flex-1 flex-col gap-1">
-            {week.map((date) => (
-              <span
-                key={date}
-                className={`aspect-square w-full rounded-[3px] ${date === today ? 'ring-1 ring-white/70' : ''}`}
-                style={{
-                  backgroundColor: rehabDates.has(date)
-                    ? 'var(--color-gold)'
-                    : trainedDates.has(date)
-                      ? 'var(--chart-dim)'
-                      : date > today
-                        ? 'transparent'
-                        : 'var(--chart-empty)',
-                }}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-[3px] bg-gold" /> Rehab done
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: 'var(--chart-dim)' }} /> Trained, rehab
-          skipped
-        </span>
-      </div>
-    </Card>
-  )
-}
-
 function FeelingChart({ checkIns }) {
   const points = useMemo(() => feelingTimeline(checkIns), [checkIns])
   if (points.length < 2) {
@@ -172,8 +111,8 @@ function FeelingChart({ checkIns }) {
       <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" aria-label="Overall feeling over time">
         <defs>
           <linearGradient id="feel-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#c9a227" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#c9a227" stopOpacity="0" />
+            <stop offset="0%" style={{ stopColor: 'var(--color-gold)', stopOpacity: 0.35 }} />
+            <stop offset="100%" style={{ stopColor: 'var(--color-gold)', stopOpacity: 0 }} />
           </linearGradient>
         </defs>
         {[0, 5, 10].map((v) => (
@@ -195,14 +134,14 @@ function FeelingChart({ checkIns }) {
         <path
           d={line}
           fill="none"
-          stroke="#c9a227"
+          style={{ stroke: 'var(--color-gold)' }}
           strokeWidth="2.5"
           strokeLinejoin="round"
           strokeLinecap="round"
           className="draw-line"
         />
         {points.map((p, i) => (
-          <circle key={p.date} cx={x(i)} cy={y(p.feeling)} r={p.flag ? 4 : 2.5} fill={p.flag ? '#dc2626' : '#c9a227'} />
+          <circle key={p.date} cx={x(i)} cy={y(p.feeling)} r={p.flag ? 4 : 2.5} style={{ fill: p.flag ? '#dc2626' : 'var(--color-gold)' }} />
         ))}
         <text x={pad.l} y={H - 6} style={{ fill: 'var(--color-muted)' }} fontSize="9">
           {shortDate(points[0].date)}
@@ -225,16 +164,8 @@ export default function ProgressScreen() {
   useEffect(() => {
     if (state.status !== 'loading') return
     let cancelled = false
-    Promise.all([fetchSetHistory(), fetchRecentCheckIns(120), fetchActiveProgramme()])
-      .then(([history, checkIns, programme]) => {
-        if (cancelled) return
-        const rehabExercises = new Set(
-          (programme?.days ?? []).flatMap((day) =>
-            day.exercises.filter((e) => REHAB_SECTIONS.has(e.section)).map((e) => e.name),
-          ),
-        )
-        setState({ status: 'ready', history, checkIns, rehabExercises })
-      })
+    Promise.all([fetchSetHistory(), fetchRecentCheckIns(120)])
+      .then(([history, checkIns]) => !cancelled && setState({ status: 'ready', history, checkIns }))
       .catch(() => !cancelled && setState({ status: 'error' }))
     return () => {
       cancelled = true
@@ -243,8 +174,11 @@ export default function ProgressScreen() {
 
   return (
     <>
-      <ScreenHeader title="Progress" intro="Strength, consistency and how you feel, over time." />
-      {state.status === 'loading' && <LoadingCards count={3} height="h-56" label="Loading your progress" />}
+      <ScreenHeader title="Progress" intro="Your streak, how you feel and your strength, over time." />
+      <div className="mb-4">
+        <StreakCard />
+      </div>
+      {state.status === 'loading' && <LoadingCards count={2} height="h-56" label="Loading your progress" />}
       {state.status === 'error' && (
         <div>
           <p className="text-red-400">Couldn't load your progress. Check your connection.</p>
@@ -255,9 +189,8 @@ export default function ProgressScreen() {
       )}
       {state.status === 'ready' && (
         <div className="space-y-4">
-          <StrengthChart history={state.history} />
-          <RehabStreak history={state.history} rehabExercises={state.rehabExercises} />
           <FeelingChart checkIns={state.checkIns} />
+          <StrengthChart history={state.history} />
         </div>
       )}
     </>
