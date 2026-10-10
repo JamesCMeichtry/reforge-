@@ -7,16 +7,24 @@ const since = (days) => {
   return date.toLocaleDateString('en-CA')
 }
 
+// Supabase returns at most 1000 rows per request, so fetch in pages until we have everything
 export async function fetchSetHistory(days = 180) {
-  const { data, error } = await supabase
-    .from('set_logs')
-    .select('exercise, session_date, set_number, weight_kg, reps')
-    .gte('session_date', since(days))
-    .order('session_date', { ascending: true })
-    .limit(5000)
-  if (error) throw error
-  return data
+  const pageSize = 1000
+  const rows = []
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('set_logs')
+      .select('exercise, session_date, set_number, weight_kg, reps')
+      .gte('session_date', since(days))
+      .order('session_date', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    rows.push(...data)
+    if (data.length < pageSize) return rows
+  }
 }
+
 
 // Heaviest set per session for one exercise
 export function topSets(history, exercise) {
