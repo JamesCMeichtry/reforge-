@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { JOINTS, MUSCLES, OUTLINE, WIDTH, musclesForExercise } from '../data/muscles.js'
+import { DETAILS, INJURY_STRUCTURES, JOINTS, OUTLINES, STRUCTURES, WIDTH } from '../data/anatomy.js'
+import { INJURIES } from '../data/injuries.js'
+import { MUSCLES, musclesForExercise } from '../data/muscles.js'
 import { fetchRecentCheckIns } from '../lib/checkins.js'
 import { fetchActiveProgramme } from '../lib/programme.js'
 import { fetchSetHistory } from '../lib/progress.js'
@@ -26,7 +28,18 @@ function smooth(points, tension = 0.5) {
 }
 
 const mirror = (points) => points.map(([x, y]) => [WIDTH - x, y])
-const OUTLINE_PATH = smooth(OUTLINE, 0.35)
+const OUTLINE_PATHS = { front: smooth(OUTLINES.front, 0.35), back: smooth(OUTLINES.back, 0.35) }
+const openPath = (points) => {
+  if (points.length === 2) return `M${points[0]} L${points[1]}`
+  let d = `M${points[0][0]},${points[0][1]}`
+  for (let i = 1; i < points.length; i++) {
+    const [px, py] = points[i - 1]
+    const [x, y] = points[i]
+    d += ` Q${px},${py} ${((px + x) / 2).toFixed(1)},${((py + y) / 2).toFixed(1)}`
+  }
+  const last = points.at(-1)
+  return `${d} L${last[0]},${last[1]}`
+}
 const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
 
 // Front view: the figure's right side is on the viewer's left
@@ -35,7 +48,7 @@ function shapesFor(view) {
   const rightOfScreen = view === 'front' ? 'left' : 'right'
   const build = (item, kind) =>
     item.central
-      ? [{ ...item, kind, key: item.id, side: null, d: item.ellipse ? null : smooth(item.points), pts: null }]
+      ? [{ ...item, kind, key: item.id, side: null, d: smooth(item.points), pts: null }]
       : [
           {
             ...item,
@@ -54,39 +67,62 @@ function shapesFor(view) {
             pts: mirror(item.points),
           },
         ]
-  return [...JOINTS.flatMap((j) => build(j, 'joint')), ...MUSCLES[view].flatMap((m) => build(m, 'muscle'))]
+  return [...JOINTS[view].flatMap((j) => build(j, 'joint')), ...MUSCLES[view].flatMap((m) => build(m, 'muscle'))]
 }
 
-// Tendons: a fine line off each end of the limb muscles, following the muscle's direction
-const TENDONS = {
-  'biceps-long': [3, 5],
-  'biceps-short': [3, 5],
-  'triceps-long': [3, 4],
-  'triceps-lateral': [3, 4],
-  'forearm-flexors': [2, 5],
-  'forearm-extensors': [2, 5],
-  'quad-outer': [3, 5],
-  'quad-front': [3, 6],
-  'quad-inner': [0, 4],
-  'hamstring-outer': [3, 5],
-  'hamstring-inner': [3, 5],
-  'calf-outer': [3, 0],
-  'calf-inner': [3, 0],
-  soleus: [0, 7],
-  tibialis: [3, 6],
+// Fine anatomical lines (neck, collarbones, fingers, toes) drawn over the figure
+function detailsFor(view) {
+  const { central, sided } = DETAILS[view]
+  return [...central, ...sided, ...sided.map(mirror)].map(openPath)
 }
 
-function tendonsFor(id, points) {
-  const reach = TENDONS[id]
-  if (!reach) return []
-  const top = points.reduce((a, b) => (b[1] < a[1] ? b : a))
-  const bottom = points.reduce((a, b) => (b[1] > a[1] ? b : a))
-  const length = Math.hypot(bottom[0] - top[0], bottom[1] - top[1])
-  const [dx, dy] = [(bottom[0] - top[0]) / length, (bottom[1] - top[1]) / length]
-  const line = (p, sign, r) =>
-    `M${p[0]},${p[1]} L${(p[0] + dx * r * sign).toFixed(1)},${(p[1] + dy * r * sign).toFixed(1)}`
-  return [reach[0] && line(top, -1, reach[0]), reach[1] && line(bottom, 1, reach[1])].filter(Boolean)
+// Tendons and ligaments drawn on this view, one copy per side
+function structuresFor(view) {
+  const leftOfScreen = view === 'front' ? 'right' : 'left'
+  const rightOfScreen = view === 'front' ? 'left' : 'right'
+  const out = []
+  for (const [id, s] of Object.entries(STRUCTURES)) {
+    if (s.internal || s.view !== view) continue
+    for (const [side, flip] of [
+      [leftOfScreen, false],
+      [rightOfScreen, true],
+    ]) {
+      const place = (points) => (flip ? mirror(points) : points)
+      out.push({
+        id,
+        side,
+        key: `${side}-${id}`,
+        d: s.closed ? smooth(place(s.closed)) : s.lines.map((line) => openPath(place(line))).join(' '),
+        closed: Boolean(s.closed),
+        width: s.width ?? (s.kind === 'Tendon' ? 1.5 : 1.1),
+      })
+    }
+  }
+  return out
 }
+
+// Which tendons and ligaments your injuries involve, coloured by how that area is doing
+function structureLayer(rows, injuries) {
+  const layer = {}
+  for (const row of rows) {
+    const injury = INJURIES.find((item) => item.id === row.injury_key)
+    if (!injury || !row.side) continue
+    for (const [id, note] of INJURY_STRUCTURES[row.injury_key] ?? []) {
+      const structure = STRUCTURES[id]
+      if (!structure) continue
+      const area = injuries[shapeKey(structure.shape, row.side)]
+      const key = `${row.side}-${id}`
+      const entry = (layer[key] ??= { id, side: row.side, level: area?.level ?? 'injured', flare: false, notes: [] })
+      if (area && LEVELS[area.level].rank < LEVELS[entry.level].rank) entry.level = area.level
+      entry.flare ||= Boolean(area?.flare)
+      entry.notes.push({ injury: injury.name, note })
+    }
+  }
+  return layer
+}
+
+const DETAIL_PATHS = { front: detailsFor('front'), back: detailsFor('back') }
+const STRUCTURE_SHAPES = { front: structuresFor('front'), back: structuresFor('back') }
 
 const SHAPES = { front: shapesFor('front'), back: shapesFor('back') }
 const ALL_SHAPES = [...SHAPES.front, ...SHAPES.back]
@@ -123,6 +159,7 @@ export default function LivingMap() {
         setState({
           status: 'ready',
           injuries: injuryLayer(rows, checkIns),
+          structures: structureLayer(rows, injuryLayer(rows, checkIns)),
           strength: strengthLayer(history),
           programme,
         })
@@ -184,6 +221,11 @@ export default function LivingMap() {
   }
 
   const selectedShape = selected ? ALL_SHAPES.find((s) => s.key === selected) : null
+  const selectedStructure = selected?.startsWith('structure:') ? state.structures[selected.slice(10)] : null
+  const involvedIn = (shape) =>
+    Object.values(state.structures).filter(
+      (entry) => entry.side === shape.side && STRUCTURES[entry.id].shape === shape.id,
+    )
   const sideLabels = view === 'front' ? ['Right', 'Left'] : ['Left', 'Right']
 
   return (
@@ -252,7 +294,7 @@ export default function LivingMap() {
             />
           </linearGradient>
         </defs>
-        <path d={OUTLINE_PATH} style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }} strokeWidth="1" />
+        <path d={OUTLINE_PATHS[view]} style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }} strokeWidth="1" />
         {SHAPES[view].map((shape) => {
           const shown = display[shape.key] ?? { level: 'neutral' }
           const level = shown.level
@@ -294,7 +336,7 @@ export default function LivingMap() {
           }
           return (
             <g key={`${view}-${shape.key}`}>
-              {shape.ellipse ? <ellipse {...shape.ellipse} {...props} /> : <path d={shape.d} {...props} />}
+              <path d={shape.d} {...props} />
               {shape.lines?.map(([from, to], i) => (
                 <path
                   key={i}
@@ -304,18 +346,70 @@ export default function LivingMap() {
                   pointerEvents="none"
                 />
               ))}
-              {shape.kind === 'muscle' &&
-                shape.pts &&
-                tendonsFor(shape.id, shape.pts).map((d, i) => (
-                  <path
-                    key={`t${i}`}
-                    d={d}
-                    style={{ stroke: 'var(--fig-tendon)' }}
-                    strokeWidth="1.1"
-                    strokeLinecap="round"
-                    pointerEvents="none"
-                  />
-                ))}
+            </g>
+          )
+        })}
+        {DETAIL_PATHS[view].map((d, i) => (
+          <path
+            key={`detail-${i}`}
+            d={d}
+            fill="none"
+            style={{ stroke: 'var(--fig-edge)' }}
+            strokeWidth="0.7"
+            strokeLinecap="round"
+            pointerEvents="none"
+          />
+        ))}
+        {STRUCTURE_SHAPES[view].map((item) => {
+          const lit = state.structures[item.key]
+          const selectKey = `structure:${item.key}`
+          const isSelected = selected === selectKey
+          const colour = lit ? LEVELS[lit.level].fill : 'var(--fig-tendon)'
+          const select = () => setSelected(isSelected ? null : selectKey)
+          return (
+            <g
+              key={item.key}
+              {...(lit
+                ? {
+                    role: 'button',
+                    tabIndex: 0,
+                    'aria-label': `${sideName(item.side)} ${STRUCTURES[item.id].name}, involved in your injury`,
+                    'aria-pressed': isSelected,
+                    onClick: select,
+                    onKeyDown: (event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        select()
+                      }
+                    },
+                    className: 'cursor-pointer outline-none',
+                  }
+                : { pointerEvents: 'none' })}
+            >
+              {lit && <path d={item.d} fill="none" stroke="transparent" strokeWidth="8" strokeLinecap="round" />}
+              {lit && (
+                <path
+                  d={item.d}
+                  fill="none"
+                  style={{ stroke: 'var(--fig-body)' }}
+                  strokeWidth={item.width + 3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+              <path
+                d={item.d}
+                style={{
+                  stroke: isSelected ? 'var(--fig-selected)' : colour,
+                  fill: item.closed && lit ? colour : 'none',
+                  fillOpacity: lit ? 0.85 : 1,
+                }}
+                strokeWidth={lit ? item.width + 1 : item.width}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter={lit ? 'url(#glow-strong)' : undefined}
+                className={lit?.flare && lit.level === 'injured' ? 'stage-pulse' : undefined}
+              />
             </g>
           )
         })}
@@ -362,9 +456,11 @@ export default function LivingMap() {
           injury={state.injuries[selectedShape.key]}
           strength={selectedShape.kind === 'muscle' ? state.strength[selectedShape.id] : null}
           programme={state.programme}
+          involved={involvedIn(selectedShape)}
           onClose={() => setSelected(null)}
         />
       )}
+      {selectedStructure && <StructurePanel entry={selectedStructure} onClose={() => setSelected(null)} />}
 
       <p className="mt-6 text-xs leading-relaxed text-muted">
         Injury colours move with your check-ins: a bad day shows straight away, recovery needs a run of good ones.
@@ -375,7 +471,61 @@ export default function LivingMap() {
   )
 }
 
-function AreaPanel({ shape, shown, injury, strength, programme, onClose }) {
+function StructureNotes({ entry }) {
+  const structure = STRUCTURES[entry.id]
+  return (
+    <li className="flex gap-3">
+      <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: LEVELS[entry.level].fill }} />
+      <div>
+        <p className="text-sm font-semibold text-white">
+          {structure.name}
+          <span className="font-normal text-muted">
+            {' '}
+            · {structure.kind.toLowerCase()}
+            {structure.internal ? ', inside the joint' : ''}
+          </span>
+        </p>
+        {entry.notes.map((n) => (
+          <p key={n.injury} className="mt-0.5 text-sm leading-relaxed text-neutral-300">
+            {n.note}
+          </p>
+        ))}
+      </div>
+    </li>
+  )
+}
+
+function StructurePanel({ entry, onClose }) {
+  const structure = STRUCTURES[entry.id]
+  return (
+    <section className="mt-6 rounded-2xl border border-line bg-panel p-5" aria-live="polite">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-display text-2xl font-semibold leading-tight">
+            {sideName(entry.side)} {structure.name.replace(/ \(.*\)$/, '')}
+          </h2>
+          <p className="mt-1 text-sm font-semibold" style={{ color: LEVELS[entry.level].fill }}>
+            {structure.kind} · {LEVELS[entry.level].label}
+          </p>
+        </div>
+        <button type="button" onClick={onClose} className="text-sm font-semibold text-muted hover:text-white">
+          Close
+        </button>
+      </div>
+      <p className="mt-4 text-sm leading-relaxed text-neutral-300">{structure.about}</p>
+      <ul className="mt-4 space-y-3">
+        {entry.notes.map((n) => (
+          <li key={n.injury}>
+            <p className="text-sm font-semibold text-white">{n.injury}</p>
+            <p className="mt-0.5 text-sm leading-relaxed text-neutral-300">{n.note}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function AreaPanel({ shape, shown, injury, strength, programme, involved = [], onClose }) {
   const level = shown?.level ?? 'neutral'
   const exercises = []
   if (shape.kind === 'muscle') {
@@ -421,6 +571,17 @@ function AreaPanel({ shape, shown, injury, strength, programme, onClose }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {involved.length > 0 && (
+        <div className="mt-4 border-t border-line pt-4">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Tendons and ligaments</p>
+          <ul className="mt-3 space-y-3">
+            {involved.map((entry) => (
+              <StructureNotes key={entry.id} entry={entry} />
+            ))}
+          </ul>
+        </div>
       )}
 
       {shape.kind === 'muscle' && (
