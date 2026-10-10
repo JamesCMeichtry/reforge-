@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { DETAILS, INJURY_STRUCTURES, JOINTS, OUTLINES, STRUCTURES, WIDTH } from '../data/anatomy.js'
+import { ABS_LINES, DETAILS, FIGURE, INJURY_STRUCTURES, NAMES, STRUCTURES, WIDTH } from '../data/anatomy.js'
+import { FIGURE_DETAILED } from '../data/anatomyDetailed.js'
 import { INJURIES } from '../data/injuries.js'
-import { MUSCLES, musclesForExercise } from '../data/muscles.js'
+import { musclesForExercise } from '../data/muscles.js'
 import { fetchRecentCheckIns } from '../lib/checkins.js'
 import { fetchActiveProgramme } from '../lib/programme.js'
 import { fetchSetHistory } from '../lib/progress.js'
@@ -9,6 +10,19 @@ import { LEVELS, combine, fetchInjuryRows, injuryLayer, nextStep, shapeKey, stre
 import { LoadingCards, buttonSecondary } from './ui.jsx'
 
 const SEEN_KEY = 'reforge.levels.seen.v1'
+const STYLE_KEY = 'reforge.mapStyle'
+
+// Colours for each level come from the theme (see index.css), so they suit dark and light
+const FILLS = {
+  injured: 'var(--lvl-injured)',
+  affected: 'var(--lvl-affected)',
+  watch: 'var(--lvl-watch)',
+  neutral: 'var(--fig-muscle)',
+  building: 'var(--lvl-building)',
+  strong: 'var(--lvl-strong)',
+  elite: 'var(--color-gold)',
+}
+const tone = (level) => (level === 'watch' ? 'var(--lvl-watch-text)' : FILLS[level])
 const STRENGTH_ORDER = ['neutral', 'building', 'strong', 'elite']
 
 // Smooth closed outline through a list of points
@@ -28,7 +42,8 @@ function smooth(points, tension = 0.5) {
 }
 
 const mirror = (points) => points.map(([x, y]) => [WIDTH - x, y])
-const OUTLINE_PATHS = { front: smooth(OUTLINES.front, 0.35), back: smooth(OUTLINES.back, 0.35) }
+const parse = (text) => text.split(' ').map((pair) => pair.split(',').map(Number))
+const polygon = (points) => `M${points.map(([x, y]) => `${x},${y}`).join(' L')}Z`
 const openPath = (points) => {
   if (points.length === 2) return `M${points[0]} L${points[1]}`
   let d = `M${points[0][0]},${points[0][1]}`
@@ -42,32 +57,46 @@ const openPath = (points) => {
 }
 const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
 
-// Front view: the figure's right side is on the viewer's left
-function shapesFor(view) {
+const mirrorAngle = (angle) => (angle == null ? null : (180 - angle) % 180)
+
+// Front view: the figure's right side is on the viewer's left.
+// Classic rows are [id, kind, central, points]; detailed rows add a fibre angle before the points.
+function shapesFor(figure, view, detailed) {
   const leftOfScreen = view === 'front' ? 'right' : 'left'
   const rightOfScreen = view === 'front' ? 'left' : 'right'
-  const build = (item, kind) =>
-    item.central
-      ? [{ ...item, kind, key: item.id, side: null, d: smooth(item.points), pts: null }]
-      : [
-          {
-            ...item,
-            kind,
-            key: shapeKey(item.id, leftOfScreen),
-            side: leftOfScreen,
-            d: smooth(item.points),
-            pts: item.points,
-          },
-          {
-            ...item,
-            kind,
-            key: shapeKey(item.id, rightOfScreen),
-            side: rightOfScreen,
-            d: smooth(mirror(item.points)),
-            pts: mirror(item.points),
-          },
-        ]
-  return [...JOINTS[view].flatMap((j) => build(j, 'joint')), ...MUSCLES[view].flatMap((m) => build(m, 'muscle'))]
+  return figure[view].shapes.flatMap((row) => {
+    const [id, kind, central] = row
+    const angle = detailed ? row[3] : null
+    const points = parse(detailed ? row[4] : row[3])
+    const base = { id, kind, name: NAMES[id], lines: !detailed && id === 'abs' ? ABS_LINES : null }
+    if (central) return [{ ...base, key: id, side: null, angle, d: polygon(points) }]
+    return [
+      { ...base, key: shapeKey(id, leftOfScreen), side: leftOfScreen, angle, d: polygon(points) },
+      { ...base, key: shapeKey(id, rightOfScreen), side: rightOfScreen, angle: mirrorAngle(angle), d: polygon(mirror(points)) },
+    ]
+  })
+}
+
+function buildFigure(figure, detailed) {
+  const shapes = { front: shapesFor(figure, 'front', detailed), back: shapesFor(figure, 'back', detailed) }
+  const all = [...shapes.front, ...shapes.back]
+  return {
+    detailed,
+    shapes,
+    all,
+    outlines: { front: polygon(parse(figure.front.outline)), back: polygon(parse(figure.back.outline)) },
+    angles: [...new Set(all.map((s) => s.angle).filter((a) => a != null))],
+  }
+}
+
+const FIGURES = { classic: buildFigure(FIGURE, false), detailed: buildFigure(FIGURE_DETAILED, true) }
+
+function readStyle() {
+  try {
+    return localStorage.getItem(STYLE_KEY) === 'classic' ? 'classic' : 'detailed'
+  } catch {
+    return 'detailed'
+  }
 }
 
 // Fine anatomical lines (neck, collarbones, fingers, toes) drawn over the figure
@@ -124,8 +153,7 @@ function structureLayer(rows, injuries) {
 const DETAIL_PATHS = { front: detailsFor('front'), back: detailsFor('back') }
 const STRUCTURE_SHAPES = { front: structuresFor('front'), back: structuresFor('back') }
 
-const SHAPES = { front: shapesFor('front'), back: shapesFor('back') }
-const ALL_SHAPES = [...SHAPES.front, ...SHAPES.back]
+const ALL_SHAPES = FIGURES.classic.all
 const labelOf = (shape) => `${shape.side ? `${sideName(shape.side)} ` : ''}${shape.name.toLowerCase()}`
 
 function readSeen() {
@@ -149,6 +177,16 @@ export default function LivingMap() {
   const [state, setState] = useState({ status: 'loading' })
   const [selected, setSelected] = useState(null)
   const [levelUps, setLevelUps] = useState([])
+  const [figureStyle, setFigureStyle] = useState(readStyle)
+  const figure = FIGURES[figureStyle]
+  const chooseStyle = (next) => {
+    setFigureStyle(next)
+    try {
+      localStorage.setItem(STYLE_KEY, next)
+    } catch {
+      // Falls back to the default next time
+    }
+  }
 
   useEffect(() => {
     if (state.status !== 'loading') return
@@ -236,7 +274,7 @@ export default function LivingMap() {
           <ul className="mt-2 space-y-1">
             {levelUps.slice(0, 4).map((u) => (
               <li key={u.name} className="font-semibold text-white">
-                {u.name} reached <span style={{ color: LEVELS[u.level].fill }}>{LEVELS[u.level].label}</span>
+                {u.name} reached <span style={{ color: tone(u.level) }}>{LEVELS[u.level].label}</span>
               </li>
             ))}
           </ul>
@@ -280,6 +318,23 @@ export default function LivingMap() {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <linearGradient id="sheen" x1="0.15" y1="0" x2="0.85" y2="1">
+            <stop offset="0" stopColor="#ffffff" stopOpacity="0.13" />
+            <stop offset="0.45" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="1" stopColor="#000000" stopOpacity="0.28" />
+          </linearGradient>
+          {figure.angles.map((angle) => (
+            <pattern
+              key={angle}
+              id={`fibre-${angle}`}
+              width="1.7"
+              height="1.7"
+              patternUnits="userSpaceOnUse"
+              patternTransform={`rotate(${angle})`}
+            >
+              <line x1="0" y1="0.85" x2="1.7" y2="0.85" style={{ stroke: 'var(--fig-fibre)' }} strokeWidth="0.4" />
+            </pattern>
+          ))}
           <linearGradient id="elite-shine" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#8a6d12" />
             <stop offset="45%" stopColor="#c9a227" />
@@ -294,8 +349,8 @@ export default function LivingMap() {
             />
           </linearGradient>
         </defs>
-        <path d={OUTLINE_PATHS[view]} style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }} strokeWidth="1" />
-        {SHAPES[view].map((shape) => {
+        <path d={figure.outlines[view]} style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }} strokeWidth="1" />
+        {figure.shapes[view].map((shape, index) => {
           const shown = display[shape.key] ?? { level: 'neutral' }
           const level = shown.level
           const isSelected = shape.key === selected
@@ -303,16 +358,10 @@ export default function LivingMap() {
           const fill =
             level === 'elite'
               ? 'url(#elite-shine)'
-              : level === 'neutral'
-                ? shape.kind === 'joint'
-                  ? 'var(--fig-joint)'
-                  : 'var(--fig-muscle)'
-                : LEVELS[level].fill
-          const stroke = isSelected
-            ? 'var(--fig-selected)'
-            : level === 'neutral'
-              ? 'var(--fig-edge)'
-              : 'var(--fig-body)'
+              : level === 'neutral' && shape.kind === 'joint'
+                ? 'var(--fig-joint)'
+                : FILLS[level]
+          const stroke = isSelected ? 'var(--fig-selected)' : 'none'
           const select = () => setSelected(isSelected ? null : shape.key)
           const props = {
             role: 'button',
@@ -327,22 +376,30 @@ export default function LivingMap() {
               }
             },
             style: { fill, stroke },
-            fillOpacity: level === 'neutral' ? 1 : 0.92,
-            strokeWidth: isSelected ? 2 : 0.8,
+            strokeWidth: isSelected ? 1.4 : 0,
             filter: level === 'strong' || level === 'elite' ? 'url(#glow-strong)' : undefined,
             className: `cursor-pointer outline-none transition-[fill,fill-opacity] duration-500 focus-visible:stroke-[#e3c565] ${
               flare ? 'flare-pulse' : ''
             }`,
           }
           return (
-            <g key={`${view}-${shape.key}`}>
+            <g key={`${figureStyle}-${view}-${index}`}>
               <path d={shape.d} {...props} />
+              {figure.detailed && shape.angle != null && (
+                <path
+                  d={shape.d}
+                  fill={`url(#fibre-${shape.angle})`}
+                  style={{ opacity: 'var(--fig-fibre-opacity)' }}
+                  pointerEvents="none"
+                />
+              )}
+              {figure.detailed && <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />}
               {shape.lines?.map(([from, to], i) => (
                 <path
                   key={i}
                   d={`M${from} L${to}`}
                   style={{ stroke: 'var(--fig-body)' }}
-                  strokeWidth="1.2"
+                  strokeWidth="1.4"
                   pointerEvents="none"
                 />
               ))}
@@ -362,9 +419,10 @@ export default function LivingMap() {
         ))}
         {STRUCTURE_SHAPES[view].map((item) => {
           const lit = state.structures[item.key]
+          if (item.closed && !lit) return null
           const selectKey = `structure:${item.key}`
           const isSelected = selected === selectKey
-          const colour = lit ? LEVELS[lit.level].fill : 'var(--fig-tendon)'
+          const colour = lit ? tone(lit.level) : 'var(--fig-tendon)'
           const select = () => setSelected(isSelected ? null : selectKey)
           return (
             <g
@@ -403,6 +461,7 @@ export default function LivingMap() {
                   stroke: isSelected ? 'var(--fig-selected)' : colour,
                   fill: item.closed && lit ? colour : 'none',
                   fillOpacity: lit ? 0.85 : 1,
+                  opacity: lit ? 1 : 0.35,
                 }}
                 strokeWidth={lit ? item.width + 1 : item.width}
                 strokeLinecap="round"
@@ -431,11 +490,11 @@ export default function LivingMap() {
 
       <div className="mt-5" aria-label="Scale">
         <div className="flex h-2 overflow-hidden rounded-full">
-          {Object.entries(LEVELS).map(([key, { fill }]) => (
+          {Object.keys(LEVELS).map((key) => (
             <span
               key={key}
               className="flex-1"
-              style={{ backgroundColor: key === 'neutral' ? 'var(--fig-muscle)' : fill }}
+              style={{ backgroundColor: FILLS[key] }}
             />
           ))}
         </div>
@@ -447,6 +506,23 @@ export default function LivingMap() {
             </span>
           ))}
         </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted" role="group" aria-label="Figure style">
+        <span>Figure</span>
+        {['detailed', 'classic'].map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => chooseStyle(option)}
+            aria-pressed={figureStyle === option}
+            className={`rounded-full border px-3 py-1 font-semibold capitalize ${
+              figureStyle === option ? 'border-gold text-gold' : 'border-line text-muted'
+            }`}
+          >
+            {option}
+          </button>
+        ))}
       </div>
 
       {selectedShape && (
@@ -475,7 +551,7 @@ function StructureNotes({ entry }) {
   const structure = STRUCTURES[entry.id]
   return (
     <li className="flex gap-3">
-      <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: LEVELS[entry.level].fill }} />
+      <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: tone(entry.level) }} />
       <div>
         <p className="text-sm font-semibold text-white">
           {structure.name}
@@ -504,7 +580,7 @@ function StructurePanel({ entry, onClose }) {
           <h2 className="font-display text-2xl font-semibold leading-tight">
             {sideName(entry.side)} {structure.name.replace(/ \(.*\)$/, '')}
           </h2>
-          <p className="mt-1 text-sm font-semibold" style={{ color: LEVELS[entry.level].fill }}>
+          <p className="mt-1 text-sm font-semibold" style={{ color: tone(entry.level) }}>
             {structure.kind} · {LEVELS[entry.level].label}
           </p>
         </div>
@@ -546,7 +622,7 @@ function AreaPanel({ shape, shown, injury, strength, programme, involved = [], o
           <h2 className="font-display text-2xl font-semibold leading-tight">{labelOf(shape)}</h2>
           <p
             className="mt-1 text-sm font-semibold"
-            style={{ color: level === 'neutral' ? 'var(--color-muted)' : LEVELS[level].fill }}
+            style={{ color: level === 'neutral' ? 'var(--color-muted)' : tone(level) }}
           >
             {LEVELS[level].label}
           </p>
@@ -562,7 +638,7 @@ function AreaPanel({ shape, shown, injury, strength, programme, involved = [], o
             <li key={i} className="flex gap-3">
               <span
                 className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: LEVELS[reason.level].fill }}
+                style={{ backgroundColor: tone(reason.level) }}
               />
               <div>
                 <p className="text-sm font-semibold text-white">{reason.injuryLabel}</p>
