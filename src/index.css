@@ -402,3 +402,30 @@ nav button[aria-current='page'] svg {
   --fig-fibre: #5b4f3a;
   --fig-fibre-opacity: 0.14;
 }
+/* Body map v2: level colours and figure tones, per theme */
+:root {
+  --lvl-injured: #ef4444;
+  --lvl-affected: #f97316;
+  --lvl-watch: #4a1f1f;
+  --lvl-watch-text: #f87171;
+  --lvl-building: #3b82f6;
+  --lvl-strong: #22d3ee;
+  --fig-body: #0b0b0b;
+  --fig-muscle: #272727;
+  --fig-joint: #1b1b1b;
+  --fig-outline: #2e2e2e;
+  --fig-tendon: #8c8574;
+}
+:root[data-theme='light'] {
+  --lvl-injured: #dc2626;
+  --lvl-affected: #ea580c;
+  --lvl-watch: #f3c6bf;
+  --lvl-watch-text: #b91c1c;
+  --lvl-building: #2563eb;
+  --lvl-strong: #0891b2;
+  --fig-body: #ebe6da;
+  --fig-muscle: #d6cdbb;
+  --fig-joint: #e2dbcb;
+  --fig-outline: #c2b9a6;
+  --fig-tendon: #a39a85;
+}
