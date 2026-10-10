@@ -329,3 +329,67 @@ nav button[aria-current='page'] svg {
 @media (prefers-reduced-motion: reduce) {
   .flame-flicker { animation: none; }
 }
+/* Rehab: recovery stage and pain colours, per theme */
+:root {
+  --stage-flare: #dc2626;
+  --stage-settling: #f97316;
+  --stage-rebuilding: #f59e0b;
+  --stage-cleared: #fde047;
+  --pain-none: #3a3a3a;
+  --pain-mild: #fde047;
+  --pain-moderate: #f59e0b;
+  --pain-severe: #dc2626;
+}
+:root[data-theme='light'] {
+  --stage-cleared: #eab308;
+  --pain-none: #cfc8b8;
+  --pain-mild: #d4a90a;
+  --pain-moderate: #e08a00;
+}
+
+@keyframes stage-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.stage-pulse {
+  animation: stage-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-pulse { animation: none; }
+}
+
+/* Light theme pain sliders */
+:root[data-theme='light'] .pain-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 28px;
+  background: transparent;
+}
+:root[data-theme='light'] .pain-slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--color-gold) var(--fill), #e2ddd1 var(--fill));
+}
+:root[data-theme='light'] .pain-slider::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--color-gold) var(--fill), #e2ddd1 var(--fill));
+}
+:root[data-theme='light'] .pain-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 26px;
+  margin-top: -9px;
+  border-radius: 50%;
+  border: 3px solid #ffffff;
+  background: var(--color-gold);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+:root[data-theme='light'] .pain-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid #ffffff;
+  background: var(--color-gold);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
