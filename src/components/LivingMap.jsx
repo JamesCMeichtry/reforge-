@@ -6,27 +6,62 @@ import { musclesForExercise } from '../data/muscles.js'
 import { fetchRecentCheckIns } from '../lib/checkins.js'
 import { fetchActiveProgramme } from '../lib/programme.js'
 import { fetchSetHistory } from '../lib/progress.js'
-import { LEVELS, XP, XP_LEVELS, combine, fetchInjuryRows, injuryLayer, nextStep, shapeKey, strengthLayer } from '../lib/livingMap.js'
+import {
+  INJURY_TIERS,
+  LEVELS,
+  STRENGTH_TIERS,
+  XP,
+  XP_LEVELS,
+  combine,
+  fetchInjuryRows,
+  injuryLayer,
+  isBlocking,
+  nextStep,
+  shapeKey,
+  strengthLayer,
+} from '../lib/livingMap.js'
 import { LoadingCards, buttonSecondary } from './ui.jsx'
 
 const SEEN_KEY = 'reforge.levels.seen.v1'
 
 // Colours for each level come from the theme (see index.css), so they suit dark and light
 const FILLS = {
+  flare: 'var(--lvl-flare)',
   injured: 'var(--lvl-injured)',
   affected: 'var(--lvl-affected)',
+  recovering: 'var(--lvl-recovering)',
   watch: 'var(--lvl-watch)',
   neutral: 'var(--fig-muscle)',
+  active: 'var(--lvl-active)',
   building: 'var(--lvl-building)',
   strong: 'var(--lvl-strong)',
+  silver: 'var(--lvl-silver)',
   elite: 'var(--color-gold)',
 }
-const tone = (level) => (level === 'watch' ? 'var(--lvl-watch-text)' : FILLS[level])
-const STRENGTH_ORDER = ['neutral', 'building', 'strong', 'elite']
-const ORDER = ['injured', 'affected', 'watch', 'neutral', 'building', 'strong', 'elite']
-// Each level has its own movement: injuries throb, recovering areas breathe, strong and elite muscles glow
-const MOTION = { injured: 'map-throb', affected: 'map-breathe' }
-const GLOWS = new Set(['strong', 'elite'])
+const SHAPE_FILLS = { ...FILLS, silver: 'url(#silver-shine)', elite: 'url(#elite-shine)' }
+const tone = (level) =>
+  level === 'watch' ? 'var(--lvl-watch-text)' : level === 'silver' ? 'var(--lvl-silver-text)' : FILLS[level]
+const STRENGTH_ORDER = ['neutral', ...STRENGTH_TIERS]
+const ORDER = [...INJURY_TIERS, 'neutral', ...STRENGTH_TIERS]
+
+// Every tier moves differently, and the effects stack up towards both ends of the scale:
+// body = how the whole muscle pulses, flow = a band of light running up and down it,
+// halo = a soft glow around it, ripple = rings spreading out, sparkle = twinkling stars.
+const FX = {
+  flare: { body: 'fx-flare', flow: 'flow-hot', halo: 'halo-flare', ripple: true },
+  injured: { body: 'fx-injured', flow: 'flow-warm', halo: 'halo-injured' },
+  affected: { body: 'fx-affected', flow: 'flow-warm-slow' },
+  recovering: { body: 'fx-recovering' },
+  watch: { body: 'fx-watch' },
+  neutral: {},
+  active: { body: 'fx-active' },
+  building: { flow: 'flow-cool-slow' },
+  strong: { flow: 'flow-cool', halo: 'halo-strong' },
+  silver: { flow: 'flow-bright', halo: 'halo-silver', sparkle: 2 },
+  elite: { flow: 'flow-gold', halo: 'halo-gold', sparkle: 3 },
+}
+const HALO_FILLS = { ...FILLS, silver: '#e2e8f0' }
+const STAR = 'M0,-2.2 L0.45,-0.45 L2.2,0 L0.45,0.45 L0,2.2 L-0.45,0.45 L-2.2,0 L-0.45,-0.45Z'
 const levelForXp = (xp) => [...XP_LEVELS].reverse().find((step) => xp >= step.xp)?.level ?? 'neutral'
 const xpForLevel = (level) => XP_LEVELS.find((step) => step.level === level)?.xp ?? 0
 
@@ -64,6 +99,16 @@ const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
 
 const mirrorAngle = (angle) => (angle == null ? null : (180 - angle) % 180)
 
+// Three spots inside a shape for sparkles: its centre, and halfway to its top and bottom
+function sparkPoints(points) {
+  const cx = points.reduce((sum, p) => sum + p[0], 0) / points.length
+  const cy = points.reduce((sum, p) => sum + p[1], 0) / points.length
+  const top = points.reduce((a, b) => (b[1] < a[1] ? b : a))
+  const bottom = points.reduce((a, b) => (b[1] > a[1] ? b : a))
+  const mid = (p) => [+((cx + p[0]) / 2).toFixed(1), +((cy + p[1]) / 2).toFixed(1)]
+  return [mid(top), [+cx.toFixed(1), +cy.toFixed(1)], mid(bottom)]
+}
+
 // Front view: the figure's right side is on the viewer's left. Rows are [id, kind, central, fibre angle, points].
 function shapesFor(figure, view) {
   const leftOfScreen = view === 'front' ? 'right' : 'left'
@@ -73,10 +118,18 @@ function shapesFor(figure, view) {
     const angle = row[3]
     const points = parse(row[4])
     const base = { id, kind, name: NAMES[id] }
-    if (central) return [{ ...base, key: id, side: null, angle, d: polygon(points) }]
+    const sparks = sparkPoints(points)
+    if (central) return [{ ...base, key: id, side: null, angle, d: polygon(points), sparks }]
     return [
-      { ...base, key: shapeKey(id, leftOfScreen), side: leftOfScreen, angle, d: polygon(points) },
-      { ...base, key: shapeKey(id, rightOfScreen), side: rightOfScreen, angle: mirrorAngle(angle), d: polygon(mirror(points)) },
+      { ...base, key: shapeKey(id, leftOfScreen), side: leftOfScreen, angle, d: polygon(points), sparks },
+      {
+        ...base,
+        key: shapeKey(id, rightOfScreen),
+        side: rightOfScreen,
+        angle: mirrorAngle(angle),
+        d: polygon(mirror(points)),
+        sparks: mirror(sparks),
+      },
     ]
   })
 }
@@ -382,6 +435,45 @@ export default function LivingMap() {
               <line x1="0" y1="0.85" x2="1.7" y2="0.85" style={{ stroke: 'var(--fig-fibre)' }} strokeWidth="0.4" />
             </pattern>
           ))}
+          {[
+            ['flow-hot', '#ffffff', 0.7, '1.1s'],
+            ['flow-warm', '#fecaca', 0.5, '2.2s'],
+            ['flow-warm-slow', '#fed7aa', 0.35, '3.6s'],
+            ['flow-cool-slow', '#bfdbfe', 0.55, '3.6s'],
+            ['flow-cool', '#e0f2fe', 0.65, '2.4s'],
+            ['flow-bright', '#ffffff', 0.7, '2s'],
+            ['flow-gold', '#fff6d8', 0.8, '1.7s'],
+          ].map(([id, colour, strength, dur]) => (
+            <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0.3" stopColor={colour} stopOpacity="0" />
+              <stop offset="0.5" stopColor={colour} stopOpacity={strength} />
+              <stop offset="0.7" stopColor={colour} stopOpacity="0" />
+              <animateTransform
+                attributeName="gradientTransform"
+                type="translate"
+                values="0 0.75; 0 -0.75; 0 0.75"
+                keyTimes="0; 0.5; 1"
+                calcMode="spline"
+                keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"
+                dur={dur}
+                repeatCount="indefinite"
+              />
+            </linearGradient>
+          ))}
+          <linearGradient id="silver-shine" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#64748b" />
+            <stop offset="40%" stopColor="#cbd5e1" />
+            <stop offset="52%" stopColor="#ffffff" />
+            <stop offset="64%" stopColor="#cbd5e1" />
+            <stop offset="100%" stopColor="#94a3b8" />
+            <animateTransform
+              attributeName="gradientTransform"
+              type="translate"
+              values="-1 -1; 1 1"
+              dur="3s"
+              repeatCount="indefinite"
+            />
+          </linearGradient>
           <linearGradient id="elite-shine" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#8a6d12" />
             <stop offset="45%" stopColor="#c9a227" />
@@ -401,13 +493,7 @@ export default function LivingMap() {
           const shown = display[shape.key] ?? { level: 'neutral' }
           const level = shown.level
           const isSelected = shape.key === selected
-          const flare = state.injuries[shape.key]?.flare && level === 'injured'
-          const fill =
-            level === 'elite'
-              ? 'url(#elite-shine)'
-              : level === 'neutral' && shape.kind === 'joint'
-                ? 'var(--fig-joint)'
-                : FILLS[level]
+          const fill = level === 'neutral' && shape.kind === 'joint' ? 'var(--fig-joint)' : SHAPE_FILLS[level]
           const stroke = isSelected ? 'var(--fig-selected)' : 'none'
           const select = () => setSelected(isSelected ? null : shape.key)
           const props = {
@@ -424,36 +510,56 @@ export default function LivingMap() {
             },
             style: { fill, stroke },
             strokeWidth: isSelected ? 1.4 : 0,
-            className: `cursor-pointer outline-none transition-[fill,fill-opacity] duration-500 focus-visible:stroke-[#e3c565] ${
-              flare ? 'flare-pulse' : ''
-            }`,
+            className: 'cursor-pointer outline-none transition-[fill] duration-500 focus-visible:stroke-[#e3c565]',
           }
           const popping = pop.keys.has(shape.key)
-          const motion = flare ? '' : (MOTION[level] ?? '')
+          const fx = FX[level] ?? {}
           return (
-            <g
-              key={`${view}-${index}-${popping ? pop.n : 0}`}
-              className={`${motion} ${popping ? 'map-pop' : ''}`}
-            >
-              {GLOWS.has(level) && (
+            <g key={`${view}-${index}-${popping ? pop.n : 0}`} className={popping ? 'map-pop' : undefined}>
+              {fx.halo && (
                 <path
                   d={shape.d}
-                  className="map-halo"
-                  style={{ fill: level === 'elite' ? 'var(--color-gold)' : FILLS[level] }}
+                  className={fx.halo}
+                  style={{ fill: HALO_FILLS[level] }}
                   filter="url(#halo)"
                   pointerEvents="none"
                 />
               )}
-              <path d={shape.d} {...props} />
-              {shape.angle != null && (
-                <path
-                  d={shape.d}
-                  fill={`url(#fibre-${shape.angle})`}
-                  style={{ opacity: 'var(--fig-fibre-opacity)' }}
-                  pointerEvents="none"
-                />
-              )}
-              <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />
+              {fx.ripple &&
+                [0, 1].map((ring) => (
+                  <path
+                    key={ring}
+                    d={shape.d}
+                    className="fx-ripple"
+                    style={{ stroke: 'var(--lvl-flare-ring)', animationDelay: `${ring * 0.7}s` }}
+                    fill="none"
+                    strokeWidth="1"
+                    pointerEvents="none"
+                  />
+                ))}
+              <g className={fx.body}>
+                <path d={shape.d} {...props} />
+                {shape.angle != null && (
+                  <path
+                    d={shape.d}
+                    fill={`url(#fibre-${shape.angle})`}
+                    style={{ opacity: 'var(--fig-fibre-opacity)' }}
+                    pointerEvents="none"
+                  />
+                )}
+                {fx.flow && <path d={shape.d} fill={`url(#${fx.flow})`} pointerEvents="none" />}
+                <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />
+              </g>
+              {fx.sparkle &&
+                shape.sparks.slice(0, fx.sparkle).map(([x, y], i) => (
+                  <g key={i} transform={`translate(${x} ${y})`} pointerEvents="none">
+                    <path
+                      d={STAR}
+                      className="fx-sparkle"
+                      style={{ fill: level === 'elite' ? '#fff6d8' : '#ffffff', animationDelay: `${((index * 0.37 + i * 0.6) % 2).toFixed(2)}s` }}
+                    />
+                  </g>
+                ))}
             </g>
           )
         })}
@@ -539,24 +645,27 @@ export default function LivingMap() {
         </text>
       </svg>
 
-      <div className="mt-5" aria-label="Scale">
-        <div className="flex h-2 overflow-hidden rounded-full">
-          {Object.keys(LEVELS).map((key) => (
-            <span
-              key={key}
-              className="flex-1"
-              style={{ backgroundColor: FILLS[key] }}
-            />
-          ))}
-        </div>
-        <div className="mt-2 grid grid-cols-7 text-center text-[10px] leading-tight text-muted">
-          {Object.entries(LEVELS).map(([key, { label }]) => (
-            <span key={key}>
-              {label}
-              {counts[key] ? <span className="block font-semibold text-white">{counts[key]}</span> : null}
-            </span>
-          ))}
-        </div>
+      <div className="mt-5 space-y-3" aria-label="Scale">
+        {[
+          ['Recovery', INJURY_TIERS],
+          ['Strength', STRENGTH_TIERS],
+        ].map(([title, tiers]) => (
+          <div key={title}>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{title}</p>
+            <div className="mt-1.5 grid grid-cols-5 gap-1 text-center text-[10px] leading-tight text-muted">
+              {tiers.map((key) => (
+                <span key={key}>
+                  <span
+                    className="mb-1 block h-2 rounded-full"
+                    style={{ background: key === 'silver' ? 'linear-gradient(90deg,#94a3b8,#f8fafc,#94a3b8)' : FILLS[key] }}
+                  />
+                  {LEVELS[key].label}
+                  {counts[key] ? <span className="block font-semibold text-white">{counts[key]}</span> : null}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       {testing && (
@@ -667,9 +776,9 @@ export default function LivingMap() {
       <p className="mt-6 text-xs leading-relaxed text-muted">
         Injury colours move with your check-ins: a bad day shows straight away, recovery needs a run of good ones.
         Muscles level up with XP: {XP.primarySet} for every set that works them, {XP.secondarySet} when they help out, and{' '}
-        {XP.checkIn} for each check-in in a week you trained them. {XP_LEVELS[0].xp} XP is Building, {XP_LEVELS[1].xp} Strong and{' '}
-        {XP_LEVELS[2].xp.toLocaleString('en-GB')} Elite. Leave one untrained for 3 weeks and it starts to fade. An injured area can't level
-        up until it settles.
+        {XP.checkIn} for each check-in in a week you trained them.{' '}
+        {XP_LEVELS.map((step) => `${step.xp.toLocaleString('en-GB')} XP is ${LEVELS[step.level].label}`).join(', ')}. Leave one
+        untrained for 3 weeks and it starts to fade. An injured area can't level up until it settles.
       </p>
     </div>
   )
@@ -811,7 +920,7 @@ function AreaPanel({ shape, shown, injury, strength, programme, involved = [], o
                 : ` · lifts ${strength.change > 0 ? 'up' : 'down'} ${Math.abs(Math.round(strength.change * 100))}%`)}
           </p>
           <p className="mt-1 text-sm text-muted">
-            {injury && injury.level !== 'watch' ? 'Strength levels unlock once this area settles.' : nextStep(strength)}
+            {injury && isBlocking(injury.level) ? 'Strength levels unlock once this area settles.' : nextStep(strength)}
           </p>
           {exercises.length > 0 && (
             <ul className="mt-3 space-y-1">
