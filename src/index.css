@@ -502,3 +502,89 @@ nav button[aria-current='page'] svg {
 @media (prefers-reduced-motion: reduce) {
   .map-throb, .map-breathe, .map-halo, .map-pop { animation: none !important; }
 }
+
+/* Body map v3: eleven tiers, each with its own animation */
+:root {
+  --lvl-flare: #e11d48;
+  --lvl-flare-ring: #fb7185;
+  --lvl-recovering: #f59e0b;
+  --lvl-active: #22c55e;
+  --lvl-silver: #cbd5e1;
+  --lvl-silver-text: #cbd5e1;
+}
+:root[data-theme='light'] {
+  --lvl-flare: #9f1239;
+  --lvl-flare-ring: #e11d48;
+  --lvl-recovering: #d97706;
+  --lvl-active: #16a34a;
+  --lvl-silver: #94a3b8;
+  --lvl-silver-text: #64748b;
+}
+
+/* Below neutral: slow fades that speed up into a heartbeat as things get worse */
+@keyframes fx-fade-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+@keyframes fx-fade-mid { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@keyframes fx-fade-deep { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes fx-heartbeat {
+  0%, 100% { opacity: 0.55; }
+  12% { opacity: 1; }
+  24% { opacity: 0.65; }
+  36% { opacity: 1; }
+  60% { opacity: 0.55; }
+}
+.fx-watch { animation: fx-fade-soft 4s ease-in-out infinite; }
+.fx-recovering { animation: fx-fade-mid 3.2s ease-in-out infinite; }
+.fx-affected { animation: fx-fade-deep 2.4s ease-in-out infinite; }
+.fx-injured { animation: fx-heartbeat 1.6s ease-in-out infinite; }
+.fx-flare { animation: fx-heartbeat 1s ease-in-out infinite; }
+
+/* Just above neutral: a gentle breath */
+.fx-active { animation: fx-fade-soft 3s ease-in-out infinite; }
+
+/* Halos: a soft glow that swells, faster and bigger towards both ends */
+@keyframes fx-halo {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.08); }
+}
+@keyframes fx-halo-big {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.16); }
+}
+.halo-strong, .halo-silver, .halo-gold, .halo-injured, .halo-flare {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.halo-strong { animation: fx-halo 2.4s ease-in-out infinite; }
+.halo-silver { animation: fx-halo 2s ease-in-out infinite; }
+.halo-gold { animation: fx-halo-big 1.6s ease-in-out infinite; }
+.halo-injured { animation: fx-halo 1.6s ease-in-out infinite; }
+.halo-flare { animation: fx-halo-big 1s ease-in-out infinite; }
+
+/* Flare: rings spreading out from the muscle */
+@keyframes fx-ripple {
+  0% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+.fx-ripple {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-ripple 1.4s ease-out infinite;
+}
+
+/* Silver and gold: twinkling stars */
+@keyframes fx-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.4) rotate(45deg); }
+}
+.fx-sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-sparkle 1.8s ease-in-out infinite both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-watch, .fx-recovering, .fx-affected, .fx-injured, .fx-flare, .fx-active,
+  .halo-strong, .halo-silver, .halo-gold, .halo-injured, .halo-flare,
+  .fx-ripple, .fx-sparkle { animation: none !important; }
+  .fx-ripple, .fx-sparkle { opacity: 0; }
+}
