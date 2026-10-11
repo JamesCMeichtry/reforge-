@@ -44,19 +44,14 @@ const tone = (level) =>
 const STRENGTH_ORDER = ['neutral', ...STRENGTH_TIERS]
 const ORDER = [...INJURY_TIERS, 'neutral', ...STRENGTH_TIERS]
 
-// Every tier moves differently, and the effects stack up towards both ends of the scale:
-// body = how the whole muscle pulses (only Flare pulses), flow = a band of light running through it,
-// march = a dashed outline crawling round the edge, halo = a soft glow around it, sparkle = twinkling stars.
+// Only the ends of the scale move. Middle tiers are still, so the moving ones stand out:
+// Flare pulses, Injured has a wave sweeping side to side, Affected has rings spreading from its centre,
+// Strong has a glint passing across it, Silver and Gold have flowing light, a halo and sparkles.
 const FX = {
   flare: { body: 'fx-flare', flow: 'flow-hot' },
-  injured: { flow: 'flow-warm', march: 'march-hot' },
-  affected: { flow: 'flow-warm-slow' },
-  recovering: { flow: 'flow-rise' },
-  watch: { march: 'march-slow' },
-  neutral: {},
-  active: { body: 'fx-active' },
-  building: { flow: 'flow-cool-slow' },
-  strong: { flow: 'flow-cool', halo: 'halo-strong' },
+  injured: { flow: 'wave-hot' },
+  affected: { flow: 'ember' },
+  strong: { flow: 'glint', halo: 'halo-strong' },
   silver: { flow: 'flow-bright', halo: 'halo-silver', sparkle: 2 },
   elite: { flow: 'flow-gold', halo: 'halo-gold', sparkle: 3 },
 }
@@ -435,16 +430,12 @@ export default function LivingMap() {
               <line x1="0" y1="0.85" x2="1.7" y2="0.85" style={{ stroke: 'var(--fig-fibre)' }} strokeWidth="0.4" />
             </pattern>
           ))}
+          {/* Light running down and back up the muscle */}
           {[
             ['flow-hot', '#ffffff', 0.55, '1.6s'],
-            ['flow-warm', '#fecaca', 0.5, '2.2s'],
-            ['flow-warm-slow', '#fed7aa', 0.4, '3.6s'],
-            ['flow-rise', '#fef3c7', 0.55, '2.8s', true],
-            ['flow-cool-slow', '#bfdbfe', 0.55, '3.6s'],
-            ['flow-cool', '#e0f2fe', 0.65, '2.4s'],
             ['flow-bright', '#ffffff', 0.7, '2s'],
             ['flow-gold', '#fff6d8', 0.8, '1.7s'],
-          ].map(([id, colour, strength, dur, rise]) => (
+          ].map(([id, colour, strength, dur]) => (
             <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0.3" stopColor={colour} stopOpacity="0" />
               <stop offset="0.5" stopColor={colour} stopOpacity={strength} />
@@ -452,15 +443,52 @@ export default function LivingMap() {
               <animateTransform
                 attributeName="gradientTransform"
                 type="translate"
-                values={rise ? '0 0.75; 0 -0.75' : '0 0.75; 0 -0.75; 0 0.75'}
-                keyTimes={rise ? '0; 1' : '0; 0.5; 1'}
+                values="0 0.75; 0 -0.75; 0 0.75"
+                keyTimes="0; 0.5; 1"
                 calcMode="spline"
-                keySplines={rise ? '0.4 0 0.6 1' : '0.45 0 0.55 1; 0.45 0 0.55 1'}
+                keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"
                 dur={dur}
                 repeatCount="indefinite"
               />
             </linearGradient>
           ))}
+          {/* Injured: a wave of heat sweeping from one side of the muscle to the other */}
+          <linearGradient id="wave-hot" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0.25" stopColor="#fecaca" stopOpacity="0" />
+            <stop offset="0.5" stopColor="#fff1f2" stopOpacity="0.6" />
+            <stop offset="0.75" stopColor="#fecaca" stopOpacity="0" />
+            <animateTransform
+              attributeName="gradientTransform"
+              type="translate"
+              values="-0.8 0; 0.8 0"
+              calcMode="spline"
+              keyTimes="0; 1"
+              keySplines="0.4 0 0.6 1"
+              dur="1.8s"
+              repeatCount="indefinite"
+            />
+          </linearGradient>
+          {/* Affected: rings of warmth spreading out from the centre, staying inside the muscle */}
+          <radialGradient id="ember" cx="0.5" cy="0.5" r="0.1">
+            <stop offset="0.2" stopColor="#fed7aa" stopOpacity="0" />
+            <stop offset="0.75" stopColor="#ffedd5" stopOpacity="0.45" />
+            <stop offset="1" stopColor="#fed7aa" stopOpacity="0" />
+            <animate attributeName="r" values="0.15; 0.8" dur="2.6s" repeatCount="indefinite" />
+          </radialGradient>
+          {/* Strong: a glint passing across the muscle, then a pause */}
+          <linearGradient id="glint" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0.38" stopColor="#ecfeff" stopOpacity="0" />
+            <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.75" />
+            <stop offset="0.62" stopColor="#ecfeff" stopOpacity="0" />
+            <animateTransform
+              attributeName="gradientTransform"
+              type="translate"
+              values="-1 -1; 1 1; 1 1"
+              keyTimes="0; 0.55; 1"
+              dur="2.8s"
+              repeatCount="indefinite"
+            />
+          </linearGradient>
           <linearGradient id="silver-shine" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#64748b" />
             <stop offset="40%" stopColor="#cbd5e1" />
@@ -538,7 +566,6 @@ export default function LivingMap() {
                 )}
                 {fx.flow && <path d={shape.d} fill={`url(#${fx.flow})`} pointerEvents="none" />}
                 <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />
-                {fx.march && <path d={shape.d} className={fx.march} fill="none" pointerEvents="none" />}
               </g>
               {fx.sparkle &&
                 shape.sparks.slice(0, fx.sparkle).map(([x, y], i) => (
