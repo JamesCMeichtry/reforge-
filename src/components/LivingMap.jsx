@@ -8,7 +8,7 @@ import { fetchRecentCheckIns } from '../lib/checkins.js'
 import { fetchActiveProgramme } from '../lib/programme.js'
 import { fetchSetHistory } from '../lib/progress.js'
 import { describeInjury, fetchProfile, startingXp } from '../lib/profile.js'
-import { useAuth } from '../auth/AuthProvider.jsx'
+import { me } from '../lib/me.js'
 import {
   INJURY_TIERS,
   LEVELS,
@@ -273,7 +273,7 @@ export default function LivingMap({ userId = me() }) {
   const [testNote, setTestNote] = useState(null)
   // Muscles that just levelled up get a pop; n replays the animation
   const [pop, setPop] = useState({ keys: new Set(), n: 0 })
-    const [chosenBody, setBody] = useState(() => (isOwn ? readBody() : null))
+  const [chosenBody, setBody] = useState(() => (isOwn ? readBody() : null))
   // A body picked on the map wins; otherwise the one from the questionnaire
   const body = chosenBody ?? (state.profile?.body === 'female' ? 'female' : 'male')
   const figure = BODIES[body]
@@ -286,7 +286,7 @@ export default function LivingMap({ userId = me() }) {
     if (state.status !== 'loading') return
     let cancelled = false
     Promise.all([
-            fetchInjuryRows(userId),
+      fetchInjuryRows(userId),
       fetchRecentCheckIns(365, userId),
       fetchSetHistory(365, userId),
       fetchActiveProgramme(userId),
@@ -310,10 +310,10 @@ export default function LivingMap({ userId = me() }) {
     return () => {
       cancelled = true
     }
-}, [state.status, userId])
+  }, [state.status, userId])
 
   const display = useMemo(() => {
-    if (state.status !== 'ready' || !isOwn) return
+    if (state.status !== 'ready') return {}
     const out = {}
     for (const shape of ALL_SHAPES) {
       out[shape.key] = combine(state.injuries[shape.key], shape.kind === 'muscle' ? state.strength[shape.id] : null)
@@ -325,9 +325,9 @@ export default function LivingMap({ userId = me() }) {
     return out
   }, [state, testing, testAll, testOverrides])
 
-  // Celebrate muscles that reached a higher strength level since the last visit
+  // Celebrate muscles that reached a higher strength level since the last visit (your own map only)
   useEffect(() => {
-    if (state.status !== 'ready') return
+    if (state.status !== 'ready' || !isOwn) return
     const now = {}
     for (const [id, s] of Object.entries(state.strength)) now[id] = s.level
     const seen = readSeen()
@@ -344,7 +344,7 @@ export default function LivingMap({ userId = me() }) {
       }
     }
     writeSeen(now)
-}, [state, isOwn])
+  }, [state, isOwn])
 
   const counts = useMemo(() => {
     const tally = {}
