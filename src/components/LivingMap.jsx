@@ -8,7 +8,7 @@ import { fetchRecentCheckIns } from '../lib/checkins.js'
 import { fetchActiveProgramme } from '../lib/programme.js'
 import { fetchSetHistory } from '../lib/progress.js'
 import { describeInjury, fetchProfile, startingXp } from '../lib/profile.js'
-import { me } from '../lib/me.js'
+import { useAuth } from '../auth/AuthProvider.jsx'
 import {
   INJURY_TIERS,
   LEVELS,
@@ -258,7 +258,9 @@ function writeSeen(levels) {
   }
 }
 
-export default function LivingMap() {
+// Your own map, or a client's when a professional passes their id
+export default function LivingMap({ userId = me() }) {
+  const isOwn = userId === me()
   const [view, setView] = useState('front')
   const [state, setState] = useState({ status: 'loading' })
   const [selected, setSelected] = useState(null)
@@ -271,25 +273,24 @@ export default function LivingMap() {
   const [testNote, setTestNote] = useState(null)
   // Muscles that just levelled up get a pop; n replays the animation
   const [pop, setPop] = useState({ keys: new Set(), n: 0 })
-  const { session } = useAuth()
-  const [chosenBody, setBody] = useState(readBody)
+    const [chosenBody, setBody] = useState(() => (isOwn ? readBody() : null))
   // A body picked on the map wins; otherwise the one from the questionnaire
   const body = chosenBody ?? (state.profile?.body === 'female' ? 'female' : 'male')
   const figure = BODIES[body]
   const chooseBody = (next) => {
     setBody(next)
-    writeBody(next)
+    if (isOwn) writeBody(next)
   }
 
   useEffect(() => {
     if (state.status !== 'loading') return
     let cancelled = false
     Promise.all([
-      fetchInjuryRows(),
-      fetchRecentCheckIns(365),
-      fetchSetHistory(365),
-      fetchActiveProgramme(),
-      session ? fetchProfile(session.user.id).catch(() => null) : null,
+            fetchInjuryRows(userId),
+      fetchRecentCheckIns(365, userId),
+      fetchSetHistory(365, userId),
+      fetchActiveProgramme(userId),
+      fetchProfile(userId).catch(() => null),
     ])
       .then(([rows, checkIns, history, programme, profile]) => {
         if (cancelled) return
@@ -309,10 +310,10 @@ export default function LivingMap() {
     return () => {
       cancelled = true
     }
-  }, [state.status, session])
+}, [state.status, userId])
 
   const display = useMemo(() => {
-    if (state.status !== 'ready') return {}
+    if (state.status !== 'ready' || !isOwn) return
     const out = {}
     for (const shape of ALL_SHAPES) {
       out[shape.key] = combine(state.injuries[shape.key], shape.kind === 'muscle' ? state.strength[shape.id] : null)
@@ -343,7 +344,7 @@ export default function LivingMap() {
       }
     }
     writeSeen(now)
-  }, [state])
+}, [state, isOwn])
 
   const counts = useMemo(() => {
     const tally = {}
