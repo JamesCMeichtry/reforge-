@@ -1,33 +1,36 @@
 import { useEffect, useState } from 'react'
-import TabBar, { TABS } from './components/TabBar.jsx'
+import TabBar, { CLIENTS_TAB, TABS } from './components/TabBar.jsx'
 import { SCREENS } from './screens.jsx'
 import { AuthProvider, useAuth } from './auth/AuthProvider.jsx'
 import AuthScreen from './auth/AuthScreen.jsx'
 import { isSupabaseConfigured } from './lib/supabase.js'
 import { fetchProfile } from './lib/profile.js'
+import { setMe } from './lib/me.js'
 import Onboarding from './screens/Onboarding.jsx'
 
 const DEFAULT_TAB = 'today'
 
 // Hashes look like #programme or #programme/upper-a; the first part picks the tab
-function tabFromHash() {
+function tabFromHash(tabs) {
   const id = window.location.hash.replace('#', '').split('/')[0]
-  return TABS.some((tab) => tab.id === id) ? id : DEFAULT_TAB
+  return tabs.some((tab) => tab.id === id) ? id : DEFAULT_TAB
 }
 
-function AppShell() {
-  const [activeTab, setActiveTab] = useState(tabFromHash)
+// Physios, PTs and coaches get the full training app for themselves, plus a Clients tab
+function AppShell({ profile }) {
+  const tabs = profile?.role === 'pro' ? [...TABS, CLIENTS_TAB] : TABS
+  const [activeTab, setActiveTab] = useState(() => tabFromHash(tabs))
   const [route, setRoute] = useState(() => window.location.hash)
 
   // Keeps the tab in sync with the URL, so refresh and the back button work
   useEffect(() => {
     const onHashChange = () => {
-      setActiveTab(tabFromHash())
+      setActiveTab(tabFromHash(tabs))
       setRoute(window.location.hash)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
-  }, [])
+  }, [tabs.length])
 
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -51,7 +54,7 @@ function AppShell() {
       >
         <Screen />
       </main>
-      <TabBar activeTab={activeTab} onSelect={selectTab} />
+      <TabBar activeTab={activeTab} onSelect={selectTab} tabs={tabs} />
     </div>
   )
 }
@@ -68,22 +71,10 @@ function SetupMissing() {
   )
 }
 
-// Professionals get their own area. It's being built next, so for now this explains what's coming.
-function ProHome({ profile }) {
-  return (
-    <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center px-5">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Professional account</p>
-      <h1 className="mt-3 font-display text-5xl font-bold uppercase leading-none">Welcome, {profile.display_name}</h1>
-      <p className="mt-4 text-muted">
-        Your client area is on its way. You'll add clients with the code they share from their profile, then see their
-        body map, check-ins and sessions, and manage their programmes and injuries.
-      </p>
-    </main>
-  )
-}
-
 // Signed in: everyone answers the starting questionnaire once, then gets the app for their account type
 function SignedIn({ userId }) {
+  // Every query for "my" training uses this, so it's set before anything loads
+  setMe(userId)
   const [profile, setProfile] = useState(undefined)
   const [failed, setFailed] = useState(false)
 
@@ -113,8 +104,7 @@ function SignedIn({ userId }) {
   }
   if (profile === undefined) return <div className="min-h-dvh bg-ink" />
   if (!profile?.onboarded_at) return <Onboarding userId={userId} onDone={setProfile} />
-  if (profile.role === 'pro') return <ProHome profile={profile} />
-  return <AppShell />
+  return <AppShell profile={profile} />
 }
 
 function Gate() {
