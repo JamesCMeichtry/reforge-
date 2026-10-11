@@ -53,15 +53,28 @@ export const TABS = [
   },
 ]
 
-export default function TabBar({ activeTab, onSelect }) {
+// Extra tab for physio, PT and coach accounts
+export const CLIENTS_TAB = {
+  id: 'clients',
+  label: 'Clients',
+  icon: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" />
+      <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M17.5 14.3c2.4.6 4 2.6 4 5.7" />
+    </>
+  ),
+}
+
+export default function TabBar({ activeTab, onSelect, tabs = TABS }) {
   return (
     <nav
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-ink/95 backdrop-blur"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <ul className="mx-auto grid max-w-xl grid-cols-6">
-        {TABS.map((tab) => {
+      <ul className="mx-auto grid max-w-xl" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+        {tabs.map((tab) => {
           const isActive = tab.id === activeTab
           return (
             <li key={tab.id}>
