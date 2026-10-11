@@ -1,12 +1,14 @@
 import { supabase } from './supabase.js'
+import { me } from './me.js'
 
 // Local calendar date (YYYY-MM-DD), so late-evening sessions count as today
 export const todayDate = () => new Date().toLocaleDateString('en-CA')
 
-export async function fetchActiveProgramme() {
+export async function fetchActiveProgramme(userId = me()) {
   const { data, error } = await supabase
     .from('programmes')
     .select('id, name, days')
+    .eq('user_id', userId)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -34,6 +36,7 @@ export async function fetchLastDayName(programmeId) {
   const { data, error } = await supabase
     .from('set_logs')
     .select('day_name')
+    .eq('user_id', me())
     .eq('programme_id', programmeId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -54,6 +57,7 @@ export async function fetchPreviousSets(exerciseNames) {
   const { data, error } = await supabase
     .from('set_logs')
     .select('exercise, session_date, set_number, weight_kg, band, reps')
+    .eq('user_id', me())
     .in('exercise', exerciseNames)
     .lt('session_date', todayDate())
     .order('session_date', { ascending: false })
@@ -74,6 +78,7 @@ export async function fetchTodaySets(programmeId, dayName) {
   const { data, error } = await supabase
     .from('set_logs')
     .select('id, exercise, set_number, weight_kg, band, reps')
+    .eq('user_id', me())
     .eq('programme_id', programmeId)
     .eq('day_name', dayName)
     .eq('session_date', todayDate())
@@ -130,6 +135,7 @@ export async function fetchRecentTraining(days = 42) {
   const { data, error } = await supabase
     .from('set_logs')
     .select('session_date, day_name')
+    .eq('user_id', me())
     .gte('session_date', since.toLocaleDateString('en-CA'))
     .order('session_date', { ascending: false })
     .limit(2000)
