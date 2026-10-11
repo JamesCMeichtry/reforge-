@@ -6,7 +6,7 @@ import { musclesForExercise } from '../data/muscles.js'
 import { fetchRecentCheckIns } from '../lib/checkins.js'
 import { fetchActiveProgramme } from '../lib/programme.js'
 import { fetchSetHistory } from '../lib/progress.js'
-import { LEVELS, combine, fetchInjuryRows, injuryLayer, nextStep, shapeKey, strengthLayer } from '../lib/livingMap.js'
+import { LEVELS, XP, XP_LEVELS, combine, fetchInjuryRows, injuryLayer, nextStep, shapeKey, strengthLayer } from '../lib/livingMap.js'
 import { LoadingCards, buttonSecondary } from './ui.jsx'
 
 const SEEN_KEY = 'reforge.levels.seen.v1'
@@ -25,6 +25,8 @@ const FILLS = {
 const tone = (level) => (level === 'watch' ? 'var(--lvl-watch-text)' : FILLS[level])
 const STRENGTH_ORDER = ['neutral', 'building', 'strong', 'elite']
 const ORDER = ['injured', 'affected', 'watch', 'neutral', 'building', 'strong', 'elite']
+// Each level has its own movement: injuries throb, recovering areas breathe, strong muscles glow
+const MOTION = { injured: 'lvl-throb', affected: 'lvl-breathe', strong: 'lvl-glow', elite: 'lvl-glow' }
 
 // Smooth closed outline through a list of points
 function smooth(points, tension = 0.5) {
@@ -183,6 +185,8 @@ export default function LivingMap() {
   const [testing, setTesting] = useState(false)
   const [testAll, setTestAll] = useState(null)
   const [testOverrides, setTestOverrides] = useState({})
+  // Muscles that just levelled up get a pop; n replays the animation
+  const [pop, setPop] = useState({ keys: new Set(), n: 0 })
   const figure = FIGURES[figureStyle]
   const chooseStyle = (next) => {
     setFigureStyle(next)
@@ -196,14 +200,14 @@ export default function LivingMap() {
   useEffect(() => {
     if (state.status !== 'loading') return
     let cancelled = false
-    Promise.all([fetchInjuryRows(), fetchRecentCheckIns(56), fetchSetHistory(56), fetchActiveProgramme()])
+    Promise.all([fetchInjuryRows(), fetchRecentCheckIns(365), fetchSetHistory(365), fetchActiveProgramme()])
       .then(([rows, checkIns, history, programme]) => {
         if (cancelled) return
         setState({
           status: 'ready',
           injuries: injuryLayer(rows, checkIns),
           structures: structureLayer(rows, injuryLayer(rows, checkIns)),
-          strength: strengthLayer(history),
+          strength: strengthLayer(history, checkIns),
           programme,
         })
       })
@@ -236,9 +240,13 @@ export default function LivingMap() {
       const names = new Map(ALL_SHAPES.map((s) => [s.id, s.name]))
       const ups = Object.entries(now)
         .filter(([id, level]) => STRENGTH_ORDER.indexOf(level) > STRENGTH_ORDER.indexOf(seen[id] ?? 'neutral'))
-        .map(([id, level]) => ({ name: names.get(id), level }))
+        .map(([id, level]) => ({ id, name: names.get(id), level }))
         .filter((u) => u.name)
       setLevelUps(ups)
+      if (ups.length) {
+        const ids = new Set(ups.map((u) => u.id))
+        setPop({ keys: new Set(ALL_SHAPES.filter((s) => ids.has(s.id)).map((s) => s.key)), n: 1 })
+      }
     }
     writeSeen(now)
   }, [state])
@@ -282,6 +290,13 @@ export default function LivingMap() {
       setTestAll(next)
       setTestOverrides({})
     }
+    // Preview the level-up pop when going up into a strength level
+    if (direction > 0 && ORDER.indexOf(next) > ORDER.indexOf('neutral')) {
+      setPop((current) => ({
+        keys: new Set(selectedShape ? [selectedShape.key] : ALL_SHAPES.map((s) => s.key)),
+        n: current.n + 1,
+      }))
+    }
   }
 
   return (
@@ -291,7 +306,7 @@ export default function LivingMap() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Level up</p>
           <ul className="mt-2 space-y-1">
             {levelUps.slice(0, 4).map((u) => (
-              <li key={u.name} className="font-semibold text-white">
+              <li key={u.id} className="font-semibold text-white">
                 {u.name} reached <span style={{ color: tone(u.level) }}>{LEVELS[u.level].label}</span>
               </li>
             ))}
@@ -400,8 +415,13 @@ export default function LivingMap() {
               flare ? 'flare-pulse' : ''
             }`,
           }
+          const popping = pop.keys.has(shape.key)
+          const motion = flare ? '' : (MOTION[level] ?? '')
           return (
-            <g key={`${figureStyle}-${view}-${index}`}>
+            <g
+              key={`${figureStyle}-${view}-${index}-${popping ? pop.n : 0}`}
+              className={`${motion} ${popping ? 'level-pop' : ''}`}
+            >
               <path d={shape.d} {...props} />
               {figure.detailed && shape.angle != null && (
                 <path
@@ -617,8 +637,10 @@ export default function LivingMap() {
 
       <p className="mt-6 text-xs leading-relaxed text-muted">
         Injury colours move with your check-ins: a bad day shows straight away, recovery needs a run of good ones.
-        Muscles earn blue, then gold, from consistent training and rising lifts. An injured area can't level up until it
-        settles.
+        Muscles level up with XP: {XP.primarySet} for every set that works them, {XP.secondarySet} when they help out, and{' '}
+        {XP.checkIn} for each check-in in a week you trained them. {XP_LEVELS[0].xp} XP is Building, {XP_LEVELS[1].xp} Strong and{' '}
+        {XP_LEVELS[2].xp.toLocaleString('en-GB')} Elite. Leave one untrained for 3 weeks and it starts to fade. An injured area can't level
+        up until it settles.
       </p>
     </div>
   )
@@ -739,7 +761,20 @@ function AreaPanel({ shape, shown, injury, strength, programme, involved = [], o
 
       {shape.kind === 'muscle' && (
         <div className="mt-4 border-t border-line pt-4">
-          <p className="text-sm text-neutral-300">
+          <div className="flex items-baseline justify-between text-xs">
+            <span className="font-bold uppercase tracking-[0.2em] text-gold">XP</span>
+            <span className="text-muted">
+              {(strength?.xp ?? 0).toLocaleString('en-GB')}
+              {strength?.next ? ` / ${strength.next.xp.toLocaleString('en-GB')}` : ' · max level'}
+            </span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-line">
+            <div
+              className="h-full rounded-full bg-gold transition-[width] duration-700"
+              style={{ width: `${Math.max(3, Math.round((strength?.progress ?? 0) * 100))}%` }}
+            />
+          </div>
+          <p className="mt-3 text-sm text-neutral-300">
             Trained {strength?.last4 ?? 0} of the last 4 weeks
             {strength?.change != null &&
               (Math.abs(strength.change) < 0.01
