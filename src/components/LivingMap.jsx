@@ -8,7 +8,7 @@ import { fetchRecentCheckIns } from '../lib/checkins.js'
 import { fetchActiveProgramme } from '../lib/programme.js'
 import { fetchSetHistory } from '../lib/progress.js'
 import { describeInjury, fetchProfile, startingXp } from '../lib/profile.js'
-import { useAuth } from '../auth/AuthProvider.jsx'
+import { me } from '../lib/me.js'
 import {
   INJURY_TIERS,
   LEVELS,
