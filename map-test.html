@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reforge map test</title>
+<link rel="stylesheet" href="reforge-map.css">
+<style>
+  body { background:#111; color:#eee; font-family:system-ui,sans-serif; margin:0; padding:16px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-width:420px; }
+  .tile { border-radius:12px; padding:14px; color:#111; font-weight:600; }
+  .tile small { display:block; font-weight:400; }
+  button { margin:4px 4px 0 0; padding:10px 12px; border-radius:8px; border:1px solid #555; background:#222; color:#eee; }
+  #log { font-size:14px; color:#aaa; margin-top:12px; max-width:420px; }
+</style>
+</head>
+<body>
+<h2>Map test</h2>
+<div class="grid">
+  <div class="tile" data-muscle="quads">Quads <small></small></div>
+  <div class="tile" data-muscle="hamstrings">Hamstrings <small></small></div>
+  <div class="tile" data-muscle="glutes">Glutes <small></small></div>
+  <div class="tile" data-muscle="chest">Chest <small></small></div>
+</div>
+<div style="margin-top:12px">
+  <button id="squat">Log squats 5×8 RPE 8</button>
+  <button id="bench">Log bench 5×8 RPE 8</button>
+  <button id="injure">Injure quads</button>
+  <button id="recover">Quads recovery step</button>
+  <button id="flare">Check-in: hamstrings flared</button>
+  <button id="reset">Reset</button>
+</div>
+<div id="log">Log sessions to level up.</div>
+<script src="reforge-map.js"></script>
+<script>
+  const log = document.getElementById('log');
+  function draw() {
+    document.querySelectorAll('[data-muscle]').forEach(el => {
+      const i = Reforge.info(el.dataset.muscle);
+      el.querySelector('small').textContent =
+        (i.injuryName || i.levelName) + ' · ' + i.xp + (i.nextLevelXp ? ' / ' + i.nextLevelXp : '') + ' XP';
+    });
+    Reforge.render();
+  }
+  function show(events) {
+    log.textContent = events.length
+      ? events.map(e => e.message || (e.muscle + ': ' + e.name)).join(' · ')
+      : 'Session logged.';
+    draw();
+  }
+  document.getElementById('squat').onclick = () => show(Reforge.logSession({ exercises: [{ muscles: ['quads', 'glutes'], sets: 5, rpe: 8 }] }));
+  document.getElementById('bench').onclick = () => show(Reforge.logSession({ exercises: [{ muscles: ['chest'], sets: 5, rpe: 8 }] }));
+  document.getElementById('injure').onclick = () => { Reforge.setInjury('quads', 'red'); log.textContent = 'Quads injured. Level kept underneath.'; draw(); };
+  document.getElementById('recover').onclick = () => { const s = Reforge.stepRecovery('quads'); log.textContent = s ? 'Quads now ' + s + '.' : 'Quads cleared.'; draw(); };
+  document.getElementById('flare').onclick = () => show(Reforge.checkIn({ painBefore: 2, painAfter: 4, flared: ['hamstrings'] }));
+  document.getElementById('reset').onclick = () => { Reforge.reset(); log.textContent = 'Reset.'; draw(); };
+  draw();
+</script>
+</body>
+</html>
