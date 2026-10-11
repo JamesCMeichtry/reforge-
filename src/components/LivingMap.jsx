@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ABS_LINES, DETAILS, FIGURE, INJURY_STRUCTURES, NAMES, STRUCTURES, WIDTH } from '../data/anatomy.js'
+import { DETAILS, INJURY_STRUCTURES, NAMES, STRUCTURES, WIDTH } from '../data/anatomy.js'
 import { FIGURE_DETAILED } from '../data/anatomyDetailed.js'
 import { INJURIES } from '../data/injuries.js'
 import { musclesForExercise } from '../data/muscles.js'
@@ -10,7 +10,6 @@ import { LEVELS, XP, XP_LEVELS, combine, fetchInjuryRows, injuryLayer, nextStep,
 import { LoadingCards, buttonSecondary } from './ui.jsx'
 
 const SEEN_KEY = 'reforge.levels.seen.v1'
-const STYLE_KEY = 'reforge.mapStyle'
 
 // Colours for each level come from the theme (see index.css), so they suit dark and light
 const FILLS = {
@@ -25,8 +24,11 @@ const FILLS = {
 const tone = (level) => (level === 'watch' ? 'var(--lvl-watch-text)' : FILLS[level])
 const STRENGTH_ORDER = ['neutral', 'building', 'strong', 'elite']
 const ORDER = ['injured', 'affected', 'watch', 'neutral', 'building', 'strong', 'elite']
-// Each level has its own movement: injuries throb, recovering areas breathe, strong muscles glow
-const MOTION = { injured: 'lvl-throb', affected: 'lvl-breathe', strong: 'lvl-glow', elite: 'lvl-glow' }
+// Each level has its own movement: injuries throb, recovering areas breathe, strong and elite muscles glow
+const MOTION = { injured: 'map-throb', affected: 'map-breathe' }
+const GLOWS = new Set(['strong', 'elite'])
+const levelForXp = (xp) => [...XP_LEVELS].reverse().find((step) => xp >= step.xp)?.level ?? 'neutral'
+const xpForLevel = (level) => XP_LEVELS.find((step) => step.level === level)?.xp ?? 0
 
 // Smooth closed outline through a list of points
 function smooth(points, tension = 0.5) {
@@ -62,16 +64,15 @@ const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
 
 const mirrorAngle = (angle) => (angle == null ? null : (180 - angle) % 180)
 
-// Front view: the figure's right side is on the viewer's left.
-// Classic rows are [id, kind, central, points]; detailed rows add a fibre angle before the points.
-function shapesFor(figure, view, detailed) {
+// Front view: the figure's right side is on the viewer's left. Rows are [id, kind, central, fibre angle, points].
+function shapesFor(figure, view) {
   const leftOfScreen = view === 'front' ? 'right' : 'left'
   const rightOfScreen = view === 'front' ? 'left' : 'right'
   return figure[view].shapes.flatMap((row) => {
     const [id, kind, central] = row
-    const angle = detailed ? row[3] : null
-    const points = parse(detailed ? row[4] : row[3])
-    const base = { id, kind, name: NAMES[id], lines: !detailed && id === 'abs' ? ABS_LINES : null }
+    const angle = row[3]
+    const points = parse(row[4])
+    const base = { id, kind, name: NAMES[id] }
     if (central) return [{ ...base, key: id, side: null, angle, d: polygon(points) }]
     return [
       { ...base, key: shapeKey(id, leftOfScreen), side: leftOfScreen, angle, d: polygon(points) },
@@ -80,11 +81,10 @@ function shapesFor(figure, view, detailed) {
   })
 }
 
-function buildFigure(figure, detailed) {
-  const shapes = { front: shapesFor(figure, 'front', detailed), back: shapesFor(figure, 'back', detailed) }
+function buildFigure(figure) {
+  const shapes = { front: shapesFor(figure, 'front'), back: shapesFor(figure, 'back') }
   const all = [...shapes.front, ...shapes.back]
   return {
-    detailed,
     shapes,
     all,
     outlines: { front: polygon(parse(figure.front.outline)), back: polygon(parse(figure.back.outline)) },
@@ -92,15 +92,7 @@ function buildFigure(figure, detailed) {
   }
 }
 
-const FIGURES = { classic: buildFigure(FIGURE, false), detailed: buildFigure(FIGURE_DETAILED, true) }
-
-function readStyle() {
-  try {
-    return localStorage.getItem(STYLE_KEY) === 'classic' ? 'classic' : 'detailed'
-  } catch {
-    return 'detailed'
-  }
-}
+const FIGURE_SHAPES = buildFigure(FIGURE_DETAILED)
 
 // Fine anatomical lines (neck, collarbones, fingers, toes) drawn over the figure
 function detailsFor(view) {
@@ -156,7 +148,7 @@ function structureLayer(rows, injuries) {
 const DETAIL_PATHS = { front: detailsFor('front'), back: detailsFor('back') }
 const STRUCTURE_SHAPES = { front: structuresFor('front'), back: structuresFor('back') }
 
-const ALL_SHAPES = FIGURES.classic.all
+const ALL_SHAPES = FIGURE_SHAPES.all
 const labelOf = (shape) => `${shape.side ? `${sideName(shape.side)} ` : ''}${shape.name.toLowerCase()}`
 
 function readSeen() {
@@ -180,22 +172,15 @@ export default function LivingMap() {
   const [state, setState] = useState({ status: 'loading' })
   const [selected, setSelected] = useState(null)
   const [levelUps, setLevelUps] = useState([])
-  const [figureStyle, setFigureStyle] = useState(readStyle)
   // Testing only: preview colours without real data
   const [testing, setTesting] = useState(false)
   const [testAll, setTestAll] = useState(null)
   const [testOverrides, setTestOverrides] = useState({})
+  const [testXp, setTestXp] = useState({})
+  const [testNote, setTestNote] = useState(null)
   // Muscles that just levelled up get a pop; n replays the animation
   const [pop, setPop] = useState({ keys: new Set(), n: 0 })
-  const figure = FIGURES[figureStyle]
-  const chooseStyle = (next) => {
-    setFigureStyle(next)
-    try {
-      localStorage.setItem(STYLE_KEY, next)
-    } catch {
-      // Falls back to the default next time
-    }
-  }
+  const figure = FIGURE_SHAPES
 
   useEffect(() => {
     if (state.status !== 'loading') return
@@ -283,20 +268,46 @@ export default function LivingMap() {
     )
   const sideLabels = view === 'front' ? ['Right', 'Left'] : ['Left', 'Right']
   const testLevel = selectedShape ? (display[selectedShape.key]?.level ?? 'neutral') : (testAll ?? 'neutral')
-  const stepTest = (direction) => {
-    const next = ORDER[Math.min(ORDER.length - 1, Math.max(0, ORDER.indexOf(testLevel) + direction))]
-    if (selectedShape) setTestOverrides((current) => ({ ...current, [selectedShape.key]: next }))
+  const testTarget = selectedShape ? selectedShape.key : 'all'
+  const testXpNow = testXp[testTarget] ?? (selectedShape ? (state.strength[selectedShape.id]?.xp ?? 0) : 0)
+  const testNext = XP_LEVELS.find((step) => step.xp > testXpNow) ?? null
+  const testFloor = [...XP_LEVELS].reverse().find((step) => step.xp <= testXpNow)?.xp ?? 0
+  const testProgress = testNext ? (testXpNow - testFloor) / (testNext.xp - testFloor) : 1
+
+  const applyTestLevel = (level) => {
+    if (selectedShape) setTestOverrides((current) => ({ ...current, [selectedShape.key]: level }))
     else {
-      setTestAll(next)
+      setTestAll(level)
       setTestOverrides({})
     }
+  }
+  const celebrate = (level) => {
+    setPop((current) => ({
+      keys: new Set(selectedShape ? [selectedShape.key] : ALL_SHAPES.map((s) => s.key)),
+      n: current.n + 1,
+    }))
+    setTestNote((current) => ({ text: `Level up! ${LEVELS[level].label}`, n: (current?.n ?? 0) + 1 }))
+  }
+  const stepTest = (direction) => {
+    const next = ORDER[Math.min(ORDER.length - 1, Math.max(0, ORDER.indexOf(testLevel) + direction))]
+    applyTestLevel(next)
+    if (ORDER.indexOf(next) >= ORDER.indexOf('neutral')) setTestXp((current) => ({ ...current, [testTarget]: xpForLevel(next) }))
     // Preview the level-up pop when going up into a strength level
-    if (direction > 0 && ORDER.indexOf(next) > ORDER.indexOf('neutral')) {
-      setPop((current) => ({
-        keys: new Set(selectedShape ? [selectedShape.key] : ALL_SHAPES.map((s) => s.key)),
-        n: current.n + 1,
-      }))
-    }
+    if (direction > 0 && ORDER.indexOf(next) > ORDER.indexOf('neutral')) celebrate(next)
+  }
+  const addTestXp = (amount) => {
+    const after = Math.max(0, testXpNow + amount)
+    const before = levelForXp(testXpNow)
+    const level = levelForXp(after)
+    setTestXp((current) => ({ ...current, [testTarget]: after }))
+    applyTestLevel(level)
+    if (ORDER.indexOf(level) > ORDER.indexOf(before)) celebrate(level)
+  }
+  const resetTest = () => {
+    setTestAll(null)
+    setTestOverrides({})
+    setTestXp({})
+    setTestNote(null)
   }
 
   return (
@@ -350,6 +361,9 @@ export default function LivingMap() {
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
+          </filter>
+          <filter id="halo" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="3.2" />
           </filter>
           <linearGradient id="sheen" x1="0.15" y1="0" x2="0.85" y2="1">
             <stop offset="0" stopColor="#ffffff" stopOpacity="0.13" />
@@ -410,7 +424,6 @@ export default function LivingMap() {
             },
             style: { fill, stroke },
             strokeWidth: isSelected ? 1.4 : 0,
-            filter: level === 'strong' || level === 'elite' ? 'url(#glow-strong)' : undefined,
             className: `cursor-pointer outline-none transition-[fill,fill-opacity] duration-500 focus-visible:stroke-[#e3c565] ${
               flare ? 'flare-pulse' : ''
             }`,
@@ -419,11 +432,20 @@ export default function LivingMap() {
           const motion = flare ? '' : (MOTION[level] ?? '')
           return (
             <g
-              key={`${figureStyle}-${view}-${index}-${popping ? pop.n : 0}`}
-              className={`${motion} ${popping ? 'level-pop' : ''}`}
+              key={`${view}-${index}-${popping ? pop.n : 0}`}
+              className={`${motion} ${popping ? 'map-pop' : ''}`}
             >
+              {GLOWS.has(level) && (
+                <path
+                  d={shape.d}
+                  className="map-halo"
+                  style={{ fill: level === 'elite' ? 'var(--color-gold)' : FILLS[level] }}
+                  filter="url(#halo)"
+                  pointerEvents="none"
+                />
+              )}
               <path d={shape.d} {...props} />
-              {figure.detailed && shape.angle != null && (
+              {shape.angle != null && (
                 <path
                   d={shape.d}
                   fill={`url(#fibre-${shape.angle})`}
@@ -431,16 +453,7 @@ export default function LivingMap() {
                   pointerEvents="none"
                 />
               )}
-              {figure.detailed && <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />}
-              {shape.lines?.map(([from, to], i) => (
-                <path
-                  key={i}
-                  d={`M${from} L${to}`}
-                  style={{ stroke: 'var(--fig-body)' }}
-                  strokeWidth="1.4"
-                  pointerEvents="none"
-                />
-              ))}
+              <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />
             </g>
           )
         })}
@@ -575,43 +588,59 @@ export default function LivingMap() {
               +
             </button>
           </div>
-          <p className="mt-2 text-center text-xs text-muted">
+
+          <div className="mt-4">
+            <div className="flex items-baseline justify-between text-xs">
+              <span className="font-bold uppercase tracking-[0.2em] text-gold">XP</span>
+              <span className="text-muted">
+                {testXpNow.toLocaleString('en-GB')}
+                {testNext ? ` / ${testNext.xp.toLocaleString('en-GB')} to ${LEVELS[testNext.level].label}` : ' · max level'}
+              </span>
+            </div>
+            <div className="mt-2 h-3 overflow-hidden rounded-full bg-line">
+              <div
+                className="h-full rounded-full bg-gold transition-[width] duration-500"
+                style={{ width: `${Math.max(2, Math.round(testProgress * 100))}%` }}
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {[
+                ['+1 set', XP.primarySet],
+                ['+100 XP', 100],
+                ['−100 XP', -100],
+              ].map(([label, amount]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => addTestXp(amount)}
+                  className="rounded-xl border border-line py-2 text-sm font-semibold text-white"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {testNote && (
+              <p key={testNote.n} className="celebrate mt-3 text-center font-display text-2xl font-bold uppercase text-gold">
+                {testNote.text}
+              </p>
+            )}
+          </div>
+
+          <p className="mt-3 text-center text-xs text-muted">
             Tap an area to change just that one, or tap it again to go back to the whole body.{' '}
-            <button
-              type="button"
-              onClick={() => {
-                setTestAll(null)
-                setTestOverrides({})
-              }}
-              className="font-semibold text-gold"
-            >
+            <button type="button" onClick={resetTest} className="font-semibold text-gold">
               Reset
             </button>
           </p>
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted" role="group" aria-label="Figure style">
-        <span>Figure</span>
-        {['detailed', 'classic'].map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => chooseStyle(option)}
-            aria-pressed={figureStyle === option}
-            className={`rounded-full border px-3 py-1 font-semibold capitalize ${
-              figureStyle === option ? 'border-gold text-gold' : 'border-line text-muted'
-            }`}
-          >
-            {option}
-          </button>
-        ))}
+      <div className="mt-4 flex justify-center text-xs">
         <button
           type="button"
           onClick={() => {
             setTesting((on) => !on)
-            setTestAll(null)
-            setTestOverrides({})
+            resetTest()
           }}
           aria-pressed={testing}
           className={`rounded-full border border-dashed px-3 py-1 font-semibold ${
