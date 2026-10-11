@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { INJURIES, INJURY_GROUPS, TIERS } from '../data/injuries.js'
 import { supabase } from '../lib/supabase.js'
+import { me } from '../lib/me.js'
+import { describeInjury } from '../lib/profile.js'
 import { LoadingCards, buttonPrimary, buttonSecondary } from './ui.jsx'
 
 const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
@@ -86,12 +88,15 @@ function AddInjury({ injuries, onAdd }) {
       >
         {saving ? 'Saving…' : 'Add to body map'}
       </button>
-      <p className="mt-3 text-xs text-muted">Not listed? Describing any injury in your own words arrives with the AI.</p>
+      <p className="mt-3 text-xs text-muted">
+        Not listed? Describing any injury in your own words arrives with the AI.
+      </p>
     </section>
   )
 }
 
-export default function InjuryEditor() {
+// Edits your own injuries, or a client's when a professional passes their id
+export default function InjuryEditor({ userId = me() }) {
   const [injuries, setInjuries] = useState([])
   const [status, setStatus] = useState('loading')
   const [error, setError] = useState('')
@@ -101,7 +106,8 @@ export default function InjuryEditor() {
     let cancelled = false
     supabase
       .from('injuries')
-      .select('id, injury_key, side')
+      .select('id, injury_key, side, details')
+      .eq('user_id', userId)
       .order('created_at')
       .then(({ data, error: loadError }) => {
         if (cancelled) return
@@ -112,14 +118,14 @@ export default function InjuryEditor() {
     return () => {
       cancelled = true
     }
-  }, [status])
+  }, [status, userId])
 
   async function addInjury(row) {
     setError('')
     const { data, error: saveError } = await supabase
       .from('injuries')
-      .insert(row)
-      .select('id, injury_key, side')
+      .insert({ ...row, user_id: userId })
+      .select('id, injury_key, side, details')
       .single()
     if (saveError) {
       setError("Couldn't save that injury. Check your connection and try again.")
@@ -169,6 +175,11 @@ export default function InjuryEditor() {
                   <div>
                     <p className="font-semibold text-white">{injury.name}</p>
                     {row.side && <p className="text-sm text-muted">{sideName(row.side)} side</p>}
+                    {describeInjury(row.details).map((line) => (
+                      <p key={line} className="mt-0.5 text-sm text-muted">
+                        {line}
+                      </p>
+                    ))}
                   </div>
                   <button
                     type="button"
