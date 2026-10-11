@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { me } from './me.js'
 import { todayDate } from './programme.js'
 import { CENTRAL_AREAS, INJURIES } from '../data/injuries.js'
 import { musclesForExercise } from '../data/muscles.js'
@@ -54,8 +55,13 @@ const slug = (text) => text.toLowerCase().replace(/\s+/g, '-')
 const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
 export const shapeKey = (id, side) => (CENTRAL_SHAPES.has(id) ? id : `${side}-${id}`)
 
-export async function fetchInjuryRows() {
-  const { data, error } = await supabase.from('injuries').select('injury_key, side, details').order('created_at')
+export async function fetchInjuryRows(userId = me()) {
+  const { data, error } = await supabase
+    .from('injuries')
+    .select('injury_key, side, details')
+    .eq('user_id', userId)
+    .order('created_at')
+
   if (error) throw error
   return data
 }
