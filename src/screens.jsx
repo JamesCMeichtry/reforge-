@@ -75,10 +75,55 @@ function AccountPanel() {
   )
 }
 
+const DEV_KEY = 'reforge.dev'
+
+function readDev() {
+  try {
+    return localStorage.getItem(DEV_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+// Testing tools (like Test colours on the body map) stay hidden from everyone else.
+// Tap the Profile title 5 times quickly to turn them on or off; the app reloads to apply it.
+function useSecretTaps(onUnlock) {
+  const [taps, setTaps] = useState([])
+  return () => {
+    const now = Date.now()
+    const recent = [...taps.filter((t) => now - t < 2000), now]
+    if (recent.length >= 5) {
+      setTaps([])
+      onUnlock()
+    } else setTaps(recent)
+  }
+}
+
 function ProfileScreen() {
+  const [dev, setDev] = useState(readDev)
+  const toggleDev = () => {
+    const next = !dev
+    try {
+      if (next) localStorage.setItem(DEV_KEY, '1')
+      else localStorage.removeItem(DEV_KEY)
+    } catch {
+      return
+    }
+    setDev(next)
+    window.setTimeout(() => window.location.reload(), 700)
+  }
+  const onTitleTap = useSecretTaps(toggleDev)
+
   return (
     <>
-      <ScreenHeader title="Profile" intro="Your goals, settings and professional connection." />
+      <div onClick={onTitleTap} className="select-none">
+        <ScreenHeader title="Profile" intro="Your goals, settings and professional connection." />
+      </div>
+      {dev && (
+        <p className="-mt-4 mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-gold">
+          Testing tools on · tap the title 5 times to turn off
+        </p>
+      )}
       <div className="space-y-4">
         <AccountPanel />
         <ThemeToggle />
