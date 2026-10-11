@@ -4,11 +4,13 @@ import { supabase } from './lib/supabase.js'
 import InjuryEditor from './components/InjuryEditor.jsx'
 import LivingMap from './components/LivingMap.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
-import { Panel, ScreenHeader } from './components/ui.jsx'
+import ConnectPanel from './components/ConnectPanel.jsx'
+import { ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
 import RehabScreen from './screens/RehabScreen.jsx'
 import ProgressScreen from './screens/ProgressScreen.jsx'
+import ClientsScreen from './screens/ClientsScreen.jsx'
 
 function BodyMapScreen() {
   const [mode, setMode] = useState('living')
@@ -80,9 +82,7 @@ function ProfileScreen() {
       <div className="space-y-4">
         <AccountPanel />
         <ThemeToggle />
-        <Panel heading="Connect a professional" note="Coming soon">
-          Share a code with your physio or PT so they can see your programme, progress and rehab.
-        </Panel>
+        <ConnectPanel />
       </div>
     </>
   )
@@ -95,4 +95,5 @@ export const SCREENS = {
   progress: ProgressScreen,
   rehab: RehabScreen,
   profile: ProfileScreen,
+  clients: ClientsScreen,
 }
