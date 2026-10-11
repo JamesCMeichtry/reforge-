@@ -55,7 +55,7 @@ const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
 export const shapeKey = (id, side) => (CENTRAL_SHAPES.has(id) ? id : `${side}-${id}`)
 
 export async function fetchInjuryRows() {
-  const { data, error } = await supabase.from('injuries').select('injury_key, side').order('created_at')
+  const { data, error } = await supabase.from('injuries').select('injury_key, side, details').order('created_at')
   if (error) throw error
   return data
 }
@@ -105,7 +105,12 @@ export function injuryLayer(rows, checkIns) {
           : effect.note
       for (const side of sides) {
         for (const id of AREA_SHAPES[effect.area] ?? []) {
-          add(shapeKey(id, side), level, { injuryLabel, level, note }, status?.flare)
+          add(
+            shapeKey(id, side),
+            level,
+            { injuryLabel, level, note, details: effect.tier === 'primary' ? row.details : null },
+            status?.flare,
+          )
         }
       }
     }
@@ -139,13 +144,18 @@ function levelForXp(xp) {
   return level
 }
 
-// XP and level per muscle, plus how often it's trained and whether lifts are moving
-export function strengthLayer(history, checkIns = []) {
+// XP and level per muscle, plus how often it's trained and whether lifts are moving.
+// start is the XP each muscle began with from the questionnaire, and the date it was set.
+export function strengthLayer(history, checkIns = [], start = null) {
   const todayStr = todayDate()
   const today = new Date(`${todayStr}T12:00:00`).getTime()
   const weekOf = (date) => Math.floor((today - new Date(`${date}T12:00:00`).getTime()) / DAY / 7)
   const muscles = {}
   const trainedOn = new Map() // date -> Set of muscles trained that day
+
+  for (const [id, xp] of Object.entries(start?.xp ?? {})) {
+    if (xp > 0) muscles[id] = { xp, last: start.date, weeks: Array(8).fill(0), recent: {}, before: {} }
+  }
 
   for (const row of history) {
     const week = weekOf(row.session_date)
@@ -220,7 +230,8 @@ export function combine(injury, strength) {
 export const isBlocking = (level) => BLOCKING.has(level)
 
 export function nextStep(strength) {
-  if (!strength || !strength.xp) return `Log a set that works it to start earning XP. ${XP_LEVELS[0].xp} XP reaches ${LEVELS[XP_LEVELS[0].level].label}.`
+  if (!strength || !strength.xp)
+    return `Log a set that works it to start earning XP. ${XP_LEVELS[0].xp} XP reaches ${LEVELS[XP_LEVELS[0].level].label}.`
   const fade = strength.fading ? ' It is fading from lack of training, so train it soon to stop the slide.' : ''
   if (!strength.next) return `Gold. Keep training it to hold the top tier.${fade}`
   const sets = Math.ceil((strength.next.xp - strength.xp) / XP.primarySet)
