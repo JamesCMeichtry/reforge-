@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { me } from './me.js'
 
 // Daily streak: any logged set or check-in keeps it alive.
 // One streak freeze per week (Mon-Sun) covers a single missed day automatically.
@@ -76,6 +77,7 @@ export async function fetchActivityDays(days = 400) {
   const { data, error } = await supabase
     .from('activity_days')
     .select('session_date')
+    .eq('user_id', me())
     .gte('session_date', addDays(localToday(), -days))
     .order('session_date', { ascending: true })
   if (error) throw error
