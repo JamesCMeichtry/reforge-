@@ -3,16 +3,24 @@ import { todayDate } from './programme.js'
 import { CENTRAL_AREAS, INJURIES } from '../data/injuries.js'
 import { musclesForExercise } from '../data/muscles.js'
 
-// One scale for everyone, from injured up to elite
+// One scale for everyone: five injury tiers, neutral, then five strength tiers up to gold
 export const LEVELS = {
-  injured: { label: 'Injured', fill: '#dc2626', rank: 0 },
-  affected: { label: 'Affected', fill: '#f59e0b', rank: 1 },
-  watch: { label: 'Watch', fill: '#fde047', rank: 2 },
-  neutral: { label: 'Neutral', fill: '#222222', rank: 3 },
-  building: { label: 'Building', fill: '#2f6fde', rank: 4 },
-  strong: { label: 'Strong', fill: '#38bdf8', rank: 5 },
-  elite: { label: 'Elite', fill: '#c9a227', rank: 6 },
+  flare: { label: 'Flare', fill: '#be123c', rank: 0 },
+  injured: { label: 'Injured', fill: '#ef4444', rank: 1 },
+  affected: { label: 'Affected', fill: '#f97316', rank: 2 },
+  recovering: { label: 'Recovering', fill: '#f59e0b', rank: 3 },
+  watch: { label: 'Watch', fill: '#4a1f1f', rank: 4 },
+  neutral: { label: 'Neutral', fill: '#272727', rank: 5 },
+  active: { label: 'Active', fill: '#22c55e', rank: 6 },
+  building: { label: 'Building', fill: '#3b82f6', rank: 7 },
+  strong: { label: 'Strong', fill: '#22d3ee', rank: 8 },
+  silver: { label: 'Silver', fill: '#cbd5e1', rank: 9 },
+  elite: { label: 'Gold', fill: '#c9a227', rank: 10 },
 }
+export const INJURY_TIERS = ['flare', 'injured', 'affected', 'recovering', 'watch']
+export const STRENGTH_TIERS = ['active', 'building', 'strong', 'silver', 'elite']
+// Injury tiers that hold a muscle's strength colour back until they settle
+const BLOCKING = new Set(['flare', 'injured', 'affected'])
 
 const TIER_TO_LEVEL = { primary: 'injured', affected: 'affected', watch: 'watch' }
 
@@ -87,7 +95,8 @@ export function injuryLayer(rows, checkIns) {
       if (effect.tier === 'primary') {
         const areaId = centralArea ? slug(effect.area) : `${row.side}-${slug(effect.area)}`
         status = siteStatus(checkIns.filter((c) => c.area_id === areaId))
-        level = status.level
+        // A flare is its own tier; a site with a long run of good check-ins is recovering
+        level = status.flare ? 'flare' : status.level === 'watch' ? 'recovering' : status.level
       }
       const note = status?.flare
         ? 'Recent check-ins flagged pain or warning signs here.'
@@ -116,9 +125,11 @@ export const XP = {
   fadePerDay: 0.02, // 2% a day after that
 }
 export const XP_LEVELS = [
+  { level: 'active', xp: 30 },
   { level: 'building', xp: 100 },
   { level: 'strong', xp: 400 },
-  { level: 'elite', xp: 1200 },
+  { level: 'silver', xp: 1000 },
+  { level: 'elite', xp: 2000 },
 ]
 const daysBetween = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / DAY)
 
@@ -200,16 +211,18 @@ export function strengthLayer(history, checkIns = []) {
 
 // What each shape shows: injury colours win while they matter, then earned strength
 export function combine(injury, strength) {
-  if (injury && injury.level !== 'watch') return { level: injury.level, source: 'injury' }
+  if (injury && BLOCKING.has(injury.level)) return { level: injury.level, source: 'injury' }
   if (strength && strength.level !== 'neutral') return { level: strength.level, source: 'strength' }
-  if (injury) return { level: 'watch', source: 'injury' }
+  if (injury) return { level: injury.level, source: 'injury' }
   return { level: 'neutral', source: 'none' }
 }
 
+export const isBlocking = (level) => BLOCKING.has(level)
+
 export function nextStep(strength) {
-  if (!strength || !strength.xp) return `Log a set that works it to start earning XP. ${XP_LEVELS[0].xp} XP reaches Building.`
+  if (!strength || !strength.xp) return `Log a set that works it to start earning XP. ${XP_LEVELS[0].xp} XP reaches ${LEVELS[XP_LEVELS[0].level].label}.`
   const fade = strength.fading ? ' It is fading from lack of training, so train it soon to stop the slide.' : ''
-  if (!strength.next) return `Elite. Keep training it to hold the gold.${fade}`
+  if (!strength.next) return `Gold. Keep training it to hold the top tier.${fade}`
   const sets = Math.ceil((strength.next.xp - strength.xp) / XP.primarySet)
   const name = LEVELS[strength.next.level].label
   return `${strength.next.xp - strength.xp} XP to ${name}, about ${sets} more working ${sets === 1 ? 'set' : 'sets'}.${fade}`
