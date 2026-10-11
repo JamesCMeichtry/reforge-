@@ -45,14 +45,14 @@ const STRENGTH_ORDER = ['neutral', ...STRENGTH_TIERS]
 const ORDER = [...INJURY_TIERS, 'neutral', ...STRENGTH_TIERS]
 
 // Every tier moves differently, and the effects stack up towards both ends of the scale:
-// body = how the whole muscle pulses, flow = a band of light running up and down it,
-// halo = a soft glow around it, ripple = rings spreading out, sparkle = twinkling stars.
+// body = how the whole muscle pulses (only Flare pulses), flow = a band of light running through it,
+// march = a dashed outline crawling round the edge, halo = a soft glow around it, sparkle = twinkling stars.
 const FX = {
-  flare: { body: 'fx-flare', flow: 'flow-hot', halo: 'halo-flare', ripple: true },
-  injured: { body: 'fx-injured', flow: 'flow-warm', halo: 'halo-injured' },
-  affected: { body: 'fx-affected', flow: 'flow-warm-slow' },
-  recovering: { body: 'fx-recovering' },
-  watch: { body: 'fx-watch' },
+  flare: { body: 'fx-flare', flow: 'flow-hot' },
+  injured: { flow: 'flow-warm', march: 'march-hot' },
+  affected: { flow: 'flow-warm-slow' },
+  recovering: { flow: 'flow-rise' },
+  watch: { march: 'march-slow' },
   neutral: {},
   active: { body: 'fx-active' },
   building: { flow: 'flow-cool-slow' },
@@ -436,14 +436,15 @@ export default function LivingMap() {
             </pattern>
           ))}
           {[
-            ['flow-hot', '#ffffff', 0.7, '1.1s'],
+            ['flow-hot', '#ffffff', 0.55, '1.6s'],
             ['flow-warm', '#fecaca', 0.5, '2.2s'],
-            ['flow-warm-slow', '#fed7aa', 0.35, '3.6s'],
+            ['flow-warm-slow', '#fed7aa', 0.4, '3.6s'],
+            ['flow-rise', '#fef3c7', 0.55, '2.8s', true],
             ['flow-cool-slow', '#bfdbfe', 0.55, '3.6s'],
             ['flow-cool', '#e0f2fe', 0.65, '2.4s'],
             ['flow-bright', '#ffffff', 0.7, '2s'],
             ['flow-gold', '#fff6d8', 0.8, '1.7s'],
-          ].map(([id, colour, strength, dur]) => (
+          ].map(([id, colour, strength, dur, rise]) => (
             <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0.3" stopColor={colour} stopOpacity="0" />
               <stop offset="0.5" stopColor={colour} stopOpacity={strength} />
@@ -451,10 +452,10 @@ export default function LivingMap() {
               <animateTransform
                 attributeName="gradientTransform"
                 type="translate"
-                values="0 0.75; 0 -0.75; 0 0.75"
-                keyTimes="0; 0.5; 1"
+                values={rise ? '0 0.75; 0 -0.75' : '0 0.75; 0 -0.75; 0 0.75'}
+                keyTimes={rise ? '0; 1' : '0; 0.5; 1'}
                 calcMode="spline"
-                keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"
+                keySplines={rise ? '0.4 0 0.6 1' : '0.45 0 0.55 1; 0.45 0 0.55 1'}
                 dur={dur}
                 repeatCount="indefinite"
               />
@@ -525,18 +526,6 @@ export default function LivingMap() {
                   pointerEvents="none"
                 />
               )}
-              {fx.ripple &&
-                [0, 1].map((ring) => (
-                  <path
-                    key={ring}
-                    d={shape.d}
-                    className="fx-ripple"
-                    style={{ stroke: 'var(--lvl-flare-ring)', animationDelay: `${ring * 0.7}s` }}
-                    fill="none"
-                    strokeWidth="1"
-                    pointerEvents="none"
-                  />
-                ))}
               <g className={fx.body}>
                 <path d={shape.d} {...props} />
                 {shape.angle != null && (
@@ -549,6 +538,7 @@ export default function LivingMap() {
                 )}
                 {fx.flow && <path d={shape.d} fill={`url(#${fx.flow})`} pointerEvents="none" />}
                 <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />
+                {fx.march && <path d={shape.d} className={fx.march} fill="none" pointerEvents="none" />}
               </g>
               {fx.sparkle &&
                 shape.sparks.slice(0, fx.sparkle).map(([x, y], i) => (
