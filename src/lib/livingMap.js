@@ -1,4 +1,4 @@
- import { supabase } from './supabase.js'
+import { supabase } from './supabase.js'
 import { todayDate } from './programme.js'
 import { CENTRAL_AREAS, INJURIES } from '../data/injuries.js'
 import { musclesForExercise } from '../data/muscles.js'
@@ -107,22 +107,50 @@ export function injuryLayer(rows, checkIns) {
 const DAY = 86400000
 const e1rm = (weight, reps) => weight * (1 + Math.min(reps, 12) / 30)
 
-// Strength level per muscle from the last eight weeks of logged sets
-export function strengthLayer(history) {
-  const today = new Date(`${todayDate()}T12:00:00`).getTime()
+// Levelling up: every muscle earns XP from the work you log and from using the app.
+export const XP = {
+  primarySet: 10, // a set where this is a main muscle
+  secondarySet: 4, // a set where it also works
+  checkIn: 5, // a check-in day, for each muscle trained in the 7 days before
+  fadeAfterDays: 21, // untrained this long and XP starts to fade
+  fadePerDay: 0.02, // 2% a day after that
+}
+export const XP_LEVELS = [
+  { level: 'building', xp: 100 },
+  { level: 'strong', xp: 400 },
+  { level: 'elite', xp: 1200 },
+]
+const daysBetween = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / DAY)
+
+function levelForXp(xp) {
+  let level = 'neutral'
+  for (const step of XP_LEVELS) if (xp >= step.xp) level = step.level
+  return level
+}
+
+// XP and level per muscle, plus how often it's trained and whether lifts are moving
+export function strengthLayer(history, checkIns = []) {
+  const todayStr = todayDate()
+  const today = new Date(`${todayStr}T12:00:00`).getTime()
   const weekOf = (date) => Math.floor((today - new Date(`${date}T12:00:00`).getTime()) / DAY / 7)
   const muscles = {}
+  const trainedOn = new Map() // date -> Set of muscles trained that day
 
   for (const row of history) {
     const week = weekOf(row.session_date)
-    if (week < 0 || week > 7) continue
+    if (week < 0) continue
     const { primary, secondary } = musclesForExercise(row.exercise)
-    for (const [ids, credit] of [
-      [primary, 1],
-      [secondary, 0.5],
+    for (const [ids, credit, xp] of [
+      [primary, 1, XP.primarySet],
+      [secondary, 0.5, XP.secondarySet],
     ]) {
       for (const id of ids) {
-        const m = (muscles[id] ??= { weeks: Array(8).fill(0), recent: {}, before: {} })
+        const m = (muscles[id] ??= { xp: 0, last: null, weeks: Array(8).fill(0), recent: {}, before: {} })
+        m.xp += xp
+        if (!m.last || row.session_date > m.last) m.last = row.session_date
+        if (!trainedOn.has(row.session_date)) trainedOn.set(row.session_date, new Set())
+        trainedOn.get(row.session_date).add(id)
+        if (week > 7) continue
         m.weeks[week] += credit
         if (credit === 1 && row.weight_kg != null && row.reps) {
           const value = e1rm(Number(row.weight_kg), row.reps)
@@ -133,23 +161,39 @@ export function strengthLayer(history) {
     }
   }
 
+  // Check-ins reward the muscles you've been working that week
+  const checkInDays = [...new Set(checkIns.map((c) => c.session_date))]
+  for (const day of checkInDays) {
+    const recent = new Set()
+    for (const [date, ids] of trainedOn) {
+      const gap = daysBetween(date, day)
+      if (gap >= 0 && gap <= 7) ids.forEach((id) => recent.add(id))
+    }
+    recent.forEach((id) => (muscles[id].xp += XP.checkIn))
+  }
+
   const layer = {}
   for (const [id, m] of Object.entries(muscles)) {
-    const trained = (n) => m.weeks.slice(0, n).filter((sets) => sets >= 2).length
-    const last4 = trained(4)
-    const last8 = trained(8)
+    const idle = m.last ? daysBetween(m.last, todayStr) : 0
+    const fadeDays = Math.max(0, idle - XP.fadeAfterDays)
+    const xp = Math.round(m.xp * Math.pow(1 - XP.fadePerDay, fadeDays))
+    const level = levelForXp(xp)
+    const next = XP_LEVELS.find((step) => step.xp > xp) ?? null
+    const floor = [...XP_LEVELS].reverse().find((step) => step.xp <= xp)?.xp ?? 0
+    const last4 = m.weeks.slice(0, 4).filter((sets) => sets >= 2).length
     const changes = Object.keys(m.recent)
       .filter((name) => m.before[name])
       .map((name) => m.recent[name] / m.before[name] - 1)
     const change = changes.length ? Math.max(...changes) : null
-    const holding = change == null || change > -0.05
-    const improving = change != null && change >= 0.025
-
-    let level = 'neutral'
-    if (last4 >= 2) level = 'building'
-    if (last4 >= 3 && holding) level = 'strong'
-    if (last8 >= 7 && improving) level = 'elite'
-    layer[id] = { level, last4, last8, change }
+    layer[id] = {
+      level,
+      xp,
+      next,
+      progress: next ? (xp - floor) / (next.xp - floor) : 1,
+      fading: fadeDays > 0,
+      last4,
+      change,
+    }
   }
   return layer
 }
@@ -163,8 +207,10 @@ export function combine(injury, strength) {
 }
 
 export function nextStep(strength) {
-  if (!strength || strength.level === 'neutral') return 'Train it in 2 of the next 4 weeks to start Building.'
-  if (strength.level === 'building') return 'Train it in 3 of 4 weeks without your lifts dropping to reach Strong.'
-  if (strength.level === 'strong') return 'Keep it going 7 of 8 weeks with your lifts climbing to go Elite.'
-  return 'Elite. Keep the streak alive to hold it.'
+  if (!strength || !strength.xp) return `Log a set that works it to start earning XP. ${XP_LEVELS[0].xp} XP reaches Building.`
+  const fade = strength.fading ? ' It is fading from lack of training, so train it soon to stop the slide.' : ''
+  if (!strength.next) return `Elite. Keep training it to hold the gold.${fade}`
+  const sets = Math.ceil((strength.next.xp - strength.xp) / XP.primarySet)
+  const name = LEVELS[strength.next.level].label
+  return `${strength.next.xp - strength.xp} XP to ${name}, about ${sets} more working ${sets === 1 ? 'set' : 'sets'}.${fade}`
 }
