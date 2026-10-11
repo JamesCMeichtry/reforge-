@@ -7,6 +7,8 @@ import { musclesForExercise } from '../data/muscles.js'
 import { fetchRecentCheckIns } from '../lib/checkins.js'
 import { fetchActiveProgramme } from '../lib/programme.js'
 import { fetchSetHistory } from '../lib/progress.js'
+import { describeInjury, fetchProfile, startingXp } from '../lib/profile.js'
+import { useAuth } from '../auth/AuthProvider.jsx'
 import {
   INJURY_TIERS,
   LEVELS,
@@ -26,6 +28,16 @@ import { LoadingCards, buttonSecondary } from './ui.jsx'
 const SEEN_KEY = 'reforge.levels.seen.v1'
 // Which body the map shows. For now it's picked on the map; later the starting questionnaire will set it.
 const BODY_KEY = 'reforge.bodymap.body'
+
+// The Test colours tools only show for testers. Open the site once with ?dev on the end to turn them on.
+const DEV = (() => {
+  try {
+    if (new URLSearchParams(window.location.search).has('dev')) localStorage.setItem('reforge.dev', '1')
+    return localStorage.getItem('reforge.dev') === '1'
+  } catch {
+    return false
+  }
+})()
 
 // Colours for each level come from the theme (see index.css), so they suit dark and light
 const FILLS = {
@@ -223,9 +235,10 @@ function readSeen() {
 
 function readBody() {
   try {
-    return localStorage.getItem(BODY_KEY) === 'female' ? 'female' : 'male'
+    const saved = localStorage.getItem(BODY_KEY)
+    return saved === 'female' || saved === 'male' ? saved : null
   } catch {
-    return 'male'
+    return null
   }
 }
 
@@ -258,7 +271,10 @@ export default function LivingMap() {
   const [testNote, setTestNote] = useState(null)
   // Muscles that just levelled up get a pop; n replays the animation
   const [pop, setPop] = useState({ keys: new Set(), n: 0 })
-  const [body, setBody] = useState(readBody)
+  const { session } = useAuth()
+  const [chosenBody, setBody] = useState(readBody)
+  // A body picked on the map wins; otherwise the one from the questionnaire
+  const body = chosenBody ?? (state.profile?.body === 'female' ? 'female' : 'male')
   const figure = BODIES[body]
   const chooseBody = (next) => {
     setBody(next)
@@ -268,22 +284,32 @@ export default function LivingMap() {
   useEffect(() => {
     if (state.status !== 'loading') return
     let cancelled = false
-    Promise.all([fetchInjuryRows(), fetchRecentCheckIns(365), fetchSetHistory(365), fetchActiveProgramme()])
-      .then(([rows, checkIns, history, programme]) => {
+    Promise.all([
+      fetchInjuryRows(),
+      fetchRecentCheckIns(365),
+      fetchSetHistory(365),
+      fetchActiveProgramme(),
+      session ? fetchProfile(session.user.id).catch(() => null) : null,
+    ])
+      .then(([rows, checkIns, history, programme, profile]) => {
         if (cancelled) return
+        const start = profile?.onboarded_at
+          ? { xp: startingXp(profile), date: profile.onboarded_at.slice(0, 10) }
+          : null
         setState({
           status: 'ready',
           injuries: injuryLayer(rows, checkIns),
           structures: structureLayer(rows, injuryLayer(rows, checkIns)),
-          strength: strengthLayer(history, checkIns),
+          strength: strengthLayer(history, checkIns, start),
           programme,
+          profile,
         })
       })
       .catch(() => !cancelled && setState({ status: 'error' }))
     return () => {
       cancelled = true
     }
-  }, [state.status])
+  }, [state.status, session])
 
   const display = useMemo(() => {
     if (state.status !== 'ready') return {}
@@ -374,7 +400,8 @@ export default function LivingMap() {
   const stepTest = (direction) => {
     const next = ORDER[Math.min(ORDER.length - 1, Math.max(0, ORDER.indexOf(testLevel) + direction))]
     applyTestLevel(next)
-    if (ORDER.indexOf(next) >= ORDER.indexOf('neutral')) setTestXp((current) => ({ ...current, [testTarget]: xpForLevel(next) }))
+    if (ORDER.indexOf(next) >= ORDER.indexOf('neutral'))
+      setTestXp((current) => ({ ...current, [testTarget]: xpForLevel(next) }))
     // Preview the level-up pop when going up into a strength level
     if (direction > 0 && ORDER.indexOf(next) > ORDER.indexOf('neutral')) celebrate(next)
   }
@@ -432,7 +459,11 @@ export default function LivingMap() {
       </div>
 
       <div className="mt-2 flex justify-center">
-        <div className="flex rounded-full border border-line bg-panel p-0.5 text-xs" role="group" aria-label="Body type">
+        <div
+          className="flex rounded-full border border-line bg-panel p-0.5 text-xs"
+          role="group"
+          aria-label="Body type"
+        >
           {BODY_TYPES.map((option) => (
             <button
               key={option.id}
@@ -576,7 +607,11 @@ export default function LivingMap() {
             {view === 'back' && <path d={FEMALE_HAIR.back} />}
           </g>
         )}
-        <path d={figure.outlines[view]} style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }} strokeWidth="1" />
+        <path
+          d={figure.outlines[view]}
+          style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }}
+          strokeWidth="1"
+        />
         {figure.shapes[view].map((shape, index) => {
           const shown = display[shape.key] ?? { level: 'neutral' }
           const level = shown.level
@@ -632,7 +667,10 @@ export default function LivingMap() {
                     <path
                       d={STAR}
                       className="fx-sparkle"
-                      style={{ fill: level === 'elite' ? '#fff6d8' : '#ffffff', animationDelay: `${((index * 0.37 + i * 0.6) % 2).toFixed(2)}s` }}
+                      style={{
+                        fill: level === 'elite' ? '#fff6d8' : '#ffffff',
+                        animationDelay: `${((index * 0.37 + i * 0.6) % 2).toFixed(2)}s`,
+                      }}
                     />
                   </g>
                 ))}
@@ -733,7 +771,9 @@ export default function LivingMap() {
                 <span key={key}>
                   <span
                     className="mb-1 block h-2 rounded-full"
-                    style={{ background: key === 'silver' ? 'linear-gradient(90deg,#94a3b8,#f8fafc,#94a3b8)' : FILLS[key] }}
+                    style={{
+                      background: key === 'silver' ? 'linear-gradient(90deg,#94a3b8,#f8fafc,#94a3b8)' : FILLS[key],
+                    }}
                   />
                   {LEVELS[key].label}
                   {counts[key] ? <span className="block font-semibold text-white">{counts[key]}</span> : null}
@@ -760,7 +800,10 @@ export default function LivingMap() {
               <p className="truncate text-sm font-semibold text-white">
                 {selectedShape ? labelOf(selectedShape) : 'Whole body'}
               </p>
-              <p className="text-sm font-semibold" style={{ color: testLevel === 'neutral' ? 'var(--color-muted)' : tone(testLevel) }}>
+              <p
+                className="text-sm font-semibold"
+                style={{ color: testLevel === 'neutral' ? 'var(--color-muted)' : tone(testLevel) }}
+              >
                 {LEVELS[testLevel].label}
               </p>
             </div>
@@ -779,7 +822,9 @@ export default function LivingMap() {
               <span className="font-bold uppercase tracking-[0.2em] text-gold">XP</span>
               <span className="text-muted">
                 {testXpNow.toLocaleString('en-GB')}
-                {testNext ? ` / ${testNext.xp.toLocaleString('en-GB')} to ${LEVELS[testNext.level].label}` : ' · max level'}
+                {testNext
+                  ? ` / ${testNext.xp.toLocaleString('en-GB')} to ${LEVELS[testNext.level].label}`
+                  : ' · max level'}
               </span>
             </div>
             <div className="mt-2 h-3 overflow-hidden rounded-full bg-line">
@@ -805,7 +850,10 @@ export default function LivingMap() {
               ))}
             </div>
             {testNote && (
-              <p key={testNote.n} className="celebrate mt-3 text-center font-display text-2xl font-bold uppercase text-gold">
+              <p
+                key={testNote.n}
+                className="celebrate mt-3 text-center font-display text-2xl font-bold uppercase text-gold"
+              >
                 {testNote.text}
               </p>
             )}
@@ -820,21 +868,23 @@ export default function LivingMap() {
         </div>
       )}
 
-      <div className="mt-4 flex justify-center text-xs">
-        <button
-          type="button"
-          onClick={() => {
-            setTesting((on) => !on)
-            resetTest()
-          }}
-          aria-pressed={testing}
-          className={`rounded-full border border-dashed px-3 py-1 font-semibold ${
-            testing ? 'border-gold text-gold' : 'border-line text-muted'
-          }`}
-        >
-          Test colours
-        </button>
-      </div>
+      {DEV && (
+        <div className="mt-4 flex justify-center text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setTesting((on) => !on)
+              resetTest()
+            }}
+            aria-pressed={testing}
+            className={`rounded-full border border-dashed px-3 py-1 font-semibold ${
+              testing ? 'border-gold text-gold' : 'border-line text-muted'
+            }`}
+          >
+            Test colours
+          </button>
+        </div>
+      )}
 
       {selectedShape && (
         <AreaPanel
@@ -851,10 +901,10 @@ export default function LivingMap() {
 
       <p className="mt-6 text-xs leading-relaxed text-muted">
         Injury colours move with your check-ins: a bad day shows straight away, recovery needs a run of good ones.
-        Muscles level up with XP: {XP.primarySet} for every set that works them, {XP.secondarySet} when they help out, and{' '}
-        {XP.checkIn} for each check-in in a week you trained them.{' '}
-        {XP_LEVELS.map((step) => `${step.xp.toLocaleString('en-GB')} XP is ${LEVELS[step.level].label}`).join(', ')}. Leave one
-        untrained for 3 weeks and it starts to fade. An injured area can't level up until it settles.
+        Muscles level up with XP: {XP.primarySet} for every set that works them, {XP.secondarySet} when they help out,
+        and {XP.checkIn} for each check-in in a week you trained them.{' '}
+        {XP_LEVELS.map((step) => `${step.xp.toLocaleString('en-GB')} XP is ${LEVELS[step.level].label}`).join(', ')}.
+        Leave one untrained for 3 weeks and it starts to fade. An injured area can't level up until it settles.
       </p>
     </div>
   )
@@ -956,6 +1006,11 @@ function AreaPanel({ shape, shown, injury, strength, programme, involved = [], o
               <div>
                 <p className="text-sm font-semibold text-white">{reason.injuryLabel}</p>
                 <p className="mt-0.5 text-sm leading-relaxed text-neutral-300">{reason.note}</p>
+                {describeInjury(reason.details).map((line) => (
+                  <p key={line} className="mt-0.5 text-sm text-muted">
+                    {line}
+                  </p>
+                ))}
               </div>
             </li>
           ))}
