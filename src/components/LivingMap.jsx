@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DETAILS, INJURY_STRUCTURES, NAMES, STRUCTURES, WIDTH } from '../data/anatomy.js'
 import { FIGURE_DETAILED } from '../data/anatomyDetailed.js'
+import { BODY_TYPES, FEMALE_HAIR } from '../data/bodyShapes.js'
 import { INJURIES } from '../data/injuries.js'
 import { musclesForExercise } from '../data/muscles.js'
 import { fetchRecentCheckIns } from '../lib/checkins.js'
@@ -23,6 +24,8 @@ import {
 import { LoadingCards, buttonSecondary } from './ui.jsx'
 
 const SEEN_KEY = 'reforge.levels.seen.v1'
+// Which body the map shows. For now it's picked on the map; later the starting questionnaire will set it.
+const BODY_KEY = 'reforge.bodymap.body'
 
 // Colours for each level come from the theme (see index.css), so they suit dark and light
 const FILLS = {
@@ -105,13 +108,13 @@ function sparkPoints(points) {
 }
 
 // Front view: the figure's right side is on the viewer's left. Rows are [id, kind, central, fibre angle, points].
-function shapesFor(figure, view) {
+function shapesFor(figure, view, warp) {
   const leftOfScreen = view === 'front' ? 'right' : 'left'
   const rightOfScreen = view === 'front' ? 'left' : 'right'
   return figure[view].shapes.flatMap((row) => {
     const [id, kind, central] = row
     const angle = row[3]
-    const points = parse(row[4])
+    const points = parse(row[4]).map(warp)
     const base = { id, kind, name: NAMES[id] }
     const sparks = sparkPoints(points)
     if (central) return [{ ...base, key: id, side: null, angle, d: polygon(points), sparks }]
@@ -129,27 +132,28 @@ function shapesFor(figure, view) {
   })
 }
 
-function buildFigure(figure) {
-  const shapes = { front: shapesFor(figure, 'front'), back: shapesFor(figure, 'back') }
+function buildFigure(figure, warp) {
+  const shapes = { front: shapesFor(figure, 'front', warp), back: shapesFor(figure, 'back', warp) }
   const all = [...shapes.front, ...shapes.back]
   return {
     shapes,
     all,
-    outlines: { front: polygon(parse(figure.front.outline)), back: polygon(parse(figure.back.outline)) },
+    outlines: {
+      front: polygon(parse(figure.front.outline).map(warp)),
+      back: polygon(parse(figure.back.outline).map(warp)),
+    },
     angles: [...new Set(all.map((s) => s.angle).filter((a) => a != null))],
   }
 }
 
-const FIGURE_SHAPES = buildFigure(FIGURE_DETAILED)
-
 // Fine anatomical lines (neck, collarbones, fingers, toes) drawn over the figure
-function detailsFor(view) {
+function detailsFor(view, warp) {
   const { central, sided } = DETAILS[view]
-  return [...central, ...sided, ...sided.map(mirror)].map(openPath)
+  return [...central, ...sided, ...sided.map(mirror)].map((line) => openPath(line.map(warp)))
 }
 
 // Tendons and ligaments drawn on this view, one copy per side
-function structuresFor(view) {
+function structuresFor(view, warp) {
   const leftOfScreen = view === 'front' ? 'right' : 'left'
   const rightOfScreen = view === 'front' ? 'left' : 'right'
   const out = []
@@ -159,7 +163,7 @@ function structuresFor(view) {
       [leftOfScreen, false],
       [rightOfScreen, true],
     ]) {
-      const place = (points) => (flip ? mirror(points) : points)
+      const place = (points) => (flip ? mirror(points) : points).map(warp)
       out.push({
         id,
         side,
@@ -193,10 +197,20 @@ function structureLayer(rows, injuries) {
   return layer
 }
 
-const DETAIL_PATHS = { front: detailsFor('front'), back: detailsFor('back') }
-const STRUCTURE_SHAPES = { front: structuresFor('front'), back: structuresFor('back') }
+// Everything drawn for each body type: muscle shapes, outline, detail lines, tendons and ligaments
+const BODIES = Object.fromEntries(
+  BODY_TYPES.map(({ id, warp }) => [
+    id,
+    {
+      ...buildFigure(FIGURE_DETAILED, warp),
+      details: { front: detailsFor('front', warp), back: detailsFor('back', warp) },
+      structures: { front: structuresFor('front', warp), back: structuresFor('back', warp) },
+    },
+  ]),
+)
 
-const ALL_SHAPES = FIGURE_SHAPES.all
+// Shapes are the same muscles on every body, so lookups by key use the first one
+const ALL_SHAPES = BODIES.male.all
 const labelOf = (shape) => `${shape.side ? `${sideName(shape.side)} ` : ''}${shape.name.toLowerCase()}`
 
 function readSeen() {
@@ -204,6 +218,22 @@ function readSeen() {
     return JSON.parse(localStorage.getItem(SEEN_KEY)) ?? null
   } catch {
     return null
+  }
+}
+
+function readBody() {
+  try {
+    return localStorage.getItem(BODY_KEY) === 'female' ? 'female' : 'male'
+  } catch {
+    return 'male'
+  }
+}
+
+function writeBody(body) {
+  try {
+    localStorage.setItem(BODY_KEY, body)
+  } catch {
+    // The choice just won't be remembered in private browsing
   }
 }
 
@@ -228,7 +258,12 @@ export default function LivingMap() {
   const [testNote, setTestNote] = useState(null)
   // Muscles that just levelled up get a pop; n replays the animation
   const [pop, setPop] = useState({ keys: new Set(), n: 0 })
-  const figure = FIGURE_SHAPES
+  const [body, setBody] = useState(readBody)
+  const figure = BODIES[body]
+  const chooseBody = (next) => {
+    setBody(next)
+    writeBody(next)
+  }
 
   useEffect(() => {
     if (state.status !== 'loading') return
@@ -396,6 +431,24 @@ export default function LivingMap() {
         ))}
       </div>
 
+      <div className="mt-2 flex justify-center">
+        <div className="flex rounded-full border border-line bg-panel p-0.5 text-xs" role="group" aria-label="Body type">
+          {BODY_TYPES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => chooseBody(option.id)}
+              aria-pressed={body === option.id}
+              className={`rounded-full px-3 py-1 font-semibold ${
+                body === option.id ? 'bg-line text-white' : 'text-muted hover:text-white'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <svg
         viewBox="20 0 160 400"
         className="mx-auto mt-6 block w-full max-w-[300px] overflow-visible"
@@ -517,6 +570,12 @@ export default function LivingMap() {
             />
           </linearGradient>
         </defs>
+        {body === 'female' && (
+          <g style={{ fill: 'var(--fig-outline)' }} pointerEvents="none">
+            <path d={FEMALE_HAIR.bun} />
+            {view === 'back' && <path d={FEMALE_HAIR.back} />}
+          </g>
+        )}
         <path d={figure.outlines[view]} style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }} strokeWidth="1" />
         {figure.shapes[view].map((shape, index) => {
           const shown = display[shape.key] ?? { level: 'neutral' }
@@ -580,7 +639,7 @@ export default function LivingMap() {
             </g>
           )
         })}
-        {DETAIL_PATHS[view].map((d, i) => (
+        {figure.details[view].map((d, i) => (
           <path
             key={`detail-${i}`}
             d={d}
@@ -591,7 +650,7 @@ export default function LivingMap() {
             pointerEvents="none"
           />
         ))}
-        {STRUCTURE_SHAPES[view].map((item) => {
+        {figure.structures[view].map((item) => {
           const lit = state.structures[item.key]
           if (item.closed && !lit) return null
           const selectKey = `structure:${item.key}`
