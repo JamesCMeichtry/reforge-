@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { todayDate } from './programme.js'
+import { me } from './me.js'
 
 const since = (days) => {
   const date = new Date()
@@ -8,13 +9,14 @@ const since = (days) => {
 }
 
 // Supabase returns at most 1000 rows per request, so fetch in pages until we have everything
-export async function fetchSetHistory(days = 180) {
+export async function fetchSetHistory(days = 180, userId = me()) {
   const pageSize = 1000
   const rows = []
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from('set_logs')
       .select('exercise, session_date, set_number, weight_kg, reps')
+      .eq('user_id', userId)
       .gte('session_date', since(days))
       .order('session_date', { ascending: true })
       .order('id', { ascending: true })
@@ -24,7 +26,6 @@ export async function fetchSetHistory(days = 180) {
     if (data.length < pageSize) return rows
   }
 }
-
 
 // Heaviest set per session for one exercise
 export function topSets(history, exercise) {
