@@ -1,13 +1,18 @@
 import { supabase } from './supabase.js'
 import { CENTRAL_AREAS, INJURIES } from '../data/injuries.js'
 import { todayDate } from './programme.js'
+import { me } from './me.js'
 
 const slug = (text) => text.toLowerCase().replace(/\s+/g, '-')
 const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
 
 // The injury sites (red areas) from the injuries on the body map, one entry per area
 export async function fetchInjurySites() {
-  const { data, error } = await supabase.from('injuries').select('injury_key, side').order('created_at')
+  const { data, error } = await supabase
+    .from('injuries')
+    .select('injury_key, side')
+    .eq('user_id', me())
+    .order('created_at')
   if (error) throw error
 
   const sites = new Map()
@@ -46,6 +51,7 @@ export async function fetchPendingMorning() {
   const { data, error } = await supabase
     .from('check_ins')
     .select('id, area_id, session_date')
+    .eq('user_id', me())
     .is('next_morning', null)
     .lt('session_date', todayDate())
     .gte('session_date', since.toLocaleDateString('en-CA'))
@@ -59,12 +65,13 @@ export async function saveMorning(ids, value) {
   if (error) throw error
 }
 
-export async function fetchRecentCheckIns(days = 56) {
+export async function fetchRecentCheckIns(days = 56, userId = me()) {
   const since = new Date()
   since.setDate(since.getDate() - days)
   const { data, error } = await supabase
     .from('check_ins')
     .select('id, area_id, session_date, pain_during, pain_after, next_morning, red_flag, notes, created_at')
+    .eq('user_id', userId)
     .gte('session_date', since.toLocaleDateString('en-CA'))
     .order('session_date', { ascending: true })
     .order('created_at', { ascending: true })
