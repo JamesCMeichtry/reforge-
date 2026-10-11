@@ -1,0 +1,33 @@
+/* Reforge body map: injury + level states with animations */
+.rf-muscle {
+  --rf-c: #3a3a3a;
+  transition: fill .6s ease, background-color .6s ease, opacity .3s;
+  transform-box: fill-box;
+  transform-origin: center;
+  cursor: pointer;
+}
+svg .rf-muscle { fill: var(--rf-c); }
+.rf-muscle:not(svg *) { background-color: var(--rf-c); }
+
+/* Levels */
+.rf-l0 { --rf-c: #3a3a3a; }
+.rf-l1 { --rf-c: #b87333; }
+.rf-l2 { --rf-c: #c0c0c0; }
+.rf-l3 { --rf-c: #d4af37; animation: rf-shimmer 2.8s ease-in-out infinite; }
+
+/* Injuries (override level colour) */
+.rf-yellow { --rf-c: #fac775; animation: none; }
+.rf-amber  { --rf-c: #ef9f27; animation: rf-breathe 2.4s ease-in-out infinite; }
+.rf-red    { --rf-c: #e24b4a; animation: rf-pulse 1.2s ease-in-out infinite; }
+
+/* One-off pop on level up or injury cleared */
+.rf-pop { animation: rf-pop .5s ease-out !important; }
+
+@keyframes rf-pulse   { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+@keyframes rf-breathe { 0%,100% { opacity: 1 } 50% { opacity: .7 } }
+@keyframes rf-shimmer { 0%,100% { opacity: 1 } 40% { opacity: .75 } 60% { opacity: 1 } }
+@keyframes rf-pop     { 0% { transform: scale(1) } 35% { transform: scale(1.12) } 100% { transform: scale(1) } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-muscle, .rf-l3, .rf-amber, .rf-red, .rf-pop { animation: none !important; }
+}
