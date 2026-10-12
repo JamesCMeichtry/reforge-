@@ -87,7 +87,16 @@ export default function LiveSession({ clientId, clientName = 'Client', dayId }) 
         setHistory(rows)
         setBrief(buildBrief({ rows, checkIns, requests, lastSession, sites: injurySites }))
       })
-      .catch(() => !cancelled && setError(true))
+      .catch(() => {
+        if (cancelled) return
+        // No signal: a session already running carries on from what this phone saved
+        const saved = loadLive(clientId)
+        if (saved?.cache) {
+          setProgramme(null)
+          setSites(saved.cache.sites)
+          setHistory(saved.cache.rows)
+        } else setError(true)
+      })
     return () => {
       cancelled = true
     }
@@ -104,6 +113,14 @@ export default function LiveSession({ clientId, clientName = 'Client', dayId }) 
     if (persist) persistLive(next)
     setSession(next)
   }
+
+  // Keep what the session needs on the phone (injury areas, past sets for today's exercises), so it can be
+  // reopened and carried on with no signal
+  useEffect(() => {
+    if (!session || !history || !sites || session.cache) return
+    const names = new Set(session.plan.map((e) => e.name))
+    update((s) => ({ ...s, cache: { clientName, sites, rows: history.filter((r) => names.has(r.exercise)) } }))
+  }, [session, history, sites])
 
   const exit = () => (window.location.hash = `clients/${clientId}`)
 
