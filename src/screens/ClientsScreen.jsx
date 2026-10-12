@@ -5,11 +5,14 @@ import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary, inputBase }
 import { fetchRecentCheckIns, painWord } from '../lib/checkins.js'
 import { me } from '../lib/me.js'
 import { addNote, connectWithCode, deleteNote, disconnect, fetchMyClients, fetchNotes } from '../lib/pro.js'
-import { daysAgo, fetchActiveProgramme, formatLoad } from '../lib/programme.js'
+import { daysAgo, deleteSet, updateSet } from '../lib/programme.js'
+import { ProgrammeView } from './ProgrammeScreen.jsx'
 import { fetchSetHistory, shortDate } from '../lib/progress.js'
 
-// #clients is the list, #clients/<id> is one client
-const clientFromHash = () => window.location.hash.replace('#', '').split('/')[1] ?? null
+// #clients is the list, #clients/<id>/<section> is one client
+const hashParts = () => window.location.hash.replace('#', '').split('/')
+const clientFromHash = () => hashParts()[1] ?? null
+const sectionFromHash = () => hashParts()[2] ?? 'map'
 const areaLabel = (areaId) => areaId.charAt(0).toUpperCase() + areaId.slice(1).replace(/-/g, ' ')
 
 function AddClient({ onAdded }) {
@@ -110,6 +113,11 @@ function ClientList() {
                         : 'No check-ins in 2 weeks'}
                       {client.worstPain != null ? ` · worst pain ${client.worstPain}/10` : ''}
                     </p>
+                    {client.openRequests > 0 && (
+                      <p className="mt-0.5 text-sm font-semibold text-gold">
+                        {client.openRequests} change {client.openRequests === 1 ? 'request' : 'requests'}
+                      </p>
+                    )}
                   </div>
                   {client.flagged ? (
                     <span className="rounded-full bg-red-950 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-red-400">
@@ -159,78 +167,140 @@ function CheckIns({ clientId }) {
   )
 }
 
-function Sessions({ clientId }) {
-  const [days, setDays] = useState(null)
-  useEffect(() => {
-    fetchSetHistory(28, clientId)
-      .then((rows) => {
-        const byDate = new Map()
-        for (const row of rows) {
-          const day = byDate.get(row.session_date) ?? new Map()
-          const sets = day.get(row.exercise) ?? []
-          sets.push(row)
-          day.set(row.exercise, sets)
-          byDate.set(row.session_date, day)
-        }
-        setDays([...byDate.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)))
-      })
-      .catch(() => setDays([]))
-  }, [clientId])
-  if (!days) return <LoadingCards count={2} label="Loading sessions" />
-  if (!days.length) return <p className="text-neutral-300">No sessions logged in the last 4 weeks.</p>
-  const setText = (s) => `${s.weight_kg != null ? `${Number(s.weight_kg)} kg × ` : ''}${s.reps ?? '–'}`
+// One logged set the professional can correct or delete
+function SetChip({ set, onChanged, onDeleted }) {
+  const [open, setOpen] = useState(false)
+  const [weight, setWeight] = useState(set.weight_kg != null ? String(Number(set.weight_kg)) : '')
+  const [reps, setReps] = useState(set.reps != null ? String(set.reps) : '')
+  const [busy, setBusy] = useState(false)
+  const label = `${set.weight_kg != null ? `${Number(set.weight_kg)} kg × ` : ''}${set.reps ?? '–'}`
+
+  async function save() {
+    setBusy(true)
+    const changes = {
+      weight_kg: weight.trim() === '' ? null : parseFloat(weight.replace(',', '.')) || 0,
+      reps: reps.trim() === '' ? null : parseInt(reps, 10) || 0,
+    }
+    try {
+      await updateSet(set.id, changes)
+      onChanged({ ...set, ...changes })
+      setOpen(false)
+    } catch {
+      window.alert("Couldn't save that set. Check your connection.")
+    }
+    setBusy(false)
+  }
+
+  async function remove() {
+    if (!window.confirm(`Delete set ${set.set_number} of ${set.exercise}?`)) return
+    setBusy(true)
+    try {
+      await deleteSet(set.id)
+      onDeleted(set)
+    } catch {
+      window.alert("Couldn't delete that set. Check your connection.")
+      setBusy(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`rounded-lg border px-2 py-1 text-xs font-semibold ${
+          set.logged_by && set.logged_by === me() ? 'border-gold/60 text-gold' : 'border-line text-neutral-300'
+        }`}
+      >
+        {label}
+      </button>
+    )
+  }
   return (
-    <ul className="space-y-3">
-      {days.map(([date, exercises]) => (
-        <li key={date} className="rounded-xl border border-line bg-panel px-4 py-3">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">
-            {shortDate(date)} · {daysAgo(date)}
-          </p>
-          <ul className="mt-2 space-y-1">
-            {[...exercises.entries()].map(([name, sets]) => (
-              <li key={name} className="text-sm">
-                <span className="font-semibold text-white">{name}</span>{' '}
-                <span className="text-neutral-300">{sets.map(setText).join(', ')}</span>
-              </li>
-            ))}
-          </ul>
-        </li>
-      ))}
-    </ul>
+    <div className="mt-1 flex w-full items-center gap-1.5 rounded-lg border border-gold/60 p-2">
+      <span className="text-xs text-muted">Set {set.set_number}</span>
+      <input
+        value={weight}
+        onChange={(event) => setWeight(event.target.value)}
+        inputMode="decimal"
+        placeholder="kg"
+        aria-label="Weight in kilograms"
+        className={`${inputBase} w-16 text-center`}
+      />
+      <span className="text-xs text-muted">×</span>
+      <input
+        value={reps}
+        onChange={(event) => setReps(event.target.value.replace(/\D/g, ''))}
+        inputMode="numeric"
+        placeholder="reps"
+        aria-label="Reps"
+        className={`${inputBase} w-14 text-center`}
+      />
+      <button type="button" onClick={save} disabled={busy} className="px-1 text-sm font-semibold text-gold">
+        Save
+      </button>
+      <button type="button" onClick={remove} disabled={busy} className="px-1 text-sm font-semibold text-red-400">
+        Delete
+      </button>
+      <button type="button" onClick={() => setOpen(false)} className="px-1 text-sm text-muted">
+        ✕
+      </button>
+    </div>
   )
 }
 
-function Programme({ clientId }) {
-  const [state, setState] = useState({ status: 'loading' })
+function Sessions({ clientId }) {
+  const [rows, setRows] = useState(null)
   useEffect(() => {
-    fetchActiveProgramme(clientId)
-      .then((programme) => setState({ status: 'ready', programme }))
-      .catch(() => setState({ status: 'error' }))
+    fetchSetHistory(28, clientId)
+      .then(setRows)
+      .catch(() => setRows([]))
   }, [clientId])
-  if (state.status === 'loading') return <LoadingCards count={2} label="Loading programme" />
-  if (state.status === 'error') return <p className="text-red-400">Couldn't load their programme.</p>
-  if (!state.programme) return <p className="text-neutral-300">They haven't set up a programme yet.</p>
+  if (!rows) return <LoadingCards count={2} label="Loading sessions" />
+  if (!rows.length) return <p className="text-neutral-300">No sessions logged in the last 4 weeks.</p>
+
+  const byDate = new Map()
+  for (const row of rows) {
+    const day = byDate.get(row.session_date) ?? new Map()
+    const sets = day.get(row.exercise) ?? []
+    sets.push(row)
+    day.set(row.exercise, sets)
+    byDate.set(row.session_date, day)
+  }
+  const days = [...byDate.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
+  const replace = (next) => setRows((current) => current.map((r) => (r.id === next.id ? next : r)))
+  const drop = (gone) => setRows((current) => current.filter((r) => r.id !== gone.id))
+
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted">
-        {state.programme.name}. Editing a client's programme from here is the next update.
+    <>
+      <p className="mb-3 text-sm text-muted">
+        Tap a set to correct or delete it. Gold sets are ones you logged. To log a new session, open a day in their
+        Programme.
       </p>
-      {state.programme.days.map((day) => (
-        <section key={day.name} className="rounded-xl border border-line bg-panel px-4 py-3">
-          <h3 className="font-display text-xl font-semibold">{day.name}</h3>
-          <ul className="mt-2 space-y-1">
-            {day.exercises.map((exercise) => (
-              <li key={exercise.id ?? exercise.name} className="text-sm">
-                <span className="font-semibold text-white">{exercise.name}</span>{' '}
-                <span className="text-neutral-300">
-                  {exercise.sets} × {exercise.reps} · {formatLoad(exercise.load)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-    </div>
+      <ul className="space-y-3">
+        {days.map(([date, exercises]) => (
+          <li key={date} className="rounded-xl border border-line bg-panel px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">
+              {shortDate(date)} · {daysAgo(date)}
+            </p>
+            <ul className="mt-2 space-y-2">
+              {[...exercises.entries()].map(([name, sets]) => (
+                <li key={name} className="text-sm">
+                  <p className="font-semibold text-white">{name}</p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {sets
+                      .sort((x, y) => x.set_number - y.set_number)
+                      .map((set) => (
+                        <SetChip key={set.id} set={set} onChanged={replace} onDeleted={drop} />
+                      ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }
 
@@ -320,9 +390,9 @@ const SECTIONS = [
   ['notes', 'Notes'],
 ]
 
-function ClientDetail({ clientId }) {
+function ClientDetail({ clientId, section }) {
   const [client, setClient] = useState(null)
-  const [section, setSection] = useState('map')
+  const setSection = (id) => (window.location.hash = `clients/${clientId}/${id}`)
 
   useEffect(() => {
     fetchMyClients()
@@ -382,7 +452,15 @@ function ClientDetail({ clientId }) {
       {section === 'injuries' && <InjuryEditor key={clientId} userId={clientId} />}
       {section === 'checkins' && <CheckIns clientId={clientId} />}
       {section === 'sessions' && <Sessions clientId={clientId} />}
-      {section === 'programme' && <Programme clientId={clientId} />}
+      {section === 'programme' && (
+        <ProgrammeView
+          key={clientId}
+          userId={clientId}
+          basePath={`clients/${clientId}/programme`}
+          role="coach"
+          clientName={client.display_name}
+        />
+      )}
       {section === 'notes' && <Notes clientId={clientId} />}
       <button type="button" onClick={remove} className="mt-10 text-sm font-semibold text-muted hover:text-red-400">
         Remove client
@@ -392,11 +470,11 @@ function ClientDetail({ clientId }) {
 }
 
 export default function ClientsScreen() {
-  const [clientId, setClientId] = useState(clientFromHash)
+  const [route, setRoute] = useState(() => ({ clientId: clientFromHash(), section: sectionFromHash() }))
   useEffect(() => {
-    const onHashChange = () => setClientId(clientFromHash())
+    const onHashChange = () => setRoute({ clientId: clientFromHash(), section: sectionFromHash() })
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
-  return clientId ? <ClientDetail clientId={clientId} /> : <ClientList />
+  return route.clientId ? <ClientDetail clientId={route.clientId} section={route.section} /> : <ClientList />
 }
