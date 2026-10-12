@@ -53,8 +53,9 @@ export default function ConnectPanel() {
     <section className="rounded-2xl border border-line bg-panel p-5">
       <h2 className="font-display text-2xl font-semibold">Your physio or PT</h2>
       <p className="mt-2 leading-relaxed text-neutral-300">
-        Connect with a professional so they can see your body map, check-ins and sessions, and update your programme and
-        injuries.
+        {pros?.length
+          ? `${pros[0].display_name ?? 'Your professional'} runs your programme and rehab, and can see your body map, check-ins and sessions.`
+          : 'Connect with a professional so they can see your body map, check-ins and sessions, and run your programme and rehab.'}
       </p>
 
       {pros?.length > 0 && (
@@ -83,7 +84,11 @@ export default function ConnectPanel() {
         </ul>
       )}
 
-      {code ? (
+      {pros?.length > 0 ? (
+        <p className="mt-3 text-sm text-muted">
+          One professional looks after your training at a time. To switch, disconnect first.
+        </p>
+      ) : code ? (
         <div className="mt-4 rounded-xl border border-gold/60 bg-gold/10 p-4 text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Your code</p>
           <p className="mt-2 font-display text-5xl font-bold tracking-[0.25em] text-white">{code}</p>
@@ -96,7 +101,7 @@ export default function ConnectPanel() {
         </div>
       ) : (
         <button type="button" onClick={makeCode} disabled={busy} className={`mt-4 w-full ${buttonPrimary}`}>
-          {busy ? 'Making a code…' : pros?.length ? 'Connect another professional' : 'Get a connect code'}
+          {busy ? 'Making a code…' : 'Get a connect code'}
         </button>
       )}
 
