@@ -7,11 +7,11 @@ const slug = (text) => text.toLowerCase().replace(/\s+/g, '-')
 const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
 
 // The injury sites (red areas) from the injuries on the body map, one entry per area
-export async function fetchInjurySites() {
+export async function fetchInjurySites(userId = me()) {
   const { data, error } = await supabase
     .from('injuries')
     .select('injury_key, side')
-    .eq('user_id', me())
+    .eq('user_id', userId)
     .order('created_at')
   if (error) throw error
 
