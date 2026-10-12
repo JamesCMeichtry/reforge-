@@ -579,7 +579,11 @@ function ClientDetail({ clientId, section }) {
   useEffect(() => {
     fetchClient(clientId)
       .then((found) => setClient(found ?? false))
-      .catch(() => setClient(false))
+      .catch(() => {
+        // No signal: a live session running on this phone can still be opened
+        const running = loadLive(clientId)
+        setClient(running?.cache?.clientName ? { id: clientId, display_name: running.cache.clientName } : 'offline')
+      })
   }, [clientId])
 
   async function remove() {
@@ -589,8 +593,18 @@ function ClientDetail({ clientId, section }) {
   }
 
   if (client === null) return <LoadingCards count={2} label="Loading client" />
-  if (client && section === 'live') {
+  if (client && client !== 'offline' && section === 'live') {
     return <LiveSession clientId={clientId} clientName={client.display_name ?? 'Client'} dayId={hashParts()[3]} />
+  }
+  if (client === 'offline') {
+    return (
+      <div>
+        <p className="text-neutral-300">Couldn't load this client. Check your connection.</p>
+        <a href="#clients" className={`mt-4 inline-block ${buttonSecondary}`}>
+          Back to clients
+        </a>
+      </div>
+    )
   }
   if (client === false) {
     return (
