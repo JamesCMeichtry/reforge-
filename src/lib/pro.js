@@ -52,6 +52,9 @@ export async function fetchMyClients() {
         .order('session_date', { ascending: false })
     : { data: [] }
   if (recent.error) throw recent.error
+  const requests = ids.length
+    ? await supabase.from('change_requests').select('client_id').in('client_id', ids).is('resolved_at', null)
+    : { data: [] }
   return data
     .map((row) => {
       const checkIns = recent.data.filter((c) => c.user_id === row.client_id)
@@ -63,6 +66,7 @@ export async function fetchMyClients() {
         lastCheckIn: checkIns[0]?.session_date ?? null,
         flagged: checkIns.some((c) => c.red_flag) || worst >= 7,
         worstPain: worst >= 0 ? worst : null,
+        openRequests: (requests.data ?? []).filter((r) => r.client_id === row.client_id).length,
       }
     })
     .sort((a, b) => Number(b.flagged) - Number(a.flagged) || (a.display_name ?? '').localeCompare(b.display_name ?? ''))
