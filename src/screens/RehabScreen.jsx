@@ -1,4 +1,4 @@
-limport { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import CheckInForm from '../components/CheckInForm.jsx'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary } from '../components/ui.jsx'
 import { fetchInjurySites, fetchRecentCheckIns, painWord } from '../lib/checkins.js'
