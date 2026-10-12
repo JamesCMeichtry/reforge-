@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import { lazy, useState } from 'react'
 import { useAuth } from './auth/AuthProvider.jsx'
 import { supabase } from './lib/supabase.js'
 import InjuryEditor from './components/InjuryEditor.jsx'
-import LivingMap from './components/LivingMap.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import ConnectPanel from './components/ConnectPanel.jsx'
 import { ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
 import RehabScreen from './screens/RehabScreen.jsx'
-import ProgressScreen from './screens/ProgressScreen.jsx'
-import ClientsScreen from './screens/ClientsScreen.jsx'
+
+// Heavier screens load when first opened
+const LivingMap = lazy(() => import('./components/LivingMap.jsx'))
+const ProgressScreen = lazy(() => import('./screens/ProgressScreen.jsx'))
+const ClientsScreen = lazy(() => import('./screens/ClientsScreen.jsx'))
 
 function BodyMapScreen() {
   const [mode, setMode] = useState('living')
