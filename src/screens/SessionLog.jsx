@@ -4,6 +4,7 @@ import { LoadingCards, buttonPrimary, buttonSecondary, inputBase } from '../comp
 import CheckInForm from '../components/CheckInForm.jsx'
 import { fetchInjurySites } from '../lib/checkins.js'
 import { deleteSet, fetchPreviousSets, fetchTodaySets, formatLoad, formatPrevious, logSet } from '../lib/programme.js'
+import { me } from '../lib/me.js'
 
 const SECTION_ORDER = ['Warm-up', 'Physio', 'Rehab', 'Main']
 const REST_SECONDS = { 'Warm-up': 30, Physio: 45, Rehab: 45, Main: 90 }
@@ -78,13 +79,15 @@ function RestTimer({ endsAt, total, onAdd, onSkip }) {
   )
 }
 
-function SessionSummary({ day, stats, onDone }) {
+function SessionSummary({ day, stats, onDone, ownSession }) {
   const [sites, setSites] = useState(null)
+  // Check-ins are how the person feels, so only they answer them, not a professional logging for them
   useEffect(() => {
+    if (!ownSession) return setSites([])
     fetchInjurySites()
       .then(setSites)
       .catch(() => setSites([]))
-  }, [])
+  }, [ownSession])
 
   return (
     <div className="pt-4 text-center">
@@ -121,7 +124,9 @@ function SessionSummary({ day, stats, onDone }) {
   )
 }
 
-export default function SessionLog({ programme, day }) {
+// Logs a session for you, or for a client when their professional passes the client's id
+export default function SessionLog({ programme, day, userId = me(), backHash = 'programme' }) {
+  const ownSession = userId === me()
   const [previous, setPrevious] = useState({})
   const [todaySets, setTodaySets] = useState([])
   const [status, setStatus] = useState('loading')
@@ -132,7 +137,13 @@ export default function SessionLog({ programme, day }) {
   useEffect(() => {
     if (status !== 'loading') return
     let cancelled = false
-    Promise.all([fetchPreviousSets(day.exercises.map((e) => e.name)), fetchTodaySets(programme.id, day.name)])
+    Promise.all([
+      fetchPreviousSets(
+        day.exercises.map((e) => e.name),
+        userId,
+      ),
+      fetchTodaySets(programme.id, day.name, userId),
+    ])
       .then(([prev, today]) => {
         if (cancelled) return
         setPrevious(prev)
@@ -146,7 +157,7 @@ export default function SessionLog({ programme, day }) {
     return () => {
       cancelled = true
     }
-  }, [status, day, programme.id])
+  }, [status, day, programme.id, userId])
 
   const totalSets = day.exercises.reduce((sum, e) => sum + Number(e.sets || 0), 0)
   const doneCount = Object.keys(logged).length
@@ -187,7 +198,16 @@ export default function SessionLog({ programme, day }) {
     )
   }
 
-  if (finished) return <SessionSummary day={day} stats={stats} onDone={() => (window.location.hash = 'programme')} />
+  if (finished) {
+    return (
+      <SessionSummary
+        day={day}
+        stats={stats}
+        ownSession={ownSession}
+        onDone={() => (window.location.hash = backHash)}
+      />
+    )
+  }
 
   return (
     <div>
@@ -218,6 +238,7 @@ export default function SessionLog({ programme, day }) {
                 key={exercise.id}
                 programme={programme}
                 day={day}
+                userId={userId}
                 exercise={exercise}
                 previous={previous[exercise.name]}
                 todaySets={todaySets.filter((s) => s.exercise === exercise.name)}
@@ -233,7 +254,7 @@ export default function SessionLog({ programme, day }) {
         onClick={() => {
           setRest(null)
           if (doneCount) setFinished(true)
-          else window.location.hash = 'programme'
+          else window.location.hash = backHash
         }}
         className={`w-full ${buttonPrimary}`}
       >
@@ -255,7 +276,7 @@ export default function SessionLog({ programme, day }) {
   )
 }
 
-function ExerciseLog({ programme, day, exercise, previous, todaySets, onLogged }) {
+function ExerciseLog({ programme, day, userId, exercise, previous, todaySets, onLogged }) {
   const setCount = Math.max(1, Number(exercise.sets) || 1)
   const hasReps = /\d/.test(exercise.reps)
   const repsUnit = /\bs\b/.test(exercise.reps) ? 's' : 'reps'
@@ -327,7 +348,7 @@ function ExerciseLog({ programme, day, exercise, previous, todaySets, onLogged }
         band: kind === 'band' ? row.band.trim() || null : null,
         reps: hasReps ? parseInt(row.reps, 10) || 0 : null,
       }
-      const id = await logSet(saved)
+      const id = await logSet(saved, userId)
       // Carry this set's load forward to later sets you haven't changed yourself
       setRows((current) =>
         current.map((r, i) => {
