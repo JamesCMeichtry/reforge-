@@ -15,7 +15,7 @@ export async function fetchSetHistory(days = 180, userId = me()) {
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from('set_logs')
-      .select('exercise, session_date, set_number, weight_kg, reps')
+      .select('id, exercise, session_date, set_number, weight_kg, reps, logged_by')
       .eq('user_id', userId)
       .gte('session_date', since(days))
       .order('session_date', { ascending: true })
