@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LoadingCards, ScreenHeader, buttonPrimary } from '../components/ui.jsx'
+import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary } from '../components/ui.jsx'
 import MorningCheck from '../components/MorningCheck.jsx'
 import {
   currentWeek,
@@ -10,6 +10,7 @@ import {
   nextDay,
   todayDate,
 } from '../lib/programme.js'
+import { fetchMyPros } from '../lib/pro.js'
 
 function greeting() {
   const hour = new Date().getHours()
@@ -58,15 +59,17 @@ export default function TodayScreen() {
   const [state, setState] = useState({ status: 'loading' })
 
   useEffect(() => {
+    if (state.status !== 'loading') return
     let cancelled = false
-    Promise.all([fetchActiveProgramme(), fetchRecentTraining(14)])
-      .then(async ([programme, recent]) => {
+    Promise.all([fetchActiveProgramme(), fetchRecentTraining(14), fetchMyPros().catch(() => [])])
+      .then(async ([programme, recent, pros]) => {
         const last = programme ? await fetchLastDayName(programme.id) : null
         if (cancelled) return
         setState({
           status: 'ready',
           programme,
           recent,
+          coach: pros[0] ?? null,
           upNext: programme ? nextDay(programme.days, last) : null,
         })
       })
@@ -74,7 +77,7 @@ export default function TodayScreen() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [state.status])
 
   const date = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
   const lastDone = state.upNext && state.recent?.lastByDay[state.upNext.name]
@@ -86,14 +89,26 @@ export default function TodayScreen() {
         <MorningCheck />
         {state.status === 'loading' && <LoadingCards count={2} height="h-36" label="Loading today" />}
         {state.status === 'error' && (
-          <p className="text-red-400">Couldn't load your programme. Check your connection.</p>
+          <div>
+            <p className="text-red-400">Couldn't load your programme. Check your connection.</p>
+            <button type="button" onClick={() => setState({ status: 'loading' })} className={`mt-4 ${buttonSecondary}`}>
+              Try again
+            </button>
+          </div>
         )}
         {state.status === 'ready' && state.upNext && (
           <section className="rounded-2xl border border-gold/60 bg-panel p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Up next</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">
+              Up next{state.coach ? ` · set by ${state.coach.display_name ?? 'your coach'}` : ''}
+            </p>
             <h2 className="mt-2 font-display text-5xl font-bold uppercase leading-none">{state.upNext.name}</h2>
             <p className="mt-2 text-neutral-300">
-              {state.upNext.focus} · {state.upNext.exercises.length} exercises
+              {[
+                state.upNext.focus,
+                `${state.upNext.exercises.length} ${state.upNext.exercises.length === 1 ? 'exercise' : 'exercises'}`,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
             <p className="mt-1 text-sm text-muted">
               {lastDone ? `Last done ${daysAgo(lastDone).toLowerCase()}` : 'First time on this day'}
@@ -103,7 +118,16 @@ export default function TodayScreen() {
             </a>
           </section>
         )}
-        {state.status === 'ready' && !state.programme && (
+        {state.status === 'ready' && !state.programme && state.coach && (
+          <section className="rounded-2xl border border-line bg-panel p-5">
+            <h2 className="font-display text-2xl font-semibold">Your programme is on its way</h2>
+            <p className="mt-2 text-neutral-300">
+              {state.coach.display_name ?? 'Your coach'} is setting up your programme. It will appear here as soon as
+              it's ready.
+            </p>
+          </section>
+        )}
+        {state.status === 'ready' && !state.programme && !state.coach && (
           <section className="rounded-2xl border border-line bg-panel p-5">
             <h2 className="font-display text-2xl font-semibold">No programme yet</h2>
             <p className="mt-2 text-neutral-300">
