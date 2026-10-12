@@ -17,26 +17,39 @@ export async function fetchActiveProgramme(userId = me()) {
   return data
 }
 
-export async function createProgramme({ name, days }) {
-  const { data, error } = await supabase.from('programmes').insert({ name, days }).select('id, name, days').single()
+// Creates a programme and makes it the active one (any older programme is kept but switched off)
+export async function createProgramme({ name, days }, userId = me()) {
+  const { data, error } = await supabase
+    .from('programmes')
+    .insert({ name, days, user_id: userId, updated_by: me() })
+    .select('id, name, days')
+    .single()
   if (error) throw error
+  const { error: offError } = await supabase
+    .from('programmes')
+    .update({ is_active: false })
+    .eq('user_id', userId)
+    .neq('id', data.id)
+  if (offError) throw offError
   return data
 }
 
-export async function saveProgrammeDays(id, days) {
+export async function saveProgramme(id, changes) {
   const { error } = await supabase
     .from('programmes')
-    .update({ days, updated_at: new Date().toISOString() })
+    .update({ ...changes, updated_by: me(), updated_at: new Date().toISOString() })
     .eq('id', id)
   if (error) throw error
 }
 
+export const saveProgrammeDays = (id, days) => saveProgramme(id, { days })
+
 // The day of the most recent logged set, used to work out which session comes next
-export async function fetchLastDayName(programmeId) {
+export async function fetchLastDayName(programmeId, userId = me()) {
   const { data, error } = await supabase
     .from('set_logs')
     .select('day_name')
-    .eq('user_id', me())
+    .eq('user_id', userId)
     .eq('programme_id', programmeId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -52,12 +65,12 @@ export function nextDay(days, lastDayName) {
 }
 
 // For each exercise, the sets from the most recent session before today
-export async function fetchPreviousSets(exerciseNames) {
+export async function fetchPreviousSets(exerciseNames, userId = me()) {
   if (!exerciseNames.length) return {}
   const { data, error } = await supabase
     .from('set_logs')
     .select('exercise, session_date, set_number, weight_kg, band, reps')
-    .eq('user_id', me())
+    .eq('user_id', userId)
     .in('exercise', exerciseNames)
     .lt('session_date', todayDate())
     .order('session_date', { ascending: false })
@@ -74,11 +87,11 @@ export async function fetchPreviousSets(exerciseNames) {
   return previous
 }
 
-export async function fetchTodaySets(programmeId, dayName) {
+export async function fetchTodaySets(programmeId, dayName, userId = me()) {
   const { data, error } = await supabase
     .from('set_logs')
     .select('id, exercise, set_number, weight_kg, band, reps')
-    .eq('user_id', me())
+    .eq('user_id', userId)
     .eq('programme_id', programmeId)
     .eq('day_name', dayName)
     .eq('session_date', todayDate())
@@ -86,14 +99,20 @@ export async function fetchTodaySets(programmeId, dayName) {
   return data
 }
 
-export async function logSet(row) {
+// Logs a set for you, or for a client when their professional logs it (logged_by records who did)
+export async function logSet(row, userId = me()) {
   const { data, error } = await supabase
     .from('set_logs')
-    .insert({ ...row, session_date: todayDate() })
+    .insert({ ...row, session_date: todayDate(), user_id: userId, logged_by: me() })
     .select('id')
     .single()
   if (error) throw error
   return data.id
+}
+
+export async function updateSet(id, changes) {
+  const { error } = await supabase.from('set_logs').update(changes).eq('id', id)
+  if (error) throw error
 }
 
 export async function deleteSet(id) {
@@ -129,13 +148,13 @@ export function daysAgo(dateString) {
 }
 
 // Every training date in the last few weeks, with the most recent date per programme day
-export async function fetchRecentTraining(days = 42) {
+export async function fetchRecentTraining(days = 42, userId = me()) {
   const since = new Date()
   since.setDate(since.getDate() - days)
   const { data, error } = await supabase
     .from('set_logs')
     .select('session_date, day_name')
-    .eq('user_id', me())
+    .eq('user_id', userId)
     .gte('session_date', since.toLocaleDateString('en-CA'))
     .order('session_date', { ascending: false })
     .limit(2000)
