@@ -4,9 +4,23 @@ import LivingMap from '../components/LivingMap.jsx'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary, inputBase } from '../components/ui.jsx'
 import { fetchRecentCheckIns, painWord } from '../lib/checkins.js'
 import { me } from '../lib/me.js'
-import { addNote, connectWithCode, deleteNote, disconnect, fetchMyClients, fetchNotes } from '../lib/pro.js'
+import {
+  addNote,
+  attentionItems,
+  connectWithCode,
+  deleteNote,
+  disconnect,
+  fetchClient,
+  fetchMyClients,
+  fetchNotes,
+  fetchReviews,
+  reviewSession,
+} from '../lib/pro.js'
+import CoachRehab from '../components/CoachRehab.jsx'
 import { daysAgo, deleteSet, updateSet } from '../lib/programme.js'
 import { ProgrammeView } from './ProgrammeScreen.jsx'
+import LiveSession from './LiveSession.jsx'
+import { loadLive } from '../lib/live.js'
 import { fetchSetHistory, shortDate } from '../lib/progress.js'
 
 // #clients is the list, #clients/<id>/<section> is one client
@@ -90,8 +104,12 @@ function ClientList() {
 
   return (
     <>
-      <ScreenHeader title="Clients" intro="Everyone you look after, with anyone flaring up at the top." />
+      <ScreenHeader title="Clients" intro="What needs you today, then everyone you look after." />
       <div className="space-y-4">
+        {clients?.length > 0 && <NeedsYou clients={clients} />}
+        {clients?.length > 0 && (
+          <h2 className="pt-2 text-xs font-bold uppercase tracking-[0.2em] text-muted">All clients</h2>
+        )}
         {error && <p className="text-red-400">Couldn't load your clients. Check your connection.</p>}
         {!clients && !error && <LoadingCards count={2} label="Loading your clients" />}
         {clients?.length === 0 && (
@@ -108,11 +126,17 @@ function ClientList() {
                   <div>
                     <p className="font-semibold text-white">{client.display_name ?? 'Unnamed client'}</p>
                     <p className="text-sm text-muted">
-                      {client.lastCheckIn
-                        ? `Last check-in ${daysAgo(client.lastCheckIn).toLowerCase()}`
-                        : 'No check-ins in 2 weeks'}
+                      {client.lastTrained
+                        ? `Trained ${daysAgo(client.lastTrained).toLowerCase()}`
+                        : 'No training in 2 weeks'}
                       {client.worstPain != null ? ` · worst pain ${client.worstPain}/10` : ''}
                     </p>
+                    {loadLive(client.id) && (
+                      <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-gold">
+                        <span className="live-dot h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
+                        Live session running
+                      </p>
+                    )}
                     {client.openRequests > 0 && (
                       <p className="mt-0.5 text-sm font-semibold text-gold">
                         {client.openRequests} change {client.openRequests === 1 ? 'request' : 'requests'}
@@ -136,6 +160,54 @@ function ClientList() {
         <AddClient onAdded={load} />
       </div>
     </>
+  )
+}
+
+const LEVEL_STYLE = [
+  { dot: 'var(--pain-severe)', label: 'Urgent' },
+  { dot: 'var(--color-gold)', label: 'Request' },
+  { dot: 'var(--color-gold)', label: 'Review' },
+  { dot: 'var(--color-muted)', label: 'Quiet' },
+]
+
+// The coach's to-do list: warning signs and high pain first, then requests, solo sessions and quiet clients
+function NeedsYou({ clients }) {
+  const items = attentionItems(clients)
+  return (
+    <section className="rounded-2xl border border-line bg-panel">
+      <div className="flex items-baseline justify-between px-4 pt-4">
+        <h2 className="font-display text-2xl font-semibold">Needs you</h2>
+        <span className="text-sm text-muted">{items.length ? `${items.length} to look at` : 'All clear'}</span>
+      </div>
+      {items.length === 0 ? (
+        <p className="px-4 pb-4 pt-1 text-sm text-neutral-300">
+          No warning signs, requests or sessions waiting. Everyone's on track.
+        </p>
+      ) : (
+        <ul className="mt-2 divide-y divide-line">
+          {items.map((item, i) => (
+            <li key={i}>
+              <a href={item.href} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/40">
+                <span
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.level === 0 ? 'live-dot' : ''}`}
+                  style={{ background: LEVEL_STYLE[item.level].dot }}
+                  aria-label={LEVEL_STYLE[item.level].label}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className={`block font-semibold ${item.level === 0 ? 'text-red-400' : 'text-white'}`}>
+                    {item.title}
+                  </span>
+                  <span className="block text-sm text-muted">{item.detail}</span>
+                </span>
+                <span aria-hidden="true" className="text-muted">
+                  ›
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
@@ -249,12 +321,69 @@ function SetChip({ set, onChanged, onDeleted }) {
   )
 }
 
+// Look over a session the client did on their own: mark it reviewed, with an optional comment they'll see
+function Review({ clientId, date, review, onDone }) {
+  const [open, setOpen] = useState(false)
+  const [comment, setComment] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (review) {
+    return <p className="mt-2 text-sm text-gold">✓ Reviewed{review.comment ? `: “${review.comment}”` : ''}</p>
+  }
+  async function save() {
+    setBusy(true)
+    try {
+      await reviewSession(clientId, date, comment)
+      onDone({ session_date: date, comment: comment.trim() || null })
+    } catch {
+      window.alert("Couldn't save the review. Check your connection.")
+      setBusy(false)
+    }
+  }
+  if (!open) {
+    return (
+      <div className="mt-3 flex gap-2">
+        <button type="button" onClick={save} disabled={busy} className={`flex-1 ${buttonSecondary}`}>
+          ✓ Looks good
+        </button>
+        <button type="button" onClick={() => setOpen(true)} className={`flex-1 ${buttonSecondary}`}>
+          Comment
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="mt-3">
+      <textarea
+        value={comment}
+        onChange={(event) => setComment(event.target.value)}
+        rows={2}
+        maxLength={1000}
+        placeholder="e.g. Great work. Next time keep the RDLs at 50 kg."
+        aria-label="Comment for your client"
+        className={inputBase}
+      />
+      <button
+        type="button"
+        onClick={save}
+        disabled={busy || !comment.trim()}
+        className={`mt-2 w-full ${buttonPrimary}`}
+      >
+        {busy ? 'Saving…' : 'Send and mark reviewed'}
+      </button>
+    </div>
+  )
+}
+
 function Sessions({ clientId }) {
   const [rows, setRows] = useState(null)
+  const [reviews, setReviews] = useState([])
   useEffect(() => {
     fetchSetHistory(28, clientId)
       .then(setRows)
       .catch(() => setRows([]))
+    fetchReviews(clientId)
+      .then(setReviews)
+      .catch(() => {})
   }, [clientId])
   if (!rows) return <LoadingCards count={2} label="Loading sessions" />
   if (!rows.length) return <p className="text-neutral-300">No sessions logged in the last 4 weeks.</p>
@@ -274,31 +403,51 @@ function Sessions({ clientId }) {
   return (
     <>
       <p className="mb-3 text-sm text-muted">
-        Tap a set to correct or delete it. Gold sets are ones you logged. To log a new session, open a day in their
-        Programme.
+        Solo sessions are ones they did on their own. Tap a set to correct or delete it. Gold sets are ones you logged.
       </p>
       <ul className="space-y-3">
-        {days.map(([date, exercises]) => (
-          <li key={date} className="rounded-xl border border-line bg-panel px-4 py-3">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">
-              {shortDate(date)} · {daysAgo(date)}
-            </p>
-            <ul className="mt-2 space-y-2">
-              {[...exercises.entries()].map(([name, sets]) => (
-                <li key={name} className="text-sm">
-                  <p className="font-semibold text-white">{name}</p>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {sets
-                      .sort((x, y) => x.set_number - y.set_number)
-                      .map((set) => (
-                        <SetChip key={set.id} set={set} onChanged={replace} onDeleted={drop} />
-                      ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
+        {days.map(([date, exercises]) => {
+          const all = [...exercises.values()].flat()
+          const solo = all.some((set) => set.logged_by !== me())
+          const review = reviews.find((r) => r.session_date === date)
+          return (
+            <li
+              key={date}
+              className={`rounded-xl border bg-panel px-4 py-3 ${solo && !review ? 'border-gold/50' : 'border-line'}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">
+                  {shortDate(date)} · {daysAgo(date)}
+                </p>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                  {solo ? 'Solo' : 'With you'}
+                </span>
+              </div>
+              <ul className="mt-2 space-y-2">
+                {[...exercises.entries()].map(([name, sets]) => (
+                  <li key={name} className="text-sm">
+                    <p className="font-semibold text-white">{name}</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {sets
+                        .sort((x, y) => x.set_number - y.set_number)
+                        .map((set) => (
+                          <SetChip key={set.id} set={set} onChanged={replace} onDeleted={drop} />
+                        ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {solo && (
+                <Review
+                  clientId={clientId}
+                  date={date}
+                  review={review}
+                  onDone={(added) => setReviews((current) => [...current, added])}
+                />
+              )}
+            </li>
+          )
+        })}
       </ul>
     </>
   )
@@ -384,19 +533,52 @@ function Notes({ clientId }) {
 const SECTIONS = [
   ['map', 'Body map'],
   ['injuries', 'Injuries'],
+  ['rehab', 'Rehab'],
   ['checkins', 'Check-ins'],
   ['sessions', 'Sessions'],
   ['programme', 'Programme'],
   ['notes', 'Notes'],
 ]
 
+// Start a live session, or get back into one that's still running on this phone
+function LiveButton({ clientId }) {
+  const running = loadLive(clientId)
+  if (running) {
+    const sets = Object.values(running.sets ?? {}).reduce((sum, list) => sum + list.length, 0)
+    const minutes = Math.round((Date.now() - new Date(running.startedAt).getTime()) / 60000)
+    return (
+      <a
+        href={`#clients/${clientId}/live`}
+        className="mb-5 flex items-center gap-3 rounded-2xl border border-gold bg-gold/10 px-4 py-4"
+      >
+        <span className="live-dot h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold text-white">Resume live session</span>
+          <span className="block text-sm text-muted">
+            {running.dayName} · {minutes} min · {sets} {sets === 1 ? 'set' : 'sets'}
+          </span>
+        </span>
+        <span className="font-display text-2xl font-bold text-gold">›</span>
+      </a>
+    )
+  }
+  return (
+    <a
+      href={`#clients/${clientId}/live`}
+      className="mb-5 flex h-14 items-center justify-center gap-2 rounded-2xl bg-gold font-display text-xl font-bold uppercase tracking-wide text-ink"
+    >
+      <span aria-hidden="true">▶</span> Start live session
+    </a>
+  )
+}
+
 function ClientDetail({ clientId, section }) {
   const [client, setClient] = useState(null)
   const setSection = (id) => (window.location.hash = `clients/${clientId}/${id}`)
 
   useEffect(() => {
-    fetchMyClients()
-      .then((list) => setClient(list.find((c) => c.id === clientId) ?? false))
+    fetchClient(clientId)
+      .then((found) => setClient(found ?? false))
       .catch(() => setClient(false))
   }, [clientId])
 
@@ -407,6 +589,9 @@ function ClientDetail({ clientId, section }) {
   }
 
   if (client === null) return <LoadingCards count={2} label="Loading client" />
+  if (client && section === 'live') {
+    return <LiveSession clientId={clientId} clientName={client.display_name ?? 'Client'} dayId={hashParts()[3]} />
+  }
   if (client === false) {
     return (
       <div>
@@ -433,6 +618,7 @@ function ClientDetail({ clientId, section }) {
           }
         />
       </div>
+      <LiveButton clientId={clientId} />
       <div className="-mx-5 mb-5 flex gap-2 overflow-x-auto px-5 pb-1" role="group" aria-label="Client sections">
         {SECTIONS.map(([id, label]) => (
           <button
@@ -450,6 +636,7 @@ function ClientDetail({ clientId, section }) {
       </div>
       {section === 'map' && <LivingMap key={clientId} userId={clientId} />}
       {section === 'injuries' && <InjuryEditor key={clientId} userId={clientId} />}
+      {section === 'rehab' && <CoachRehab key={clientId} clientId={clientId} clientName={client.display_name} />}
       {section === 'checkins' && <CheckIns clientId={clientId} />}
       {section === 'sessions' && <Sessions clientId={clientId} />}
       {section === 'programme' && (
