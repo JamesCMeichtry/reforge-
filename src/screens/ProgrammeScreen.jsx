@@ -13,6 +13,7 @@ import {
   resolveRequest,
   saveTemplate,
 } from '../lib/coaching.js'
+import { fetchLatestSession } from '../lib/live.js'
 import { me } from '../lib/me.js'
 import { fetchMyPros } from '../lib/pro.js'
 import {
@@ -32,14 +33,15 @@ const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${
 const shortDate = (value) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
 // The day id comes from the part of the address after the programme's path, e.g. #programme/<day>
+function dayFromHash(basePath) {
+  const hash = window.location.hash.replace('#', '')
+  return hash.startsWith(`${basePath}/`) ? hash.slice(basePath.length + 1).split('/')[0] : null
+}
+
 function useDayFromHash(basePath) {
-  const read = () => {
-    const hash = window.location.hash.replace('#', '')
-    return hash.startsWith(`${basePath}/`) ? hash.slice(basePath.length + 1).split('/')[0] : null
-  }
-  const [dayId, setDayId] = useState(read)
+  const [dayId, setDayId] = useState(() => dayFromHash(basePath))
   useEffect(() => {
-    const onChange = () => setDayId(read())
+    const onChange = () => setDayId(dayFromHash(basePath))
     window.addEventListener('hashchange', onChange)
     return () => window.removeEventListener('hashchange', onChange)
   }, [basePath])
@@ -254,6 +256,7 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
       {title && <ScreenHeader title={title} intro={programme.name} />}
       {role === 'coach' && <p className="mb-4 font-display text-2xl font-semibold">{programme.name}</p>}
       {role === 'coached' && <CoachedBanner coachName={coachName} />}
+      {role !== 'self' && <LastSession clientId={userId} role={role} coachName={coachName} clientName={clientName} />}
       {role === 'coach' && <OpenRequests clientId={userId} />}
 
       <ul className="space-y-3">
@@ -535,7 +538,7 @@ function DayView({ programme, day, userId, basePath, role, clientName, coachName
       {canEdit && (
         <div className="mb-6 flex rounded-xl border border-line bg-panel p-1" role="group" aria-label="Mode">
           {[
-            [false, role === 'coach' ? `Log for ${clientName ?? 'client'}` : 'Log session'],
+            [false, role === 'coach' ? 'Session' : 'Log session'],
             [true, 'Edit day'],
           ].map(([value, label]) => (
             <button
@@ -565,10 +568,132 @@ function DayView({ programme, day, userId, basePath, role, clientName, coachName
             setEditing(false)
           }}
         />
+      ) : role === 'coach' ? (
+        <CoachDayPreview day={day} clientId={userId} clientName={clientName} />
       ) : (
         <SessionLog programme={programme} day={day} userId={userId} backHash={basePath} />
       )}
     </>
+  )
+}
+
+// What the coach sees on a client's day: the plan at a glance and one tap into a live session
+function CoachDayPreview({ day, clientId, clientName }) {
+  return (
+    <>
+      <a
+        href={`#clients/${clientId}/live/${day.id}`}
+        className="mb-5 flex h-14 items-center justify-center gap-2 rounded-2xl bg-gold font-display text-xl font-bold uppercase tracking-wide text-ink"
+      >
+        <span aria-hidden="true">▶</span> Start live session
+      </a>
+      <p className="mb-3 text-sm text-muted">
+        Run {clientName ?? 'the client'}'s session from the gym floor: log every set, swap exercises and add notes as
+        you go.
+      </p>
+      <ol className="space-y-2">
+        {day.exercises.map((exercise, i) => (
+          <li key={exercise.id} className="flex gap-3 rounded-xl border border-line bg-panel px-4 py-3">
+            <span className="w-5 font-display text-xl font-bold text-gold">{i + 1}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-white">{exercise.name}</span>
+              <span className="block text-sm text-muted">
+                {exercise.section || 'Main'} · {exercise.sets} × {exercise.reps}
+                {exercise.load?.kind === 'kg' ? ` · ${exercise.load.value} kg` : ''}
+                {exercise.load?.kind === 'band' ? ` · ${exercise.load.value} band` : ''}
+              </span>
+              {exercise.note && <span className="mt-1 block text-sm text-neutral-300">{exercise.note}</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </>
+  )
+}
+
+// The latest session a professional ran: the client sees what they did, PBs, pain and the coach's message
+function LastSession({ clientId, role, coachName, clientName }) {
+  const [session, setSession] = useState(null)
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    fetchLatestSession(clientId)
+      .then(setSession)
+      .catch(() => {})
+  }, [clientId])
+  if (!session?.summary) return null
+  const age = (Date.now() - new Date(session.ended_at).getTime()) / 86400000
+  if (age > 14) return null
+  const s = session.summary
+  const when = daysAgo(session.ended_at.slice(0, 10))
+  const title = role === 'coached' ? `Your session with ${coachName ?? 'your coach'}` : `Last live session`
+  return (
+    <section className="mb-5 overflow-hidden rounded-2xl border border-gold/50 bg-panel">
+      <div className="p-4">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">
+          {title} · {when}
+        </p>
+        <p className="mt-1 font-display text-2xl font-bold uppercase leading-none">{session.day_name}</p>
+        <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-semibold">
+          <span className="rounded-full border border-line px-2.5 py-1 text-neutral-300">{s.minutes} min</span>
+          <span className="rounded-full border border-line px-2.5 py-1 text-neutral-300">{s.sets} sets</span>
+          {s.volume > 0 && (
+            <span className="rounded-full border border-line px-2.5 py-1 text-neutral-300">
+              {s.volume.toLocaleString('en-GB')} kg moved
+            </span>
+          )}
+          {s.pbs?.length > 0 && (
+            <span className="rounded-full bg-gold px-2.5 py-1 text-ink">
+              {s.pbs.length} {s.pbs.length === 1 ? 'PB' : 'PBs'}
+            </span>
+          )}
+        </div>
+        {session.message && (
+          <blockquote className="mt-3 border-l-2 border-gold pl-3 text-neutral-300">
+            “{session.message}”
+            {role === 'coached' && <span className="mt-1 block text-xs text-muted">– {coachName ?? 'Your coach'}</span>}
+          </blockquote>
+        )}
+        {s.pbs?.map((pb) => (
+          <p key={pb.exercise} className="mt-2 text-sm text-gold">
+            New best: {pb.exercise} {pb.weight} kg × {pb.reps}
+          </p>
+        ))}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="mt-3 text-sm font-semibold text-muted hover:text-white"
+        >
+          {open ? 'Hide details' : 'See every set'}
+        </button>
+      </div>
+      {open && (
+        <div className="border-t border-line px-4 py-3">
+          <ul className="space-y-2">
+            {s.exercises?.map((e, i) => (
+              <li key={i} className="text-sm">
+                <span className={`font-semibold ${e.status === 'skipped' ? 'text-muted line-through' : 'text-white'}`}>
+                  {e.name}
+                </span>
+                {e.sets.length > 0 && <span className="block text-neutral-300">{e.sets.join(' · ')}</span>}
+                {e.notes?.length > 0 && <span className="block text-gold">{e.notes.join(' · ')}</span>}
+              </li>
+            ))}
+          </ul>
+          {s.pain?.length > 0 && (
+            <p className="mt-3 text-sm text-neutral-300">
+              Pain: {s.pain.map((p) => `${p.label} peaked at ${p.max}/10`).join(', ')}
+            </p>
+          )}
+          {s.kept?.length > 0 && (
+            <p className="mt-3 text-sm text-neutral-300">
+              Kept in {role === 'coached' ? 'your' : clientName ? `${clientName}'s` : 'their'} programme:{' '}
+              {s.kept.join('; ')}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
   )
 }
 
