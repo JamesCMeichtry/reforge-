@@ -1,17 +1,19 @@
-import { useEffect, useState } from 'react'
+limport { useEffect, useState } from 'react'
 import CheckInForm from '../components/CheckInForm.jsx'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary } from '../components/ui.jsx'
 import { fetchInjurySites, fetchRecentCheckIns, painWord } from '../lib/checkins.js'
+import { fetchMyPros, fetchRehabPlans } from '../lib/pro.js'
 import { siteStatus } from '../lib/livingMap.js'
 import { daysAgo } from '../lib/programme.js'
 import { tinyDate } from '../lib/progress.js'
 
 // Recovery stages use the same rules as the living body map, so both always agree
-const STAGES = [
+export const STAGES = [
   {
     name: 'Flare',
     colour: 'var(--stage-flare)',
-    advice: 'Back off loading this area for now. Keep moving gently in pain-free ranges, and see a physio if the warning signs stick around.',
+    advice:
+      'Back off loading this area for now. Keep moving gently in pain-free ranges, and see a physio if the warning signs stick around.',
   },
   {
     name: 'Settling',
@@ -31,7 +33,7 @@ const STAGES = [
 ]
 
 const GOOD = 2 // a score of 2 or less counts as a good check-in
-const score = (c) => c.next_morning ?? c.pain_after
+export const score = (c) => c.next_morning ?? c.pain_after
 
 const painColour = (value) =>
   value == null
@@ -51,7 +53,7 @@ function goodRun(scores) {
 }
 
 // Where this area sits on the ladder, and what moves it up a rung
-function recovery(checkIns) {
+export function recovery(checkIns) {
   const scores = checkIns.map(score).filter((v) => v != null)
   const status = siteStatus(checkIns)
   const run = goodRun(scores)
@@ -66,15 +68,26 @@ function recovery(checkIns) {
     if (clearIn) parts.push(`${clearIn} more check-in${clearIn > 1 ? 's' : ''} without warning signs`)
     return { stage: 0, need: 1, have: 0, next: `To settle: ${parts.join(' and ')}.` }
   }
-  if (status.level === 'watch') return { stage: 3, need: 6, have: 6, next: 'Top of the ladder. Keep checking in now and then.' }
+  if (status.level === 'watch')
+    return { stage: 3, need: 6, have: 6, next: 'Top of the ladder. Keep checking in now and then.' }
   if (status.level === 'affected') {
-    return { stage: 2, need: 6, have: run, next: `${6 - run} more good check-in${6 - run > 1 ? 's' : ''} in a row to reach Cleared.` }
+    return {
+      stage: 2,
+      need: 6,
+      have: run,
+      next: `${6 - run} more good check-in${6 - run > 1 ? 's' : ''} in a row to reach Cleared.`,
+    }
   }
   if (!scores.length) return { stage: 1, need: 3, have: 0, next: 'Check in to start tracking this area.' }
-  return { stage: 1, need: 3, have: run, next: `${3 - run} more good check-in${3 - run > 1 ? 's' : ''} in a row to reach Rebuilding.` }
+  return {
+    stage: 1,
+    need: 3,
+    have: run,
+    next: `${3 - run} more good check-in${3 - run > 1 ? 's' : ''} in a row to reach Rebuilding.`,
+  }
 }
 
-function trend(scores) {
+export function trend(scores) {
   if (scores.length < 4) return null
   const avg = (list) => list.reduce((sum, v) => sum + v, 0) / list.length
   const change = avg(scores.slice(-3)) - avg(scores.slice(-6, -3))
@@ -83,7 +96,7 @@ function trend(scores) {
   return { label: 'Steady', tone: 'text-muted' }
 }
 
-function Ladder({ stage }) {
+export function Ladder({ stage }) {
   return (
     <ol className="mt-5 grid grid-cols-4 gap-1.5" aria-label={`Recovery stage: ${STAGES[stage].name}`}>
       {STAGES.map((s, i) => {
@@ -125,7 +138,7 @@ function Rungs({ need, have, colour }) {
 }
 
 // Pain over time, with the good / caution / flare zones shaded behind it
-function PainChart({ checkIns }) {
+export function PainChart({ checkIns }) {
   const points = checkIns.filter((c) => score(c) != null).slice(-14)
   if (!points.length) return null
 
@@ -135,7 +148,8 @@ function PainChart({ checkIns }) {
   const right = 8
   const top = 8
   const bottom = 20
-  const x = (i) => (points.length === 1 ? (left + W - right) / 2 : left + (i * (W - left - right)) / (points.length - 1))
+  const x = (i) =>
+    points.length === 1 ? (left + W - right) / 2 : left + (i * (W - left - right)) / (points.length - 1)
   const y = (v) => top + ((10 - v) / 10) * (H - top - bottom)
   const line = points.map((c, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(score(c)).toFixed(1)}`).join(' ')
   const band = (from, to, colour) => (
@@ -144,7 +158,12 @@ function PainChart({ checkIns }) {
 
   return (
     <figure className="mt-5">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`Pain over your last ${points.length} check-ins`}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full"
+        role="img"
+        aria-label={`Pain over your last ${points.length} check-ins`}
+      >
         {band(6.5, 10, 'var(--pain-severe)')}
         {band(2.5, 6.5, 'var(--pain-moderate)')}
         {band(0, 2.5, 'var(--color-gold)')}
@@ -166,11 +185,26 @@ function PainChart({ checkIns }) {
         )}
         {points.map((c, i) => (
           <g key={c.id ?? i}>
-            {c.red_flag && <circle cx={x(i)} cy={y(score(c))} r="7.5" fill="none" stroke="var(--pain-severe)" strokeWidth="1.5" />}
-            <circle cx={x(i)} cy={y(score(c))} r="4" fill={painColour(score(c))} stroke="var(--color-panel)" strokeWidth="1.5" />
+            {c.red_flag && (
+              <circle cx={x(i)} cy={y(score(c))} r="7.5" fill="none" stroke="var(--pain-severe)" strokeWidth="1.5" />
+            )}
+            <circle
+              cx={x(i)}
+              cy={y(score(c))}
+              r="4"
+              fill={painColour(score(c))}
+              stroke="var(--color-panel)"
+              strokeWidth="1.5"
+            />
           </g>
         ))}
-        <text x={x(0)} y={H - 4} textAnchor={points.length === 1 ? 'middle' : 'start'} fontSize="10" fill="var(--color-muted)">
+        <text
+          x={x(0)}
+          y={H - 4}
+          textAnchor={points.length === 1 ? 'middle' : 'start'}
+          fontSize="10"
+          fill="var(--color-muted)"
+        >
           {tinyDate(points[0].session_date)}
         </text>
         {points.length > 1 && (
@@ -201,11 +235,14 @@ function Stat({ label, value }) {
   )
 }
 
-function AreaCard({ site, checkIns }) {
+// With a coach, the coach's stage and guidance replace the app's automatic advice
+function AreaCard({ site, checkIns, coach, coachPlan }) {
   const scores = checkIns.map(score).filter((v) => v != null)
   const latest = checkIns.at(-1)
   const plan = recovery(checkIns)
-  const stage = STAGES[plan.stage]
+  const coachName = coach?.display_name ?? 'your coach'
+  const coachStage = coach ? (coachPlan?.stage ?? null) : plan.stage
+  const stage = coachStage != null ? STAGES[coachStage] : { name: 'With your coach', colour: 'var(--color-line)' }
   const direction = trend(scores)
   const recentFlag = checkIns.slice(-5).some((c) => c.red_flag)
   const weekStart = new Date()
@@ -225,25 +262,51 @@ function AreaCard({ site, checkIns }) {
             <h2 className="font-display text-3xl font-semibold leading-tight">{site.label}</h2>
             <p className="text-xs text-muted">{site.injuries.join(' · ')}</p>
           </div>
-          <span
-            className="shrink-0 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide text-ink"
-            style={{ backgroundColor: stage.colour }}
-          >
-            {stage.name}
-          </span>
+          {coachStage != null && (
+            <span
+              className="shrink-0 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide text-ink"
+              style={{ backgroundColor: stage.colour }}
+            >
+              {stage.name}
+            </span>
+          )}
         </div>
 
-        <Ladder stage={plan.stage} />
+        {coachStage != null && <Ladder stage={coachStage} />}
 
-        <div className="mt-5 rounded-xl bg-ink/40 p-4">
-          <p className="text-sm text-neutral-200">{stage.advice}</p>
-          <p className="mt-2 text-sm font-semibold text-white">{plan.next}</p>
-          <Rungs need={plan.need} have={plan.have} colour={STAGES[Math.min(plan.stage + 1, 3)].colour} />
-        </div>
+        {coach ? (
+          <div className="mt-5 rounded-xl bg-ink/40 p-4">
+            {coachPlan?.guidance || coachPlan?.restrictions ? (
+              <>
+                {coachPlan.guidance && <p className="text-sm text-neutral-200">{coachPlan.guidance}</p>}
+                {coachPlan.restrictions && (
+                  <p className="mt-2 text-sm text-neutral-200">
+                    <span className="font-semibold text-white">Avoid for now:</span> {coachPlan.restrictions}
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-muted">
+                  From {coachName} · {daysAgo(coachPlan.updated_at.slice(0, 10)).toLowerCase()}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-neutral-200">
+                {coachName} will guide your loading for this area. Keep checking in so they can see how it's going.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="mt-5 rounded-xl bg-ink/40 p-4">
+            <p className="text-sm text-neutral-200">{stage.advice}</p>
+            <p className="mt-2 text-sm font-semibold text-white">{plan.next}</p>
+            <Rungs need={plan.need} have={plan.have} colour={STAGES[Math.min(plan.stage + 1, 3)].colour} />
+          </div>
+        )}
 
         {recentFlag && (
           <p className="mt-4 rounded-lg border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">
-            Warning signs reported recently. Get this area checked before loading it.
+            {coach
+              ? `Warning signs reported recently. Stop loading this area and tell ${coachName}. If it's getting worse, or you can't put weight through it, get medical help.`
+              : 'Warning signs reported recently. Get this area checked before loading it.'}
           </p>
         )}
 
@@ -269,14 +332,28 @@ function AreaCard({ site, checkIns }) {
             </p>
           </>
         ) : (
-          <p className="mt-4 text-sm text-muted">No check-ins yet. Do a quick one above, or one after your next session.</p>
+          <p className="mt-4 text-sm text-muted">
+            No check-ins yet. Do a quick one above, or one after your next session.
+          </p>
         )}
       </div>
     </article>
   )
 }
 
-function HowItWorks() {
+function HowItWorks({ coach }) {
+  if (coach) {
+    return (
+      <details className="rounded-2xl border border-line bg-panel p-5 text-sm text-neutral-300">
+        <summary className="cursor-pointer font-semibold text-white">How this works with your coach</summary>
+        <ul className="mt-3 space-y-2">
+          <li>{coach.display_name ?? 'Your coach'} sets the stage for each area and what to do or avoid.</li>
+          <li>Every check-in goes straight to them, so the more you check in, the better they can guide you.</li>
+          <li>Warning signs alert them straight away.</li>
+        </ul>
+      </details>
+    )
+  }
   return (
     <details className="rounded-2xl border border-line bg-panel p-5 text-sm text-neutral-300">
       <summary className="cursor-pointer font-semibold text-white">How the stages work</summary>
@@ -286,7 +363,9 @@ function HowItWorks() {
         <li>A score of 7 or more, or any warning sign, drops it back to Flare.</li>
         <li>Your body map uses the same rules, so its colours always match these stages.</li>
       </ul>
-      <p className="mt-3 text-xs text-muted">A guide to help you pace things, not a diagnosis. If you're unsure, ask a physio.</p>
+      <p className="mt-3 text-xs text-muted">
+        A guide to help you pace things, not a diagnosis. If you're unsure, ask a physio.
+      </p>
     </details>
   )
 }
@@ -298,8 +377,11 @@ export default function RehabScreen() {
   useEffect(() => {
     if (state.status !== 'loading') return
     let cancelled = false
-    Promise.all([fetchInjurySites(), fetchRecentCheckIns()])
-      .then(([sites, checkIns]) => !cancelled && setState({ status: 'ready', sites, checkIns }))
+    Promise.all([fetchInjurySites(), fetchRecentCheckIns(), fetchMyPros(), fetchRehabPlans()])
+      .then(
+        ([sites, checkIns, pros, plans]) =>
+          !cancelled && setState({ status: 'ready', sites, checkIns, coach: pros[0] ?? null, plans }),
+      )
       .catch(() => !cancelled && setState({ status: 'error' }))
     return () => {
       cancelled = true
@@ -311,7 +393,9 @@ export default function RehabScreen() {
     ? state.sites
         .map((site) => {
           const checkIns = state.checkIns.filter((c) => c.area_id === site.areaId)
-          return { site, checkIns, stage: recovery(checkIns).stage }
+          const coachPlan = state.plans.find((p) => p.area_id === site.areaId)
+          const stage = state.coach ? (coachPlan?.stage ?? 1.5) : recovery(checkIns).stage
+          return { site, checkIns, coachPlan, stage }
         })
         .sort((a, b) => a.stage - b.stage)
     : []
@@ -320,7 +404,14 @@ export default function RehabScreen() {
 
   return (
     <>
-      <ScreenHeader title="Rehab" intro="Where each injury is on the road back, and what moves it up a stage." />
+      <ScreenHeader
+        title="Rehab"
+        intro={
+          state.coach
+            ? `How each injury is going. ${state.coach.display_name ?? 'Your coach'} sets your stages and guidance.`
+            : 'Where each injury is on the road back, and what moves it up a stage.'
+        }
+      />
       {state.status === 'loading' && <LoadingCards count={3} height="h-48" label="Loading your rehab" />}
       {state.status === 'error' && (
         <div>
@@ -359,7 +450,7 @@ export default function RehabScreen() {
                 {checkedToday
                   ? "You've checked in today. Nice."
                   : lastDate
-                    ? `Last check-in ${daysAgo(lastDate).toLowerCase()}. 30 seconds keeps your stages and streak moving.`
+                    ? `Last check-in ${daysAgo(lastDate).toLowerCase()}. 30 seconds keeps ${state.coach ? (state.coach.display_name ?? 'your coach') : 'your stages and streak'} up to date.`
                     : 'Your first check-in takes 30 seconds and starts your recovery ladder.'}
               </p>
               <button
@@ -371,10 +462,10 @@ export default function RehabScreen() {
               </button>
             </section>
           )}
-          {cards.map(({ site, checkIns }) => (
-            <AreaCard key={site.areaId} site={site} checkIns={checkIns} />
+          {cards.map(({ site, checkIns, coachPlan }) => (
+            <AreaCard key={site.areaId} site={site} checkIns={checkIns} coach={state.coach} coachPlan={coachPlan} />
           ))}
-          <HowItWorks />
+          <HowItWorks coach={state.coach} />
         </div>
       )}
     </>
