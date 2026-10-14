@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { LoadingCards, buttonPrimary, buttonSecondary } from '../components/ui.jsx'
+import { ask } from '../components/Feedback.jsx'
 import {
   Centered,
   EXERCISE_NOTES,
@@ -178,8 +179,13 @@ export default function LiveSession({ clientId, clientName = 'Client', dayId }) 
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (!window.confirm('Close this session without a summary? Its sets stay in the log.')) return
+          onClick={async () => {
+            const sure = await ask({
+              title: 'Close without a summary?',
+              body: 'Every set logged stays in their history. Only the end-of-session summary is skipped.',
+              confirm: 'Close session',
+            })
+            if (!sure) return
             clearLive(clientId)
             setSession(null)
           }}
