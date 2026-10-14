@@ -2,11 +2,12 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import TabBar, { CLIENTS_TAB, TABS } from './components/TabBar.jsx'
 import { SCREENS } from './screens.jsx'
 import { AuthProvider, useAuth } from './auth/AuthProvider.jsx'
-import AuthScreen from './auth/AuthScreen.jsx'
+import AuthScreen, { NewPasswordScreen } from './auth/AuthScreen.jsx'
 import { isSupabaseConfigured } from './lib/supabase.js'
 import { fetchProfile } from './lib/profile.js'
 import { setMe } from './lib/me.js'
 import { LoadingCards } from './components/ui.jsx'
+import { CrashGuard, FeedbackHost, toast } from './components/Feedback.jsx'
 
 // Screens most people don't open straight away load on demand, so the app starts faster
 const Onboarding = lazy(() => import('./screens/Onboarding.jsx'))
@@ -67,9 +68,11 @@ function AppShell({ profile }) {
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 6.5rem)',
         }}
       >
-        <Suspense fallback={<LoadingCards count={3} label="Loading" />}>
-          <Screen />
-        </Suspense>
+        <CrashGuard resetKey={route}>
+          <Suspense fallback={<LoadingCards count={3} label="Loading" />}>
+            <Screen />
+          </Suspense>
+        </CrashGuard>
       </main>
       <TabBar activeTab={activeTab} onSelect={selectTab} tabs={tabs} />
     </div>
@@ -153,8 +156,18 @@ function SignedIn({ userId }) {
 }
 
 function Gate() {
-  const { session, loading } = useAuth()
+  const { session, loading, recovering, finishRecovery } = useAuth()
   if (loading) return <div className="min-h-dvh bg-ink" />
+  if (session && recovering) {
+    return (
+      <NewPasswordScreen
+        onDone={() => {
+          finishRecovery()
+          toast('Password updated')
+        }}
+      />
+    )
+  }
   return session ? <SignedIn userId={session.user.id} /> : <AuthScreen />
 }
 
@@ -163,6 +176,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Gate />
+      <FeedbackHost />
     </AuthProvider>
   )
 }
