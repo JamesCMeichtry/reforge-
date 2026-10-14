@@ -1,8 +1,7 @@
 // Reforge offline support: keeps the app's own files on the phone so it opens and works without signal.
 // Your data (Supabase) is never cached here; sets logged offline wait in the app's own queue instead.
-const CACHE = 'reforge-v1'
-const SHELL = ['/', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png']
-const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com']
+const CACHE = 'reforge-v2'
+const SHELL = ['/', '/theme.js', '/manifest.webmanifest', '/icon-192.png', '/apple-touch-icon.png']
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -50,9 +49,7 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate' && url.origin === self.location.origin) {
     event.respondWith(networkFirst(request))
   } else if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
-    // Built files have a fingerprint in their name, so a saved copy is always the right one
-    event.respondWith(cacheFirst(request))
-  } else if (FONT_HOSTS.includes(url.hostname)) {
+    // Built files (fonts included) have a fingerprint in their name, so a saved copy is always the right one
     event.respondWith(cacheFirst(request))
   } else if (url.origin === self.location.origin && SHELL.includes(url.pathname)) {
     event.respondWith(cacheFirst(request))
