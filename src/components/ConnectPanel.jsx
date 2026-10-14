@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createConnectCode, disconnect, fetchMyPros, fetchNotes, professionLabel } from '../lib/pro.js'
 import { me } from '../lib/me.js'
 import { buttonPrimary, buttonSecondary } from './ui.jsx'
+import { ask, toast } from './Feedback.jsx'
 
 const shortDate = (value) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
@@ -37,11 +38,17 @@ export default function ConnectPanel() {
   }
 
   async function remove(pro) {
-    if (!window.confirm(`Disconnect from ${pro.display_name}? They'll lose access to your training straight away.`))
-      return
+    const sure = await ask({
+      title: `Disconnect from ${pro.display_name}?`,
+      body: "They'll lose access to your training straight away. You can reconnect later with a new code.",
+      confirm: 'Disconnect',
+      danger: true,
+    })
+    if (!sure) return
     try {
       await disconnect(me(), pro.id)
       setPros((current) => current.filter((p) => p.id !== pro.id))
+      toast(`Disconnected from ${pro.display_name}`)
     } catch {
       setError("Couldn't disconnect. Check your connection and try again.")
     }
