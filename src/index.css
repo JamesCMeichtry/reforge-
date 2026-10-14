@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --color-ink: #000000;
@@ -8,8 +8,8 @@
   --color-gold: #c9a227;
   --color-gold-light: #e3c565;
 
-  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Barlow Condensed", "Arial Narrow", ui-sans-serif, sans-serif;
+  --font-sans: 'Barlow', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, sans-serif;
 }
 
 html,
@@ -286,6 +286,11 @@ nav button[aria-current='page'] svg {
   color: #151515;
 }
 
+/* Gold text needs to be a shade darker than gold fills to stay readable on white */
+:root[data-theme='light'] .text-gold {
+  color: #7a5c05;
+}
+
 /* Text on gold buttons stays dark in both themes */
 :root[data-theme='light'] .text-ink {
   color: #111111;
@@ -297,9 +302,16 @@ nav button[aria-current='page'] svg {
 }
 /* Streak flame: a gentle flicker while today's streak is lit */
 @keyframes flame-flicker {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  30% { transform: scale(1.04, 0.97) rotate(-2deg); }
-  60% { transform: scale(0.98, 1.04) rotate(1.5deg); }
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  30% {
+    transform: scale(1.04, 0.97) rotate(-2deg);
+  }
+  60% {
+    transform: scale(0.98, 1.04) rotate(1.5deg);
+  }
 }
 .flame-flicker {
   transform-origin: 50% 90%;
@@ -307,7 +319,9 @@ nav button[aria-current='page'] svg {
   filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-gold) 45%, transparent));
 }
 @media (prefers-reduced-motion: reduce) {
-  .flame-flicker { animation: none; }
+  .flame-flicker {
+    animation: none;
+  }
 }
 /* Rehab: recovery stage and pain colours, per theme */
 :root {
@@ -328,14 +342,21 @@ nav button[aria-current='page'] svg {
 }
 
 @keyframes stage-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 .stage-pulse {
   animation: stage-pulse 1.6s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .stage-pulse { animation: none; }
+  .stage-pulse {
+    animation: none;
+  }
 }
 
 /* Light theme pain sliders */
@@ -412,10 +433,18 @@ nav button[aria-current='page'] svg {
 
 /* Living body map: a muscle pops when it levels up */
 @keyframes map-pop {
-  0% { transform: scale(1); }
-  30% { transform: scale(1.18); }
-  60% { transform: scale(0.96); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.18);
+  }
+  60% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 .map-pop {
   transform-box: fill-box;
@@ -423,7 +452,9 @@ nav button[aria-current='page'] svg {
   animation: map-pop 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 @media (prefers-reduced-motion: reduce) {
-  .map-pop { animation: none !important; }
+  .map-pop {
+    animation: none !important;
+  }
 }
 
 /* Body map v3: eleven tiers, each with its own animation */
@@ -446,25 +477,54 @@ nav button[aria-current='page'] svg {
 
 /* Strong, Silver and Gold: a soft halo that swells, bigger for Gold */
 @keyframes fx-halo {
-  0%, 100% { opacity: 0.25; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(1.08); }
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
 }
 @keyframes fx-halo-big {
-  0%, 100% { opacity: 0.35; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.16); }
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.16);
+  }
 }
-.halo-strong, .halo-silver, .halo-gold {
+.halo-strong,
+.halo-silver,
+.halo-gold {
   transform-box: fill-box;
   transform-origin: center;
 }
-.halo-strong { animation: fx-halo 2.4s ease-in-out infinite; }
-.halo-silver { animation: fx-halo 2s ease-in-out infinite; }
-.halo-gold { animation: fx-halo-big 1.6s ease-in-out infinite; }
+.halo-strong {
+  animation: fx-halo 2.4s ease-in-out infinite;
+}
+.halo-silver {
+  animation: fx-halo 2s ease-in-out infinite;
+}
+.halo-gold {
+  animation: fx-halo-big 1.6s ease-in-out infinite;
+}
 
 /* Silver and gold: twinkling stars */
 @keyframes fx-sparkle {
-  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
-  50% { opacity: 1; transform: scale(1.4) rotate(45deg); }
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.4) rotate(45deg);
+  }
 }
 .fx-sparkle {
   transform-box: fill-box;
@@ -474,63 +534,151 @@ nav button[aria-current='page'] svg {
 
 /* Flare: the only tier that pulses, calm enough for several muscles at once */
 @keyframes fx-flare-pulse {
-  0%, 100% { opacity: 0.72; }
-  14% { opacity: 1; }
-  28% { opacity: 0.8; }
-  42% { opacity: 1; }
-  70% { opacity: 0.72; }
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  14% {
+    opacity: 1;
+  }
+  28% {
+    opacity: 0.8;
+  }
+  42% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.72;
+  }
 }
-.fx-flare { animation: fx-flare-pulse 1.3s ease-in-out infinite; }
+.fx-flare {
+  animation: fx-flare-pulse 1.3s ease-in-out infinite;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .fx-flare, .halo-strong, .halo-silver, .halo-gold, .fx-sparkle { animation: none !important; }
-  .fx-sparkle { opacity: 0; }
+  .fx-flare,
+  .halo-strong,
+  .halo-silver,
+  .halo-gold,
+  .fx-sparkle {
+    animation: none !important;
+  }
+  .fx-sparkle {
+    opacity: 0;
+  }
 }
 
 /* ---------- Live sessions (v5) ---------- */
 /* The red "live" dot breathes */
 @keyframes live-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.45; transform: scale(0.8); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+  }
 }
-.live-dot { animation: live-dot 1.4s ease-in-out infinite; }
+.live-dot {
+  animation: live-dot 1.4s ease-in-out infinite;
+}
 
 /* The live screen and its sheets slide up from the bottom */
 @keyframes live-in {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-.live-root { animation: live-in 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.live-root {
+  animation: live-in 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
 @keyframes sheet-up {
-  from { transform: translateY(100%); }
-  to { transform: none; }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
 }
-.sheet-up { animation: sheet-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.sheet-up {
+  animation: sheet-up 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
 @keyframes sheet-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
-.sheet-fade { animation: sheet-fade 200ms ease-out both; }
+.sheet-fade {
+  animation: sheet-fade 200ms ease-out both;
+}
 
 /* A freshly logged set flashes gold as it lands */
 @keyframes set-in {
-  0% { opacity: 0; transform: translateY(-6px); background-color: color-mix(in srgb, var(--color-gold) 35%, transparent); }
-  60% { opacity: 1; transform: none; }
-  100% { background-color: var(--color-panel); }
+  0% {
+    opacity: 0;
+    transform: translateY(-6px);
+    background-color: color-mix(in srgb, var(--color-gold) 35%, transparent);
+  }
+  60% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    background-color: var(--color-panel);
+  }
 }
-.set-in { animation: set-in 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.set-in {
+  animation: set-in 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
 
 /* New personal best: a gold card bursts in, glows, then fades away */
 @keyframes pb-burst {
-  0% { opacity: 0; transform: scale(0.6); box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.7); }
-  18% { opacity: 1; transform: scale(1.06); }
-  30% { transform: scale(1); box-shadow: 0 0 0 26px rgba(201, 162, 39, 0); }
-  80% { opacity: 1; transform: scale(1); box-shadow: 0 0 60px 0 rgba(201, 162, 39, 0.35); }
-  100% { opacity: 0; transform: scale(0.96) translateY(-10px); }
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+    box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.7);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  30% {
+    transform: scale(1);
+    box-shadow: 0 0 0 26px rgba(201, 162, 39, 0);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 60px 0 rgba(201, 162, 39, 0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96) translateY(-10px);
+  }
 }
-.pb-burst { animation: pb-burst 2.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.pb-burst {
+  animation: pb-burst 2.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .live-dot, .live-root, .sheet-up, .sheet-fade, .set-in { animation: none; }
-  .pb-burst { animation: sheet-fade 200ms ease-out both; }
+  .live-dot,
+  .live-root,
+  .sheet-up,
+  .sheet-fade,
+  .set-in {
+    animation: none;
+  }
+  .pb-burst {
+    animation: sheet-fade 200ms ease-out both;
+  }
 }
