@@ -40,7 +40,8 @@ function WeekStrip({ trainedDates }) {
             <li key={d.date} className="flex flex-col items-center gap-2">
               <span className={`text-xs font-semibold ${isToday ? 'text-white' : 'text-muted'}`}>{d.label}</span>
               <span
-                aria-label={`${d.date}${trained ? ', trained' : ''}`}
+                role="img"
+                aria-label={`${d.label}${isToday ? ' (today)' : ''}: ${trained ? 'trained' : 'not trained'}`}
                 className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-bold ${
                   trained ? 'border-gold bg-gold text-ink' : isToday ? 'border-white/70' : 'border-line'
                 }`}
