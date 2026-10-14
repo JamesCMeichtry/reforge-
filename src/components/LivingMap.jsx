@@ -481,284 +481,425 @@ export default function LivingMap({ userId = me() }) {
         </div>
       </div>
 
-      <svg
-        viewBox="20 0 160 400"
-        className="mx-auto mt-6 block w-full max-w-[300px] overflow-visible"
-        role="group"
-        aria-label={`Living body map, ${view} view`}
-      >
-        <defs>
-          <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2.2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="halo" x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="3.2" />
-          </filter>
-          <linearGradient id="sheen" x1="0.15" y1="0" x2="0.85" y2="1">
-            <stop offset="0" stopColor="#ffffff" stopOpacity="0.13" />
-            <stop offset="0.45" stopColor="#ffffff" stopOpacity="0" />
-            <stop offset="1" stopColor="#000000" stopOpacity="0.28" />
-          </linearGradient>
-          {figure.angles.map((angle) => (
-            <pattern
-              key={angle}
-              id={`fibre-${angle}`}
-              width="1.7"
-              height="1.7"
-              patternUnits="userSpaceOnUse"
-              patternTransform={`rotate(${angle})`}
-            >
-              <line x1="0" y1="0.85" x2="1.7" y2="0.85" style={{ stroke: 'var(--fig-fibre)' }} strokeWidth="0.4" />
-            </pattern>
-          ))}
-          {/* Light running down and back up the muscle */}
-          {[
-            ['flow-hot', '#ffffff', 0.55, '1.6s'],
-            ['flow-bright', '#ffffff', 0.7, '2s'],
-            ['flow-gold', '#fff6d8', 0.8, '1.7s'],
-          ].map(([id, colour, strength, dur]) => (
-            <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0.3" stopColor={colour} stopOpacity="0" />
-              <stop offset="0.5" stopColor={colour} stopOpacity={strength} />
-              <stop offset="0.7" stopColor={colour} stopOpacity="0" />
+      <div className="relative mx-auto mt-6 w-full max-w-[300px]">
+        {/* Bottom layer, drawn once: the body, its shading and the soft shadows the muscles cast on it.
+            Kept separate from the animated muscles so the lighting isn't re-worked on every frame. */}
+        <svg
+          viewBox="20 0 160 400"
+          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+          style={{ willChange: 'transform' }}
+          aria-hidden="true"
+        >
+          <defs>
+            {/* Sculpted look: each muscle is treated as a raised, rounded surface lit from the upper left.
+                  The light catches the top edges and the far edges fall into shadow. */}
+            <filter id="muscle-3d" x="-5%" y="-5%" width="110%" height="110%" colorInterpolationFilters="sRGB">
+              {/* Two bumps mixed: a tight one for crisp edges and a wide one so each muscle swells into a dome */}
+              <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="tight" />
+              <feGaussianBlur in="SourceAlpha" stdDeviation="3.4" result="wide" />
+              <feComposite in="tight" in2="wide" operator="arithmetic" k2="0.35" k3="0.65" result="bump" />
+              {/* Key light, upper left: highlight and shadow */}
+              <feSpecularLighting
+                in="bump"
+                surfaceScale="4.5"
+                specularConstant="0.6"
+                specularExponent="14"
+                lightingColor="#ffffff"
+                result="specRaw"
+              >
+                <feDistantLight azimuth="235" elevation="48" />
+              </feSpecularLighting>
+              <feGaussianBlur in="specRaw" stdDeviation="0.6" result="spec" />
+              <feComposite in="spec" in2="SourceAlpha" operator="in" result="shine" />
+              <feDiffuseLighting
+                in="bump"
+                surfaceScale="4.5"
+                diffuseConstant="1"
+                lightingColor="#ffffff"
+                result="diffuseRaw"
+              >
+                <feDistantLight azimuth="235" elevation="48" />
+              </feDiffuseLighting>
+              <feGaussianBlur in="diffuseRaw" stdDeviation="0.6" result="diffuse" />
+              <feColorMatrix
+                in="diffuse"
+                type="matrix"
+                values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -1.5 0 0 0 1.15"
+                result="shade"
+              />
+              <feComposite in="shade" in2="SourceAlpha" operator="in" result="shadow" />
+              {/* Cool rim light from behind on the right, like a studio photo */}
+              <feSpecularLighting
+                in="bump"
+                surfaceScale="4.5"
+                specularConstant="0.7"
+                specularExponent="7"
+                lightingColor="#a9d4ff"
+                result="rimRaw"
+              >
+                <feDistantLight azimuth="20" elevation="14" />
+              </feSpecularLighting>
+              <feGaussianBlur in="rimRaw" stdDeviation="0.6" result="rimLight" />
+              <feComposite in="rimLight" in2="SourceAlpha" operator="in" result="rim" />
+              <feMerge>
+                <feMergeNode in="shadow" />
+                <feMergeNode in="rim" />
+                <feMergeNode in="shine" />
+              </feMerge>
+            </filter>
+            {/* The same idea on the whole body, softer and broader, so the figure reads as rounded */}
+            <filter id="body-3d" x="-5%" y="-5%" width="110%" height="110%" colorInterpolationFilters="sRGB">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="bump" />
+              <feSpecularLighting
+                in="bump"
+                surfaceScale="7"
+                specularConstant="0.5"
+                specularExponent="12"
+                lightingColor="#ffffff"
+                result="spec"
+              >
+                <feDistantLight azimuth="235" elevation="50" />
+              </feSpecularLighting>
+              <feComposite in="spec" in2="SourceAlpha" operator="in" result="shine" />
+              <feDiffuseLighting
+                in="bump"
+                surfaceScale="7"
+                diffuseConstant="1"
+                lightingColor="#ffffff"
+                result="diffuse"
+              >
+                <feDistantLight azimuth="235" elevation="50" />
+              </feDiffuseLighting>
+              <feColorMatrix
+                in="diffuse"
+                type="matrix"
+                values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -1.6 0 0 0 1.3"
+                result="shade"
+              />
+              <feComposite in="shade" in2="SourceAlpha" operator="in" result="shadow" />
+              <feMerge>
+                <feMergeNode in="shadow" />
+                <feMergeNode in="shine" />
+              </feMerge>
+            </filter>
+            {/* A soft gold spotlight behind the figure */}
+            <radialGradient id="stage-glow" cx="0.5" cy="0.42" r="0.5">
+              <stop offset="0" style={{ stopColor: 'var(--color-gold)', stopOpacity: 0.16 }} />
+              <stop offset="0.6" style={{ stopColor: 'var(--color-gold)', stopOpacity: 0.04 }} />
+              <stop offset="1" style={{ stopColor: 'var(--color-gold)', stopOpacity: 0 }} />
+            </radialGradient>
+            <filter id="ground-blur" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="3.2" />
+            </filter>
+            <filter id="muscle-cast" x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="1.6" />
+              <feOffset dx="1" dy="1.8" />
+              <feComponentTransfer>
+                <feFuncA type="linear" slope="0.7" />
+              </feComponentTransfer>
+            </filter>
+          </defs>
+          {body === 'female' && (
+            <g style={{ fill: 'var(--fig-outline)' }} pointerEvents="none">
+              <path d={FEMALE_HAIR.bun} />
+              {view === 'back' && <path d={FEMALE_HAIR.back} />}
+            </g>
+          )}
+          <ellipse cx="100" cy="190" rx="95" ry="215" fill="url(#stage-glow)" />
+          <ellipse cx="100" cy="396" rx="44" ry="4.5" fill="#000000" opacity="0.5" filter="url(#ground-blur)" />
+          <path
+            d={figure.outlines[view]}
+            style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }}
+            strokeWidth="1"
+          />
+          <path d={figure.outlines[view]} fill="#000000" filter="url(#body-3d)" />
+          <g filter="url(#muscle-cast)">
+            {figure.shapes[view].map((shape, index) => (
+              <path key={`${view}-${index}`} d={shape.d} fill="#000000" />
+            ))}
+          </g>
+        </svg>
+        <svg
+          viewBox="20 0 160 400"
+          className="relative block w-full overflow-visible"
+          role="group"
+          aria-label={`Living body map, ${view} view`}
+        >
+          <defs>
+            <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2.2" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="halo" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="3.2" />
+            </filter>
+            <linearGradient id="sheen" x1="0.15" y1="0" x2="0.85" y2="1">
+              <stop offset="0" stopColor="#ffffff" stopOpacity="0.13" />
+              <stop offset="0.45" stopColor="#ffffff" stopOpacity="0" />
+              <stop offset="1" stopColor="#000000" stopOpacity="0.28" />
+            </linearGradient>
+            {figure.angles.map((angle) => (
+              <pattern
+                key={angle}
+                id={`fibre-${angle}`}
+                width="1.7"
+                height="1.7"
+                patternUnits="userSpaceOnUse"
+                patternTransform={`rotate(${angle})`}
+              >
+                <line x1="0" y1="0.85" x2="1.7" y2="0.85" style={{ stroke: 'var(--fig-fibre)' }} strokeWidth="0.4" />
+              </pattern>
+            ))}
+            {/* Light running down and back up the muscle */}
+            {[
+              ['flow-hot', '#ffffff', 0.55, '1.6s'],
+              ['flow-bright', '#ffffff', 0.7, '2s'],
+              ['flow-gold', '#fff6d8', 0.8, '1.7s'],
+            ].map(([id, colour, strength, dur]) => (
+              <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0.3" stopColor={colour} stopOpacity="0" />
+                <stop offset="0.5" stopColor={colour} stopOpacity={strength} />
+                <stop offset="0.7" stopColor={colour} stopOpacity="0" />
+                <animateTransform
+                  attributeName="gradientTransform"
+                  type="translate"
+                  values="0 0.75; 0 -0.75; 0 0.75"
+                  keyTimes="0; 0.5; 1"
+                  calcMode="spline"
+                  keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"
+                  dur={dur}
+                  repeatCount="indefinite"
+                />
+              </linearGradient>
+            ))}
+            {/* Injured: a wave of heat sweeping from one side of the muscle to the other */}
+            <linearGradient id="wave-hot" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0.25" stopColor="#fecaca" stopOpacity="0" />
+              <stop offset="0.5" stopColor="#fff1f2" stopOpacity="0.6" />
+              <stop offset="0.75" stopColor="#fecaca" stopOpacity="0" />
               <animateTransform
                 attributeName="gradientTransform"
                 type="translate"
-                values="0 0.75; 0 -0.75; 0 0.75"
-                keyTimes="0; 0.5; 1"
+                values="-0.8 0; 0.8 0"
                 calcMode="spline"
-                keySplines="0.45 0 0.55 1; 0.45 0 0.55 1"
-                dur={dur}
+                keyTimes="0; 1"
+                keySplines="0.4 0 0.6 1"
+                dur="1.8s"
                 repeatCount="indefinite"
               />
             </linearGradient>
-          ))}
-          {/* Injured: a wave of heat sweeping from one side of the muscle to the other */}
-          <linearGradient id="wave-hot" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0.25" stopColor="#fecaca" stopOpacity="0" />
-            <stop offset="0.5" stopColor="#fff1f2" stopOpacity="0.6" />
-            <stop offset="0.75" stopColor="#fecaca" stopOpacity="0" />
-            <animateTransform
-              attributeName="gradientTransform"
-              type="translate"
-              values="-0.8 0; 0.8 0"
-              calcMode="spline"
-              keyTimes="0; 1"
-              keySplines="0.4 0 0.6 1"
-              dur="1.8s"
-              repeatCount="indefinite"
-            />
-          </linearGradient>
-          {/* Affected: rings of warmth spreading out from the centre, staying inside the muscle */}
-          <radialGradient id="ember" cx="0.5" cy="0.5" r="0.1">
-            <stop offset="0.2" stopColor="#fed7aa" stopOpacity="0" />
-            <stop offset="0.75" stopColor="#ffedd5" stopOpacity="0.45" />
-            <stop offset="1" stopColor="#fed7aa" stopOpacity="0" />
-            <animate attributeName="r" values="0.15; 0.8" dur="2.6s" repeatCount="indefinite" />
-          </radialGradient>
-          {/* Strong: a glint passing across the muscle, then a pause */}
-          <linearGradient id="glint" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0.38" stopColor="#ecfeff" stopOpacity="0" />
-            <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.75" />
-            <stop offset="0.62" stopColor="#ecfeff" stopOpacity="0" />
-            <animateTransform
-              attributeName="gradientTransform"
-              type="translate"
-              values="-1 -1; 1 1; 1 1"
-              keyTimes="0; 0.55; 1"
-              dur="2.8s"
-              repeatCount="indefinite"
-            />
-          </linearGradient>
-          <linearGradient id="silver-shine" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#64748b" />
-            <stop offset="40%" stopColor="#cbd5e1" />
-            <stop offset="52%" stopColor="#ffffff" />
-            <stop offset="64%" stopColor="#cbd5e1" />
-            <stop offset="100%" stopColor="#94a3b8" />
-            <animateTransform
-              attributeName="gradientTransform"
-              type="translate"
-              values="-1 -1; 1 1"
-              dur="3s"
-              repeatCount="indefinite"
-            />
-          </linearGradient>
-          <linearGradient id="elite-shine" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#8a6d12" />
-            <stop offset="45%" stopColor="#c9a227" />
-            <stop offset="55%" stopColor="#f5dd85" />
-            <stop offset="100%" stopColor="#c9a227" />
-            <animateTransform
-              attributeName="gradientTransform"
-              type="translate"
-              values="-1 -1; 1 1"
-              dur="3.5s"
-              repeatCount="indefinite"
-            />
-          </linearGradient>
-        </defs>
-        {body === 'female' && (
-          <g style={{ fill: 'var(--fig-outline)' }} pointerEvents="none">
-            <path d={FEMALE_HAIR.bun} />
-            {view === 'back' && <path d={FEMALE_HAIR.back} />}
-          </g>
-        )}
-        <path
-          d={figure.outlines[view]}
-          style={{ fill: 'var(--fig-body)', stroke: 'var(--fig-outline)' }}
-          strokeWidth="1"
-        />
-        {figure.shapes[view].map((shape, index) => {
-          const shown = display[shape.key] ?? { level: 'neutral' }
-          const level = shown.level
-          const isSelected = shape.key === selected
-          const fill = level === 'neutral' && shape.kind === 'joint' ? 'var(--fig-joint)' : SHAPE_FILLS[level]
-          const stroke = isSelected ? 'var(--fig-selected)' : 'none'
-          const select = () => setSelected(isSelected ? null : shape.key)
-          const props = {
-            role: 'button',
-            tabIndex: 0,
-            'aria-label': `${labelOf(shape)}, ${LEVELS[level].label.toLowerCase()}`,
-            'aria-pressed': isSelected,
-            onClick: select,
-            onKeyDown: (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                select()
-              }
-            },
-            style: { fill, stroke },
-            strokeWidth: isSelected ? 1.4 : 0,
-            className: 'cursor-pointer outline-none transition-[fill] duration-500 focus-visible:stroke-[#e3c565]',
-          }
-          const popping = pop.keys.has(shape.key)
-          const fx = FX[level] ?? {}
-          return (
-            <g key={`${view}-${index}-${popping ? pop.n : 0}`} className={popping ? 'map-pop' : undefined}>
-              {fx.halo && (
-                <path
-                  d={shape.d}
-                  className={fx.halo}
-                  style={{ fill: HALO_FILLS[level] }}
-                  filter="url(#halo)"
-                  pointerEvents="none"
-                />
-              )}
-              <g className={fx.body}>
-                <path d={shape.d} {...props} />
-                {shape.angle != null && (
+            {/* Affected: rings of warmth spreading out from the centre, staying inside the muscle */}
+            <radialGradient id="ember" cx="0.5" cy="0.5" r="0.1">
+              <stop offset="0.2" stopColor="#fed7aa" stopOpacity="0" />
+              <stop offset="0.75" stopColor="#ffedd5" stopOpacity="0.45" />
+              <stop offset="1" stopColor="#fed7aa" stopOpacity="0" />
+              <animate attributeName="r" values="0.15; 0.8" dur="2.6s" repeatCount="indefinite" />
+            </radialGradient>
+            {/* Strong: a glint passing across the muscle, then a pause */}
+            <linearGradient id="glint" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0.38" stopColor="#ecfeff" stopOpacity="0" />
+              <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.75" />
+              <stop offset="0.62" stopColor="#ecfeff" stopOpacity="0" />
+              <animateTransform
+                attributeName="gradientTransform"
+                type="translate"
+                values="-1 -1; 1 1; 1 1"
+                keyTimes="0; 0.55; 1"
+                dur="2.8s"
+                repeatCount="indefinite"
+              />
+            </linearGradient>
+            <linearGradient id="silver-shine" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#64748b" />
+              <stop offset="40%" stopColor="#cbd5e1" />
+              <stop offset="52%" stopColor="#ffffff" />
+              <stop offset="64%" stopColor="#cbd5e1" />
+              <stop offset="100%" stopColor="#94a3b8" />
+              <animateTransform
+                attributeName="gradientTransform"
+                type="translate"
+                values="-1 -1; 1 1"
+                dur="3s"
+                repeatCount="indefinite"
+              />
+            </linearGradient>
+            <linearGradient id="elite-shine" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#8a6d12" />
+              <stop offset="45%" stopColor="#c9a227" />
+              <stop offset="55%" stopColor="#f5dd85" />
+              <stop offset="100%" stopColor="#c9a227" />
+              <animateTransform
+                attributeName="gradientTransform"
+                type="translate"
+                values="-1 -1; 1 1"
+                dur="3.5s"
+                repeatCount="indefinite"
+              />
+            </linearGradient>
+          </defs>
+          {figure.shapes[view].map((shape, index) => {
+            const shown = display[shape.key] ?? { level: 'neutral' }
+            const level = shown.level
+            const isSelected = shape.key === selected
+            const fill = level === 'neutral' && shape.kind === 'joint' ? 'var(--fig-joint)' : SHAPE_FILLS[level]
+            const stroke = isSelected ? 'var(--fig-selected)' : 'none'
+            const select = () => setSelected(isSelected ? null : shape.key)
+            const props = {
+              role: 'button',
+              tabIndex: 0,
+              'aria-label': `${labelOf(shape)}, ${LEVELS[level].label.toLowerCase()}`,
+              'aria-pressed': isSelected,
+              onClick: select,
+              onKeyDown: (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  select()
+                }
+              },
+              style: { fill, stroke },
+              strokeWidth: isSelected ? 1.4 : 0,
+              className: 'cursor-pointer outline-none transition-[fill] duration-500 focus-visible:stroke-[#e3c565]',
+            }
+            const popping = pop.keys.has(shape.key)
+            const fx = FX[level] ?? {}
+            return (
+              <g key={`${view}-${index}-${popping ? pop.n : 0}`} className={popping ? 'map-pop' : undefined}>
+                {fx.halo && (
                   <path
                     d={shape.d}
-                    fill={`url(#fibre-${shape.angle})`}
-                    style={{ opacity: 'var(--fig-fibre-opacity)' }}
+                    className={fx.halo}
+                    style={{ fill: HALO_FILLS[level] }}
+                    filter="url(#halo)"
                     pointerEvents="none"
                   />
                 )}
-                {fx.flow && <path d={shape.d} fill={`url(#${fx.flow})`} pointerEvents="none" />}
-                <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />
-              </g>
-              {fx.sparkle &&
-                shape.sparks.slice(0, fx.sparkle).map(([x, y], i) => (
-                  <g key={i} transform={`translate(${x} ${y})`} pointerEvents="none">
+                <g className={fx.body}>
+                  <path d={shape.d} {...props} />
+                  {shape.angle != null && (
                     <path
-                      d={STAR}
-                      className="fx-sparkle"
-                      style={{
-                        fill: level === 'elite' ? '#fff6d8' : '#ffffff',
-                        animationDelay: `${((index * 0.37 + i * 0.6) % 2).toFixed(2)}s`,
-                      }}
+                      d={shape.d}
+                      fill={`url(#fibre-${shape.angle})`}
+                      style={{ opacity: 'var(--fig-fibre-opacity)' }}
+                      pointerEvents="none"
                     />
-                  </g>
-                ))}
-            </g>
-          )
-        })}
-        {figure.details[view].map((d, i) => (
-          <path
-            key={`detail-${i}`}
-            d={d}
-            fill="none"
-            style={{ stroke: 'var(--fig-edge)' }}
-            strokeWidth="0.7"
-            strokeLinecap="round"
-            pointerEvents="none"
-          />
-        ))}
-        {figure.structures[view].map((item) => {
-          const lit = state.structures[item.key]
-          if (item.closed && !lit) return null
-          const selectKey = `structure:${item.key}`
-          const isSelected = selected === selectKey
-          const colour = lit ? tone(lit.level) : 'var(--fig-tendon)'
-          const select = () => setSelected(isSelected ? null : selectKey)
-          return (
-            <g
-              key={item.key}
-              {...(lit
-                ? {
-                    role: 'button',
-                    tabIndex: 0,
-                    'aria-label': `${sideName(item.side)} ${STRUCTURES[item.id].name}, involved in your injury`,
-                    'aria-pressed': isSelected,
-                    onClick: select,
-                    onKeyDown: (event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        select()
-                      }
-                    },
-                    className: 'cursor-pointer outline-none',
-                  }
-                : { pointerEvents: 'none' })}
-            >
-              {lit && <path d={item.d} fill="none" stroke="transparent" strokeWidth="8" strokeLinecap="round" />}
-              {lit && (
+                  )}
+                  {fx.flow && <path d={shape.d} fill={`url(#${fx.flow})`} pointerEvents="none" />}
+                  <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />
+                </g>
+                {fx.sparkle &&
+                  shape.sparks.slice(0, fx.sparkle).map(([x, y], i) => (
+                    <g key={i} transform={`translate(${x} ${y})`} pointerEvents="none">
+                      <path
+                        d={STAR}
+                        className="fx-sparkle"
+                        style={{
+                          fill: level === 'elite' ? '#fff6d8' : '#ffffff',
+                          animationDelay: `${((index * 0.37 + i * 0.6) % 2).toFixed(2)}s`,
+                        }}
+                      />
+                    </g>
+                  ))}
+              </g>
+            )
+          })}
+          {figure.details[view].map((d, i) => (
+            <path
+              key={`detail-${i}`}
+              d={d}
+              fill="none"
+              style={{ stroke: 'var(--fig-edge)' }}
+              strokeWidth="0.7"
+              strokeLinecap="round"
+              pointerEvents="none"
+            />
+          ))}
+          {figure.structures[view].map((item) => {
+            const lit = state.structures[item.key]
+            if (item.closed && !lit) return null
+            const selectKey = `structure:${item.key}`
+            const isSelected = selected === selectKey
+            const colour = lit ? tone(lit.level) : 'var(--fig-tendon)'
+            const select = () => setSelected(isSelected ? null : selectKey)
+            return (
+              <g
+                key={item.key}
+                {...(lit
+                  ? {
+                      role: 'button',
+                      tabIndex: 0,
+                      'aria-label': `${sideName(item.side)} ${STRUCTURES[item.id].name}, involved in your injury`,
+                      'aria-pressed': isSelected,
+                      onClick: select,
+                      onKeyDown: (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          select()
+                        }
+                      },
+                      className: 'cursor-pointer outline-none',
+                    }
+                  : { pointerEvents: 'none' })}
+              >
+                {lit && <path d={item.d} fill="none" stroke="transparent" strokeWidth="8" strokeLinecap="round" />}
+                {lit && (
+                  <path
+                    d={item.d}
+                    fill="none"
+                    style={{ stroke: 'var(--fig-body)' }}
+                    strokeWidth={item.width + 3}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
                 <path
                   d={item.d}
-                  fill="none"
-                  style={{ stroke: 'var(--fig-body)' }}
-                  strokeWidth={item.width + 3}
+                  style={{
+                    stroke: isSelected ? 'var(--fig-selected)' : colour,
+                    fill: item.closed && lit ? colour : 'none',
+                    fillOpacity: lit ? 0.85 : 1,
+                    opacity: lit ? 1 : 0.35,
+                  }}
+                  strokeWidth={lit ? item.width + 1 : item.width}
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  filter={lit ? 'url(#glow-strong)' : undefined}
+                  className={lit?.flare && lit.level === 'injured' ? 'stage-pulse' : undefined}
                 />
-              )}
-              <path
-                d={item.d}
-                style={{
-                  stroke: isSelected ? 'var(--fig-selected)' : colour,
-                  fill: item.closed && lit ? colour : 'none',
-                  fillOpacity: lit ? 0.85 : 1,
-                  opacity: lit ? 1 : 0.35,
-                }}
-                strokeWidth={lit ? item.width + 1 : item.width}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter={lit ? 'url(#glow-strong)' : undefined}
-                className={lit?.flare && lit.level === 'injured' ? 'stage-pulse' : undefined}
-              />
-            </g>
-          )
-        })}
-        <text x="30" y="398" style={{ fill: 'var(--color-muted)' }} fontSize="8" fontWeight="600" letterSpacing="1">
-          {sideLabels[0].toUpperCase()}
-        </text>
-        <text
-          x="170"
-          y="398"
-          style={{ fill: 'var(--color-muted)' }}
-          fontSize="8"
-          fontWeight="600"
-          letterSpacing="1"
-          textAnchor="end"
+              </g>
+            )
+          })}
+          <text x="30" y="398" style={{ fill: 'var(--color-muted)' }} fontSize="8" fontWeight="600" letterSpacing="1">
+            {sideLabels[0].toUpperCase()}
+          </text>
+          <text
+            x="170"
+            y="398"
+            style={{ fill: 'var(--color-muted)' }}
+            fontSize="8"
+            fontWeight="600"
+            letterSpacing="1"
+            textAnchor="end"
+          >
+            {sideLabels[1].toUpperCase()}
+          </text>
+        </svg>
+        {/* Top layer, also drawn once: light and shade on every muscle so they look raised and rounded */}
+        <svg
+          viewBox="20 0 160 400"
+          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+          style={{ willChange: 'transform' }}
+          aria-hidden="true"
         >
-          {sideLabels[1].toUpperCase()}
-        </text>
-      </svg>
+          <g filter="url(#muscle-3d)">
+            {figure.shapes[view].map((shape, index) => (
+              <path key={`${view}-${index}`} d={shape.d} fill="#000000" />
+            ))}
+          </g>
+        </svg>
+      </div>
 
       <div className="mt-5 space-y-3" aria-label="Scale">
         {[
