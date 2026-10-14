@@ -18,9 +18,11 @@ import {
 } from '../lib/pro.js'
 import CoachRehab from '../components/CoachRehab.jsx'
 import AssessmentPanel from '../components/Assessment.jsx'
+import { ask, deleteWithUndo, toast } from '../components/Feedback.jsx'
 import { daysAgo, deleteSet, updateSet } from '../lib/programme.js'
 import { ProgrammeView } from './ProgrammeScreen.jsx'
 import LiveSession from './LiveSession.jsx'
+import TemplatesScreen from './TemplatesScreen.jsx'
 import { loadLive } from '../lib/live.js'
 import { fetchSetHistory, shortDate } from '../lib/progress.js'
 
@@ -158,6 +160,18 @@ function ClientList() {
             ))}
           </ul>
         )}
+        <a
+          href="#clients/templates"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-panel px-4 py-4 hover:border-gold"
+        >
+          <span>
+            <span className="block font-semibold text-white">Programme templates</span>
+            <span className="block text-sm text-muted">Build a programme once, give it to any client</span>
+          </span>
+          <span aria-hidden="true" className="text-muted">
+            ›
+          </span>
+        </a>
         <AddClient onAdded={load} />
       </div>
     </>
@@ -192,6 +206,7 @@ function NeedsYou({ clients }) {
                 <span
                   className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.level === 0 ? 'live-dot' : ''}`}
                   style={{ background: LEVEL_STYLE[item.level].dot }}
+                  role="img"
                   aria-label={LEVEL_STYLE[item.level].label}
                 />
                 <span className="min-w-0 flex-1">
@@ -241,7 +256,7 @@ function CheckIns({ clientId }) {
 }
 
 // One logged set the professional can correct or delete
-function SetChip({ set, onChanged, onDeleted }) {
+function SetChip({ set, onChanged, onDeleted, onRestored }) {
   const [open, setOpen] = useState(false)
   const [weight, setWeight] = useState(set.weight_kg != null ? String(Number(set.weight_kg)) : '')
   const [reps, setReps] = useState(set.reps != null ? String(set.reps) : '')
@@ -259,21 +274,19 @@ function SetChip({ set, onChanged, onDeleted }) {
       onChanged({ ...set, ...changes })
       setOpen(false)
     } catch {
-      window.alert("Couldn't save that set. Check your connection.")
+      toast("Couldn't save that set. Check your connection.", { tone: 'error' })
     }
     setBusy(false)
   }
 
-  async function remove() {
-    if (!window.confirm(`Delete set ${set.set_number} of ${set.exercise}?`)) return
-    setBusy(true)
-    try {
-      await deleteSet(set.id)
-      onDeleted(set)
-    } catch {
-      window.alert("Couldn't delete that set. Check your connection.")
-      setBusy(false)
-    }
+  function remove() {
+    setOpen(false)
+    deleteWithUndo({
+      text: `Deleted ${set.exercise}, set ${set.set_number}`,
+      remove: () => onDeleted(set),
+      restore: () => onRestored(set),
+      commit: () => deleteSet(set.id),
+    })
   }
 
   if (!open) {
@@ -336,7 +349,7 @@ function Review({ clientId, date, review, onDone }) {
       await reviewSession(clientId, date, comment)
       onDone({ session_date: date, comment: comment.trim() || null })
     } catch {
-      window.alert("Couldn't save the review. Check your connection.")
+      toast("Couldn't save the review. Check your connection.", { tone: 'error' })
       setBusy(false)
     }
   }
@@ -400,6 +413,7 @@ function Sessions({ clientId }) {
   const days = [...byDate.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
   const replace = (next) => setRows((current) => current.map((r) => (r.id === next.id ? next : r)))
   const drop = (gone) => setRows((current) => current.filter((r) => r.id !== gone.id))
+  const restore = (set) => setRows((current) => [...current, set])
 
   return (
     <>
@@ -432,7 +446,7 @@ function Sessions({ clientId }) {
                       {sets
                         .sort((x, y) => x.set_number - y.set_number)
                         .map((set) => (
-                          <SetChip key={set.id} set={set} onChanged={replace} onDeleted={drop} />
+                          <SetChip key={set.id} set={set} onChanged={replace} onDeleted={drop} onRestored={restore} />
                         ))}
                     </div>
                   </li>
@@ -480,13 +494,13 @@ function Notes({ clientId }) {
     setBusy(false)
   }
 
-  async function remove(note) {
-    setNotes((current) => current.filter((n) => n.id !== note.id))
-    try {
-      await deleteNote(note.id)
-    } catch {
-      setNotes((current) => [note, ...current])
-    }
+  function remove(note) {
+    deleteWithUndo({
+      text: 'Note deleted',
+      remove: () => setNotes((current) => current.filter((n) => n.id !== note.id)),
+      restore: () => setNotes((current) => [note, ...current].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))),
+      commit: () => deleteNote(note.id),
+    })
   }
 
   return (
@@ -589,9 +603,20 @@ function ClientDetail({ clientId, section }) {
   }, [clientId])
 
   async function remove() {
-    if (!window.confirm(`Remove ${client.display_name}? You'll lose access to their training straight away.`)) return
-    await disconnect(clientId, me())
-    window.location.hash = 'clients'
+    const sure = await ask({
+      title: `Remove ${client.display_name ?? 'this client'}?`,
+      body: "You'll lose access to their training straight away. Their own data stays with them.",
+      confirm: 'Remove client',
+      danger: true,
+    })
+    if (!sure) return
+    try {
+      await disconnect(clientId, me())
+      toast(`${client.display_name ?? 'Client'} removed`)
+      window.location.hash = 'clients'
+    } catch {
+      toast("Couldn't remove them. Check your connection.", { tone: 'error' })
+    }
   }
 
   if (client === null) return <LoadingCards count={2} label="Loading client" />
@@ -682,5 +707,6 @@ export default function ClientsScreen() {
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
+  if (route.clientId === 'templates') return <TemplatesScreen />
   return route.clientId ? <ClientDetail clientId={route.clientId} section={route.section} /> : <ClientList />
 }
