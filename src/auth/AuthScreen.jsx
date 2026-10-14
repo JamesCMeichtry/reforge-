@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { useAuth } from './AuthProvider.jsx'
 
 function friendlyError(error) {
   const message = error?.message ?? ''
@@ -12,6 +13,9 @@ function friendlyError(error) {
   if (message.toLowerCase().includes('rate limit')) {
     return 'Too many attempts in a short time. Wait a few minutes and try again.'
   }
+  if (message.includes('should be different')) {
+    return 'Choose a password you haven’t used for Reforge before.'
+  }
   if (message.includes('Failed to fetch')) {
     return "Can't reach Reforge right now. Check your connection and try again."
   }
@@ -21,17 +25,34 @@ function friendlyError(error) {
 const inputClass =
   'mt-2 w-full rounded-xl border border-line bg-panel px-4 py-3 text-base text-white placeholder:text-neutral-600 focus:border-gold focus:outline-none'
 
+function Brand({ intro }) {
+  return (
+    <>
+      <h1 className="font-display text-7xl font-bold uppercase leading-none tracking-tight">Reforge</h1>
+      <div aria-hidden="true" className="mt-3 h-1 w-12 bg-gold" />
+      <p className="mt-4 text-muted">{intro}</p>
+    </>
+  )
+}
+
+const pageStyle = {
+  paddingTop: 'calc(env(safe-area-inset-top) + 2rem)',
+  paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)',
+}
+
 export default function AuthScreen() {
+  const { linkError, clearLinkError } = useAuth()
   const [mode, setMode] = useState('signIn')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(linkError ? `${linkError}. Request a new one below.` : '')
   const [notice, setNotice] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const passwordRef = useRef(null)
 
   const isSignUp = mode === 'signUp'
+  const isReset = mode === 'reset'
 
   // Keeps the keyboard up and the cursor at the end when showing or hiding the password
   function togglePassword() {
@@ -48,10 +69,11 @@ export default function AuthScreen() {
     })
   }
 
-  function switchMode() {
-    setMode(isSignUp ? 'signIn' : 'signUp')
+  function switchMode(next) {
+    setMode(next)
     setError('')
     setNotice('')
+    clearLinkError?.()
   }
 
   async function handleSubmit(event) {
@@ -61,7 +83,13 @@ export default function AuthScreen() {
     setNotice('')
 
     try {
-      if (isSignUp) {
+      if (isReset) {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
+        })
+        if (resetError) throw resetError
+        setNotice(`If there's a Reforge account for ${email}, a link to reset the password is on its way.`)
+      } else if (isSignUp) {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -85,18 +113,16 @@ export default function AuthScreen() {
   }
 
   return (
-    <main
-      className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6"
-      style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 2rem)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)',
-      }}
-    >
-      <h1 className="font-display text-7xl font-bold uppercase leading-none tracking-tight">Reforge</h1>
-      <div aria-hidden="true" className="mt-3 h-1 w-12 bg-gold" />
-      <p className="mt-4 text-muted">
-        {isSignUp ? 'Create your account to build your programme.' : 'Sign in to your training and rehab.'}
-      </p>
+    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6" style={pageStyle}>
+      <Brand
+        intro={
+          isReset
+            ? 'Enter your email and we’ll send you a link to choose a new password.'
+            : isSignUp
+              ? 'Create your account to build your programme.'
+              : 'Sign in to your training and rehab.'
+        }
+      />
 
       <form onSubmit={handleSubmit} className="mt-10 space-y-5">
         <label className="block text-sm font-medium text-neutral-300">
@@ -113,35 +139,48 @@ export default function AuthScreen() {
           />
         </label>
 
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-neutral-300">
-            Password
-          </label>
-          <div className="relative">
-            <input
-              id="password"
-              ref={passwordRef}
-              type={showPassword ? 'text' : 'password'}
-              required
-              minLength={isSignUp ? 6 : undefined}
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className={`${inputClass} pr-20`}
-            />
-            <button
-              type="button"
-              onPointerDown={(event) => event.preventDefault()}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={togglePassword}
-              aria-pressed={showPassword}
-              className="absolute top-2 right-2 bottom-0 my-auto h-10 rounded-lg px-3 text-sm font-semibold text-muted hover:text-white focus-visible:outline-2 focus-visible:outline-gold"
-            >
-              {showPassword ? 'Hide' : 'Show'}
-            </button>
+        {!isReset && (
+          <div>
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-neutral-300">
+                Password
+              </label>
+              {!isSignUp && (
+                <button
+                  type="button"
+                  onClick={() => switchMode('reset')}
+                  className="text-sm font-semibold text-muted hover:text-white"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                id="password"
+                ref={passwordRef}
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={isSignUp ? 6 : undefined}
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className={`${inputClass} pr-20`}
+              />
+              <button
+                type="button"
+                onPointerDown={(event) => event.preventDefault()}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={togglePassword}
+                aria-pressed={showPassword}
+                className="absolute top-2 right-2 bottom-0 my-auto h-10 rounded-lg px-3 text-sm font-semibold text-muted hover:text-white focus-visible:outline-2 focus-visible:outline-gold"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {isSignUp && <p className="mt-2 text-xs text-muted">At least 6 characters.</p>}
           </div>
-          {isSignUp && <p className="mt-2 text-xs text-muted">At least 6 characters.</p>}
-        </div>
+        )}
 
         {error && (
           <p role="alert" className="text-sm text-red-400">
@@ -159,20 +198,89 @@ export default function AuthScreen() {
           disabled={busy}
           className="w-full rounded-xl bg-gold py-3.5 font-semibold text-ink transition-colors hover:bg-gold-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:opacity-60"
         >
-          {busy ? (isSignUp ? 'Creating account…' : 'Signing in…') : isSignUp ? 'Create account' : 'Sign in'}
+          {busy
+            ? isReset
+              ? 'Sending…'
+              : isSignUp
+                ? 'Creating account…'
+                : 'Signing in…'
+            : isReset
+              ? 'Send reset link'
+              : isSignUp
+                ? 'Create account'
+                : 'Sign in'}
         </button>
       </form>
 
       <p className="mt-8 text-center text-sm text-muted">
-        {isSignUp ? 'Already have an account?' : 'New to Reforge?'}{' '}
+        {isReset ? 'Remembered it?' : isSignUp ? 'Already have an account?' : 'New to Reforge?'}{' '}
         <button
           type="button"
-          onClick={switchMode}
+          onClick={() => switchMode(isSignUp || isReset ? 'signIn' : 'signUp')}
           className="font-semibold text-white underline decoration-gold underline-offset-4 hover:text-gold"
         >
-          {isSignUp ? 'Sign in' : 'Create an account'}
+          {isSignUp || isReset ? 'Sign in' : 'Create an account'}
         </button>
       </p>
+    </main>
+  )
+}
+
+// Opened from a password reset email: choose the new password, then carry on into the app
+export function NewPasswordScreen({ onDone }) {
+  const [password, setPassword] = useState('')
+  const [shown, setShown] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function submit(event) {
+    event.preventDefault()
+    setBusy(true)
+    setError('')
+    const { error: updateError } = await supabase.auth.updateUser({ password })
+    if (updateError) {
+      setError(friendlyError(updateError))
+      setBusy(false)
+      return
+    }
+    window.history.replaceState(null, '', window.location.pathname)
+    onDone()
+  }
+
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6" style={pageStyle}>
+      <Brand intro="Choose a new password for your account." />
+      <form onSubmit={submit} className="mt-10 space-y-5">
+        <label className="block text-sm font-medium text-neutral-300">
+          New password
+          <input
+            type={shown ? 'text' : 'password'}
+            required
+            minLength={6}
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <input type="checkbox" checked={shown} onChange={(event) => setShown(event.target.checked)} />
+          Show password
+        </label>
+        <p className="text-xs text-muted">At least 6 characters.</p>
+        {error && (
+          <p role="alert" className="text-sm text-red-400">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={busy || password.length < 6}
+          className="w-full rounded-xl bg-gold py-3.5 font-semibold text-ink hover:bg-gold-light disabled:opacity-60"
+        >
+          {busy ? 'Saving…' : 'Save new password'}
+        </button>
+      </form>
     </main>
   )
 }
