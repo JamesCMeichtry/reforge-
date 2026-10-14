@@ -17,6 +17,7 @@ import {
   reviewSession,
 } from '../lib/pro.js'
 import CoachRehab from '../components/CoachRehab.jsx'
+import AssessmentPanel from '../components/Assessment.jsx'
 import { daysAgo, deleteSet, updateSet } from '../lib/programme.js'
 import { ProgrammeView } from './ProgrammeScreen.jsx'
 import LiveSession from './LiveSession.jsx'
@@ -532,6 +533,7 @@ function Notes({ clientId }) {
 
 const SECTIONS = [
   ['map', 'Body map'],
+  ['assessment', 'Assessment'],
   ['injuries', 'Injuries'],
   ['rehab', 'Rehab'],
   ['checkins', 'Check-ins'],
@@ -649,6 +651,9 @@ function ClientDetail({ clientId, section }) {
         ))}
       </div>
       {section === 'map' && <LivingMap key={clientId} userId={clientId} />}
+      {section === 'assessment' && (
+        <AssessmentPanel key={clientId} clientId={clientId} clientName={client.display_name} />
+      )}
       {section === 'injuries' && <InjuryEditor key={clientId} userId={clientId} />}
       {section === 'rehab' && <CoachRehab key={clientId} clientId={clientId} clientName={client.display_name} />}
       {section === 'checkins' && <CheckIns clientId={clientId} />}
