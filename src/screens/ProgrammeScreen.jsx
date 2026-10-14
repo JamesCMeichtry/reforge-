@@ -3,16 +3,17 @@ import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary, inputBase }
 import { STARTER_PLAN } from '../data/starterPlan.js'
 import {
   copyDays,
-  deleteTemplate,
   describeDayChange,
   fetchChanges,
   fetchRequests,
-  fetchTemplates,
   recordChange,
   requestChange,
   resolveRequest,
   saveTemplate,
 } from '../lib/coaching.js'
+import DayEditor from '../components/DayEditor.jsx'
+import { ask, toast } from '../components/Feedback.jsx'
+import { TemplatePicker } from '../components/Templates.jsx'
 import { fetchLatestSession } from '../lib/live.js'
 import { me } from '../lib/me.js'
 import { fetchMyPros } from '../lib/pro.js'
@@ -27,8 +28,6 @@ import {
 } from '../lib/programme.js'
 import SessionLog from './SessionLog.jsx'
 
-const SECTION_ORDER = ['Warm-up', 'Physio', 'Rehab', 'Main']
-const REST_DEFAULTS = { 'Warm-up': 30, Physio: 45, Rehab: 45, Main: 90 }
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
 const shortDate = (value) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
@@ -77,6 +76,7 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
   const [status, setStatus] = useState('loading')
   const [busy, setBusy] = useState(false)
   const [historyKey, setHistoryKey] = useState(0)
+  const [picking, setPicking] = useState(false)
 
   useEffect(() => {
     if (status !== 'loading') return
@@ -124,6 +124,13 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
     } finally {
       setBusy(false)
     }
+  }
+
+  // A template was given from the picker: it's already saved, so just show it
+  function applied(created) {
+    setPicking(false)
+    setProgramme(created)
+    setHistoryKey((k) => k + 1)
   }
 
   async function saveDays(days, summary, reason) {
@@ -238,12 +245,19 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
             >
               Start from scratch
             </button>
-            <Templates
-              clientName={clientName}
-              onUse={(t) =>
-                startProgramme({ name: t.name, days: copyDays(t.days) }, `Started ${t.name} from a template`)
-              }
-            />
+            <button type="button" onClick={() => setPicking(true)} className={`w-full ${buttonSecondary} py-3`}>
+              Choose a template
+            </button>
+            <a href="#clients/templates" className="block text-center text-sm font-semibold text-gold">
+              Manage your templates ›
+            </a>
+            {picking && (
+              <TemplatePicker
+                client={{ id: userId, display_name: clientName }}
+                onClose={() => setPicking(false)}
+                onDone={applied}
+              />
+            )}
           </div>
         )}
       </>
@@ -293,16 +307,7 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
       )}
 
       {role === 'coach' && (
-        <div className="mt-8 space-y-4">
-          <SaveAsTemplate programme={programme} />
-          <Templates
-            clientName={clientName}
-            replacing
-            onUse={(t) =>
-              startProgramme({ name: t.name, days: copyDays(t.days) }, `Switched to ${t.name} from a template`)
-            }
-          />
-        </div>
+        <CoachTemplates programme={programme} client={{ id: userId, display_name: clientName }} onApplied={applied} />
       )}
 
       <History key={historyKey} clientId={userId} role={role} coachName={coachName} clientName={clientName} />
@@ -431,83 +436,54 @@ function History({ clientId, role, coachName, clientName }) {
   )
 }
 
-function SaveAsTemplate({ programme }) {
-  const [state, setState] = useState(null)
-  async function save() {
-    const name = window.prompt('Name this template', programme.name)
-    if (!name?.trim()) return
-    setState('saving')
+// Templates from a client's programme: save this one for reuse, or switch them to another
+function CoachTemplates({ programme, client, onApplied }) {
+  const [picking, setPicking] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  async function saveAsTemplate() {
+    const name = await ask({
+      title: 'Save as a template',
+      body: 'Reuse this programme for other clients. Their weights and history aren’t included.',
+      confirm: 'Save template',
+      input: { label: 'Template name', value: programme.name, maxLength: 80 },
+    })
+    if (!name) return
+    setSaving(true)
     try {
-      await saveTemplate(name.trim(), copyDays(programme.days))
-      setState('saved')
+      await saveTemplate(name, copyDays(programme.days))
+      toast(`Saved "${name}" to your templates`)
     } catch {
-      setState('error')
+      toast("Couldn't save the template. Check your connection.", { tone: 'error' })
     }
-  }
-  return (
-    <div>
-      <button type="button" onClick={save} disabled={state === 'saving'} className={`w-full ${buttonSecondary}`}>
-        {state === 'saving' ? 'Saving…' : 'Save this programme as a template'}
-      </button>
-      {state === 'saved' && <p className="mt-2 text-sm text-gold">Saved to your templates.</p>}
-      {state === 'error' && <p className="mt-2 text-sm text-red-400">Couldn't save the template.</p>}
-    </div>
-  )
-}
-
-function Templates({ clientName, onUse, replacing }) {
-  const [templates, setTemplates] = useState(null)
-  useEffect(() => {
-    fetchTemplates()
-      .then(setTemplates)
-      .catch(() => setTemplates([]))
-  }, [])
-  if (!templates) return null
-
-  function use(template) {
-    const message = replacing
-      ? `Switch ${clientName ?? 'this client'} to "${template.name}"? Their current programme is replaced, and the change goes in their history.`
-      : `Give ${clientName ?? 'this client'} "${template.name}"?`
-    if (window.confirm(message)) onUse(template)
-  }
-
-  async function remove(template) {
-    if (!window.confirm(`Delete the template "${template.name}"? Clients already using it keep their programme.`))
-      return
-    setTemplates((current) => current.filter((t) => t.id !== template.id))
-    await deleteTemplate(template.id).catch(() => setTemplates((current) => [template, ...current]))
+    setSaving(false)
   }
 
   return (
-    <section className="rounded-2xl border border-line bg-panel p-4">
-      <h2 className="font-display text-xl font-semibold">Your templates</h2>
-      {templates.length === 0 ? (
-        <p className="mt-1 text-sm text-muted">
-          None yet. Build a programme for a client, then save it as a template to reuse it.
-        </p>
-      ) : (
-        <ul className="mt-2 space-y-2">
-          {templates.map((template) => (
-            <li key={template.id} className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-white">{template.name}</p>
-                <p className="text-xs text-muted">{template.days.length} days</p>
-              </div>
-              <div className="flex shrink-0 gap-1">
-                <button
-                  type="button"
-                  onClick={() => remove(template)}
-                  className="px-2 text-sm font-semibold text-muted hover:text-red-400"
-                >
-                  Delete
-                </button>
-                <button type="button" onClick={() => use(template)} className={buttonSecondary}>
-                  Use
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+    <section className="mt-8 rounded-2xl border border-line bg-panel p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="font-display text-xl font-semibold">Templates</h2>
+        <a href="#clients/templates" className="text-sm font-semibold text-gold">
+          Manage ›
+        </a>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button type="button" onClick={saveAsTemplate} disabled={saving} className={buttonSecondary}>
+          {saving ? 'Saving…' : 'Save as template'}
+        </button>
+        <button type="button" onClick={() => setPicking(true)} className={buttonSecondary}>
+          Switch template
+        </button>
+      </div>
+      {picking && (
+        <TemplatePicker
+          client={client}
+          onClose={() => setPicking(false)}
+          onDone={(created) => {
+            setPicking(false)
+            onApplied(created)
+          }}
+        />
       )}
     </section>
   )
@@ -560,8 +536,14 @@ function DayView({ programme, day, userId, basePath, role, clientName, coachName
           day={day}
           askReason={role === 'coach'}
           onCancel={() => setEditing(false)}
-          onDelete={() => {
-            if (window.confirm(`Remove ${day.name} from the programme?`)) onDeleteDay(day)
+          onDelete={async () => {
+            const sure = await ask({
+              title: `Remove ${day.name}?`,
+              body: 'It comes out of the programme. Sessions already logged for it stay in the history.',
+              confirm: 'Remove day',
+              danger: true,
+            })
+            if (sure) onDeleteDay(day)
           }}
           onSave={async (updated, reason) => {
             await onSaveDay(updated, reason)
@@ -599,7 +581,7 @@ function CoachDayPreview({ day, clientId, clientName }) {
               <span className="block font-semibold text-white">{exercise.name}</span>
               <span className="block text-sm text-muted">
                 {exercise.section || 'Main'} · {exercise.sets} × {exercise.reps}
-                {exercise.load?.kind === 'kg' ? ` · ${exercise.load.value} kg` : ''}
+                {exercise.load?.kind === 'kg' && Number(exercise.load.value) > 0 ? ` · ${exercise.load.value} kg` : ''}
                 {exercise.load?.kind === 'band' ? ` · ${exercise.load.value} band` : ''}
               </span>
               {exercise.note && <span className="mt-1 block text-sm text-neutral-300">{exercise.note}</span>}
@@ -694,211 +676,5 @@ function LastSession({ clientId, role, coachName, clientName }) {
         </div>
       )}
     </section>
-  )
-}
-
-function DayEditor({ day, askReason, onSave, onCancel, onDelete }) {
-  const [name, setName] = useState(day.name)
-  const [focus, setFocus] = useState(day.focus ?? '')
-  const [reason, setReason] = useState('')
-  const [exercises, setExercises] = useState(() => day.exercises.map((e) => ({ ...e, load: { ...e.load } })))
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
-  const update = (id, changes) =>
-    setExercises((current) => current.map((e) => (e.id === id ? { ...e, ...changes } : e)))
-
-  async function handleSave() {
-    if (!name.trim()) return setError('The day needs a name.')
-    if (exercises.some((e) => !e.name.trim())) return setError('Every exercise needs a name.')
-    setSaving(true)
-    setError('')
-    try {
-      const cleaned = exercises.map((e) => ({
-        ...e,
-        name: e.name.trim(),
-        note: e.note?.trim() || undefined,
-        sets: Math.min(10, Math.max(1, parseInt(e.sets, 10) || 1)),
-        reps: String(e.reps).trim() || '10',
-        rest: Math.min(600, parseInt(e.rest, 10) || 0) || null,
-        load:
-          e.load.kind === 'bodyweight'
-            ? { kind: 'bodyweight' }
-            : e.load.kind === 'kg'
-              ? { kind: 'kg', value: parseFloat(String(e.load.value).replace(',', '.')) || 0 }
-              : { kind: 'band', value: String(e.load.value || '').trim() || 'Light' },
-      }))
-      await onSave({ ...day, name: name.trim(), focus: focus.trim(), exercises: cleaned }, reason)
-    } catch {
-      setError("Couldn't save the changes. Check your connection and try again.")
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs font-medium text-muted">
-          Day name
-          <input value={name} onChange={(event) => setName(event.target.value)} className={`mt-1 ${inputBase}`} />
-        </label>
-        <label className="text-xs font-medium text-muted">
-          Focus
-          <input
-            value={focus}
-            onChange={(event) => setFocus(event.target.value)}
-            placeholder="e.g. Lower body + knee rehab"
-            className={`mt-1 ${inputBase}`}
-          />
-        </label>
-      </div>
-      <p className="text-sm text-muted">
-        Renaming an exercise starts a fresh history for it, so keep names the same to keep previous weights.
-      </p>
-      {exercises.map((exercise) => (
-        <article key={exercise.id} className="space-y-3 rounded-2xl border border-line bg-panel p-4">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={exercise.name}
-              onChange={(event) => update(exercise.id, { name: event.target.value })}
-              placeholder="Exercise name"
-              className={inputBase}
-              aria-label="Exercise name"
-            />
-            <button
-              type="button"
-              onClick={() => setExercises((current) => current.filter((e) => e.id !== exercise.id))}
-              className="shrink-0 rounded-lg px-3 text-sm font-semibold text-muted hover:text-red-400"
-              aria-label={`Remove ${exercise.name || 'exercise'}`}
-            >
-              Remove
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs font-medium text-muted">
-              Section
-              <select
-                value={exercise.section || 'Main'}
-                onChange={(event) => update(exercise.id, { section: event.target.value })}
-                className={`mt-1 ${inputBase}`}
-              >
-                {SECTION_ORDER.map((section) => (
-                  <option key={section}>{section}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-xs font-medium text-muted">
-              Sets
-              <input
-                type="text"
-                inputMode="numeric"
-                value={exercise.sets}
-                onChange={(event) => update(exercise.id, { sets: event.target.value.replace(/\D/g, '') })}
-                className={`mt-1 ${inputBase}`}
-              />
-            </label>
-            <label className="text-xs font-medium text-muted">
-              Reps
-              <input
-                type="text"
-                value={exercise.reps}
-                onChange={(event) => update(exercise.id, { reps: event.target.value })}
-                className={`mt-1 ${inputBase}`}
-              />
-            </label>
-            <label className="text-xs font-medium text-muted">
-              Rest (seconds)
-              <input
-                type="text"
-                inputMode="numeric"
-                value={exercise.rest ?? ''}
-                placeholder={`${REST_DEFAULTS[exercise.section || 'Main'] ?? 60} (default)`}
-                onChange={(event) => update(exercise.id, { rest: event.target.value.replace(/\D/g, '') })}
-                className={`mt-1 ${inputBase}`}
-              />
-            </label>
-            <label className="text-xs font-medium text-muted">
-              Load type
-              <select
-                value={exercise.load.kind}
-                onChange={(event) => update(exercise.id, { load: { kind: event.target.value, value: '' } })}
-                className={`mt-1 ${inputBase}`}
-              >
-                <option value="kg">Weight (kg)</option>
-                <option value="band">Band</option>
-                <option value="bodyweight">Bodyweight</option>
-              </select>
-            </label>
-            {exercise.load.kind !== 'bodyweight' && (
-              <label className="text-xs font-medium text-muted">
-                {exercise.load.kind === 'kg' ? 'Weight (kg)' : 'Band'}
-                <input
-                  type="text"
-                  inputMode={exercise.load.kind === 'kg' ? 'decimal' : 'text'}
-                  value={exercise.load.value ?? ''}
-                  onChange={(event) => update(exercise.id, { load: { ...exercise.load, value: event.target.value } })}
-                  className={`mt-1 ${inputBase}`}
-                />
-              </label>
-            )}
-          </div>
-          <label className="block text-xs font-medium text-muted">
-            Coaching note (optional)
-            <input
-              type="text"
-              value={exercise.note ?? ''}
-              onChange={(event) => update(exercise.id, { note: event.target.value })}
-              placeholder="e.g. Pause 2 seconds at the bottom"
-              className={`mt-1 ${inputBase}`}
-            />
-          </label>
-        </article>
-      ))}
-      <button
-        type="button"
-        onClick={() =>
-          setExercises((current) => [
-            ...current,
-            { id: newId(), section: 'Main', name: '', sets: 3, reps: '10', load: { kind: 'kg', value: '' } },
-          ])
-        }
-        className={`w-full ${buttonSecondary}`}
-      >
-        + Add exercise
-      </button>
-      {askReason && (
-        <label className="block text-xs font-medium text-muted">
-          Why the change? (optional, saved in their history)
-          <input
-            type="text"
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="e.g. Knee pain on lunges, swapped to split squats"
-            className={`mt-1 ${inputBase}`}
-          />
-        </label>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-red-400">
-          {error}
-        </p>
-      )}
-      <div className="flex gap-2 pt-2">
-        <button type="button" onClick={onCancel} className={`flex-1 ${buttonSecondary}`}>
-          Cancel
-        </button>
-        <button type="button" onClick={handleSave} disabled={saving} className={`flex-1 ${buttonPrimary}`}>
-          {saving ? 'Saving…' : 'Save day'}
-        </button>
-      </div>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="w-full pt-2 text-sm font-semibold text-muted hover:text-red-400"
-      >
-        Remove this day
-      </button>
-    </div>
   )
 }
