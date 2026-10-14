@@ -3,6 +3,7 @@ import { LoadingCards, buttonPrimary, buttonSecondary, inputBase } from './ui.js
 import { INJURY_FIELDS, RED_FLAGS, RESULT, SECTIONS, keyFindings, sectionProgress } from '../data/assessmentForm.js'
 import { fetchClientInjuries, fetchLatestAssessment, saveAssessment } from '../lib/assessment.js'
 import { newId } from '../lib/live.js'
+import { ask, toast } from './Feedback.jsx'
 
 const longDate = (value) =>
   new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -80,9 +81,13 @@ export default function AssessmentPanel({ clientId, clientName = 'your client' }
       injuries={injuries}
       clientName={clientName}
       onEdit={() => setEditing(true)}
-      onReassess={() => {
-        if (!window.confirm(`Start a new assessment for ${clientName}? This one is kept.`)) return
-        start()
+      onReassess={async () => {
+        const sure = await ask({
+          title: `Reassess ${clientName}?`,
+          body: 'This starts a fresh assessment. The one you have now is kept.',
+          confirm: 'Start reassessment',
+        })
+        if (sure) start()
       }}
     />
   )
@@ -617,7 +622,7 @@ th{text-align:left;width:38%;color:#555;font-weight:600;padding:4px 8px 4px 0;ve
       : '<p class="f">None recorded.</p>'
   }${sections}</body></html>`
   const win = window.open('', '_blank')
-  if (!win) return window.alert('Allow pop-ups to save the assessment as a PDF.')
+  if (!win) return toast('Allow pop-ups for Reforge to save the assessment as a PDF.', { tone: 'error' })
   win.document.write(html)
   win.document.close()
   win.focus()
