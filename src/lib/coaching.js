@@ -51,18 +51,39 @@ export function describeDayChange(before, after) {
 }
 
 // Templates a professional saves once and gives to any client
+const TEMPLATE_FIELDS = 'id, name, description, days, updated_at'
+
 export async function fetchTemplates() {
   const { data, error } = await supabase
     .from('programme_templates')
-    .select('id, name, days, updated_at')
+    .select(TEMPLATE_FIELDS)
     .eq('owner_id', me())
     .order('updated_at', { ascending: false })
   if (error) throw error
   return data
 }
 
-export async function saveTemplate(name, days) {
-  const { error } = await supabase.from('programme_templates').insert({ name, days })
+export async function fetchTemplate(id) {
+  const { data, error } = await supabase.from('programme_templates').select(TEMPLATE_FIELDS).eq('id', id).maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function saveTemplate(name, days, description = null) {
+  const { data, error } = await supabase
+    .from('programme_templates')
+    .insert({ name, days, description })
+    .select(TEMPLATE_FIELDS)
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateTemplate(id, changes) {
+  const { error } = await supabase
+    .from('programme_templates')
+    .update({ ...changes, updated_at: new Date().toISOString() })
+    .eq('id', id)
   if (error) throw error
 }
 
