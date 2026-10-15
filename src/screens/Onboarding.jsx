@@ -37,9 +37,9 @@ const LEVEL_COLOURS = {
   neutral: 'var(--color-muted)',
   active: 'var(--lvl-active)',
   building: 'var(--lvl-building)',
-  strong: 'var(--lvl-strong)',
   silver: 'var(--lvl-silver-text)',
   elite: 'var(--color-gold)',
+  diamond: 'var(--lvl-diamond-text)',
 }
 
 function Choice({ selected, onClick, label, note }) {
