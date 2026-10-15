@@ -4,7 +4,7 @@ import { todayDate } from './programme.js'
 import { CENTRAL_AREAS, INJURIES } from '../data/injuries.js'
 import { musclesForExercise } from '../data/muscles.js'
 
-// One scale for everyone: five injury tiers, neutral, then five strength tiers up to gold
+// One scale for everyone: five injury tiers, neutral, then five strength tiers up to diamond
 export const LEVELS = {
   flare: { label: 'Flare', fill: '#be123c', rank: 0 },
   injured: { label: 'Injured', fill: '#ef4444', rank: 1 },
@@ -14,12 +14,12 @@ export const LEVELS = {
   neutral: { label: 'Neutral', fill: '#272727', rank: 5 },
   active: { label: 'Active', fill: '#22c55e', rank: 6 },
   building: { label: 'Building', fill: '#3b82f6', rank: 7 },
-  strong: { label: 'Strong', fill: '#22d3ee', rank: 8 },
-  silver: { label: 'Silver', fill: '#cbd5e1', rank: 9 },
-  elite: { label: 'Gold', fill: '#c9a227', rank: 10 },
+  silver: { label: 'Silver', fill: '#cbd5e1', rank: 8 },
+  elite: { label: 'Gold', fill: '#c9a227', rank: 9 },
+  diamond: { label: 'Diamond', fill: '#b9f2ff', rank: 10 },
 }
 export const INJURY_TIERS = ['flare', 'injured', 'affected', 'recovering', 'watch']
-export const STRENGTH_TIERS = ['active', 'building', 'strong', 'silver', 'elite']
+export const STRENGTH_TIERS = ['active', 'building', 'silver', 'elite', 'diamond']
 // Injury tiers that hold a muscle's strength colour back until they settle
 const BLOCKING = new Set(['flare', 'injured', 'affected'])
 
@@ -138,9 +138,9 @@ export const XP = {
 export const XP_LEVELS = [
   { level: 'active', xp: 30 },
   { level: 'building', xp: 100 },
-  { level: 'strong', xp: 400 },
-  { level: 'silver', xp: 1000 },
-  { level: 'elite', xp: 2000 },
+  { level: 'silver', xp: 400 },
+  { level: 'elite', xp: 1000 },
+  { level: 'diamond', xp: 2000 },
 ]
 const daysBetween = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / DAY)
 
@@ -239,7 +239,7 @@ export function nextStep(strength) {
   if (!strength || !strength.xp)
     return `Log a set that works it to start earning XP. ${XP_LEVELS[0].xp} XP reaches ${LEVELS[XP_LEVELS[0].level].label}.`
   const fade = strength.fading ? ' It is fading from lack of training, so train it soon to stop the slide.' : ''
-  if (!strength.next) return `Gold. Keep training it to hold the top tier.${fade}`
+  if (!strength.next) return `Diamond. Keep training it to hold the top tier.${fade}`
   const sets = Math.ceil((strength.next.xp - strength.xp) / XP.primarySet)
   const name = LEVELS[strength.next.level].label
   return `${strength.next.xp - strength.xp} XP to ${name}, about ${sets} more working ${sets === 1 ? 'set' : 'sets'}.${fade}`
