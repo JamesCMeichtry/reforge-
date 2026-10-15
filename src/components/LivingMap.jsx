@@ -49,28 +49,40 @@ const FILLS = {
   neutral: 'var(--fig-muscle)',
   active: 'var(--lvl-active)',
   building: 'var(--lvl-building)',
-  strong: 'var(--lvl-strong)',
   silver: 'var(--lvl-silver)',
   elite: 'var(--color-gold)',
+  diamond: 'var(--lvl-diamond)',
 }
-const SHAPE_FILLS = { ...FILLS, silver: 'url(#silver-shine)', elite: 'url(#elite-shine)' }
-const tone = (level) =>
-  level === 'watch' ? 'var(--lvl-watch-text)' : level === 'silver' ? 'var(--lvl-silver-text)' : FILLS[level]
+const SHAPE_FILLS = {
+  ...FILLS,
+  silver: 'url(#silver-shine)',
+  elite: 'url(#elite-shine)',
+  diamond: 'url(#diamond-shine)',
+}
+const TEXT_TONES = {
+  watch: 'var(--lvl-watch-text)',
+  silver: 'var(--lvl-silver-text)',
+  diamond: 'var(--lvl-diamond-text)',
+}
+const tone = (level) => TEXT_TONES[level] ?? FILLS[level]
 const STRENGTH_ORDER = ['neutral', ...STRENGTH_TIERS]
 const ORDER = [...INJURY_TIERS, 'neutral', ...STRENGTH_TIERS]
 
 // Only the ends of the scale move. Middle tiers are still, so the moving ones stand out:
 // Flare pulses, Injured has a wave sweeping side to side, Affected has rings spreading from its centre,
-// Strong has a glint passing across it, Silver and Gold have flowing light, a halo and sparkles.
+// Silver and Gold have flowing light, a halo and sparkles. Diamond, the top tier, is cut ice with rainbow fire
+// moving through it, a glint across its facets, a colour-shifting glow and the most sparkle.
+const DIAMOND_LEGEND = 'linear-gradient(90deg,#7dd3fc,#ffffff,#c7d2fe,#f5d0fe,#ffffff,#a5f3fc)'
 const FX = {
   flare: { body: 'fx-flare', flow: 'flow-hot' },
   injured: { flow: 'wave-hot' },
   affected: { flow: 'ember' },
-  strong: { flow: 'glint', halo: 'halo-strong' },
   silver: { flow: 'flow-bright', halo: 'halo-silver', sparkle: 2 },
   elite: { flow: 'flow-gold', halo: 'halo-gold', sparkle: 3 },
+  diamond: { flow: 'diamond-fire', glint: true, halo: 'halo-diamond', sparkle: 5, star: 'fx-sparkle-diamond' },
 }
-const HALO_FILLS = { ...FILLS, silver: '#e2e8f0' }
+const HALO_FILLS = { ...FILLS, silver: '#e2e8f0', diamond: '#a5f3fc' }
+const SPARKLE_FILLS = { elite: ['#fff6d8'], diamond: ['#ffffff', '#cffafe', '#fae8ff', '#ffffff', '#e0e7ff'] }
 const STAR = 'M0,-2.2 L0.45,-0.45 L2.2,0 L0.45,0.45 L0,2.2 L-0.45,0.45 L-2.2,0 L-0.45,-0.45Z'
 const levelForXp = (xp) => [...XP_LEVELS].reverse().find((step) => xp >= step.xp)?.level ?? 'neutral'
 const xpForLevel = (level) => XP_LEVELS.find((step) => step.level === level)?.xp ?? 0
@@ -109,14 +121,16 @@ const sideName = (side) => (side === 'right' ? 'Right' : 'Left')
 
 const mirrorAngle = (angle) => (angle == null ? null : (180 - angle) % 180)
 
-// Three spots inside a shape for sparkles: its centre, and halfway to its top and bottom
+// Spots inside a shape for sparkles: its centre, and halfway to its top, bottom, left and right
 function sparkPoints(points) {
   const cx = points.reduce((sum, p) => sum + p[0], 0) / points.length
   const cy = points.reduce((sum, p) => sum + p[1], 0) / points.length
   const top = points.reduce((a, b) => (b[1] < a[1] ? b : a))
   const bottom = points.reduce((a, b) => (b[1] > a[1] ? b : a))
   const mid = (p) => [+((cx + p[0]) / 2).toFixed(1), +((cy + p[1]) / 2).toFixed(1)]
-  return [mid(top), [+cx.toFixed(1), +cy.toFixed(1)], mid(bottom)]
+  const left = points.reduce((a, b) => (b[0] < a[0] ? b : a))
+  const right = points.reduce((a, b) => (b[0] > a[0] ? b : a))
+  return [mid(top), [+cx.toFixed(1), +cy.toFixed(1)], mid(bottom), mid(left), mid(right)]
 }
 
 // Front view: the figure's right side is on the viewer's left. Rows are [id, kind, central, fibre angle, points].
@@ -698,7 +712,7 @@ export default function LivingMap({ userId = me() }) {
               <stop offset="1" stopColor="#fed7aa" stopOpacity="0" />
               <animate attributeName="r" values="0.15; 0.8" dur="2.6s" repeatCount="indefinite" />
             </radialGradient>
-            {/* Strong: a glint passing across the muscle, then a pause */}
+            {/* Diamond: a glint passing across the facets, then a pause */}
             <linearGradient id="glint" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0.38" stopColor="#ecfeff" stopOpacity="0" />
               <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.75" />
@@ -723,6 +737,48 @@ export default function LivingMap({ userId = me() }) {
                 type="translate"
                 values="-1 -1; 1 1"
                 dur="3s"
+                repeatCount="indefinite"
+              />
+            </linearGradient>
+            {/* Diamond: hard-edged bands of ice like the facets of a cut stone, drifting slowly */}
+            <linearGradient id="diamond-shine" x1="0" y1="0" x2="0.5" y2="0.5" spreadMethod="repeat">
+              <stop offset="0" stopColor="#38bdf8" />
+              <stop offset="0.16" stopColor="#7dd3fc" />
+              <stop offset="0.16" stopColor="#e0f2fe" />
+              <stop offset="0.3" stopColor="#ffffff" />
+              <stop offset="0.3" stopColor="#a5f3fc" />
+              <stop offset="0.46" stopColor="#cffafe" />
+              <stop offset="0.46" stopColor="#c7d2fe" />
+              <stop offset="0.6" stopColor="#eef2ff" />
+              <stop offset="0.6" stopColor="#ffffff" />
+              <stop offset="0.72" stopColor="#bae6fd" />
+              <stop offset="0.72" stopColor="#67e8f9" />
+              <stop offset="0.86" stopColor="#e0f2fe" />
+              <stop offset="0.86" stopColor="#7dd3fc" />
+              <stop offset="1" stopColor="#38bdf8" />
+              <animateTransform
+                attributeName="gradientTransform"
+                type="translate"
+                values="0 0; 0.5 0.5"
+                dur="5s"
+                repeatCount="indefinite"
+              />
+            </linearGradient>
+            {/* Diamond fire: the rainbow flashes a real diamond throws, running the other way */}
+            <linearGradient id="diamond-fire" x1="1" y1="0" x2="0.4" y2="0.6" spreadMethod="repeat">
+              <stop offset="0" stopColor="#f0abfc" stopOpacity="0" />
+              <stop offset="0.12" stopColor="#f0abfc" stopOpacity="0.55" />
+              <stop offset="0.26" stopColor="#a5b4fc" stopOpacity="0.15" />
+              <stop offset="0.4" stopColor="#67e8f9" stopOpacity="0.5" />
+              <stop offset="0.54" stopColor="#86efac" stopOpacity="0.1" />
+              <stop offset="0.68" stopColor="#fde68a" stopOpacity="0.5" />
+              <stop offset="0.84" stopColor="#fda4af" stopOpacity="0.15" />
+              <stop offset="1" stopColor="#f0abfc" stopOpacity="0" />
+              <animateTransform
+                attributeName="gradientTransform"
+                type="translate"
+                values="0 0; -0.6 0.6"
+                dur="2.4s"
                 repeatCount="indefinite"
               />
             </linearGradient>
@@ -787,6 +843,7 @@ export default function LivingMap({ userId = me() }) {
                     />
                   )}
                   {fx.flow && <path d={shape.d} fill={`url(#${fx.flow})`} pointerEvents="none" />}
+                  {fx.glint && <path d={shape.d} fill="url(#glint)" pointerEvents="none" />}
                   <path d={shape.d} fill="url(#sheen)" pointerEvents="none" />
                 </g>
                 {fx.sparkle &&
@@ -794,9 +851,9 @@ export default function LivingMap({ userId = me() }) {
                     <g key={i} transform={`translate(${x} ${y})`} pointerEvents="none">
                       <path
                         d={STAR}
-                        className="fx-sparkle"
+                        className={fx.star ?? 'fx-sparkle'}
                         style={{
-                          fill: level === 'elite' ? '#fff6d8' : '#ffffff',
+                          fill: SPARKLE_FILLS[level]?.[i % SPARKLE_FILLS[level].length] ?? '#ffffff',
                           animationDelay: `${((index * 0.37 + i * 0.6) % 2).toFixed(2)}s`,
                         }}
                       />
@@ -914,7 +971,12 @@ export default function LivingMap({ userId = me() }) {
                   <span
                     className="mb-1 block h-2 rounded-full"
                     style={{
-                      background: key === 'silver' ? 'linear-gradient(90deg,#94a3b8,#f8fafc,#94a3b8)' : FILLS[key],
+                      background:
+                        key === 'silver'
+                          ? 'linear-gradient(90deg,#94a3b8,#f8fafc,#94a3b8)'
+                          : key === 'diamond'
+                            ? DIAMOND_LEGEND
+                            : FILLS[key],
                     }}
                   />
                   {LEVELS[key].label}
