@@ -410,7 +410,8 @@ nav button[aria-current='page'] svg {
   --lvl-watch: #4a1f1f;
   --lvl-watch-text: #f87171;
   --lvl-building: #3b82f6;
-  --lvl-strong: #22d3ee;
+  --lvl-diamond: #b9f2ff;
+  --lvl-diamond-text: #a5f3fc;
   --fig-body: #0b0b0b;
   --fig-muscle: #272727;
   --fig-joint: #1b1b1b;
@@ -423,7 +424,8 @@ nav button[aria-current='page'] svg {
   --lvl-watch: #f3c6bf;
   --lvl-watch-text: #b91c1c;
   --lvl-building: #2563eb;
-  --lvl-strong: #0891b2;
+  --lvl-diamond: #7dd3fc;
+  --lvl-diamond-text: #0369a1;
   --fig-body: #ebe6da;
   --fig-muscle: #d6cdbb;
   --fig-joint: #e2dbcb;
@@ -475,7 +477,7 @@ nav button[aria-current='page'] svg {
   --lvl-silver-text: #64748b;
 }
 
-/* Strong, Silver and Gold: a soft halo that swells, bigger for Gold */
+/* Silver, Gold and Diamond: a soft halo that swells, bigger the higher the tier */
 @keyframes fx-halo {
   0%,
   100% {
@@ -498,14 +500,11 @@ nav button[aria-current='page'] svg {
     transform: scale(1.16);
   }
 }
-.halo-strong,
 .halo-silver,
-.halo-gold {
+.halo-gold,
+.halo-diamond {
   transform-box: fill-box;
   transform-origin: center;
-}
-.halo-strong {
-  animation: fx-halo 2.4s ease-in-out infinite;
 }
 .halo-silver {
   animation: fx-halo 2s ease-in-out infinite;
@@ -513,8 +512,25 @@ nav button[aria-current='page'] svg {
 .halo-gold {
   animation: fx-halo-big 1.6s ease-in-out infinite;
 }
+/* Diamond: an icy glow that breathes and shifts colour like light through a cut stone */
+@keyframes fx-halo-diamond {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+    filter: hue-rotate(60deg);
+  }
+}
+.halo-diamond {
+  animation: fx-halo-diamond 1.5s ease-in-out infinite;
+}
 
-/* Silver and gold: twinkling stars */
+/* Silver, gold and diamond: twinkling stars */
 @keyframes fx-sparkle {
   0%,
   100% {
@@ -530,6 +546,27 @@ nav button[aria-current='page'] svg {
   transform-box: fill-box;
   transform-origin: center;
   animation: fx-sparkle 1.8s ease-in-out infinite both;
+}
+/* Diamond stars are bigger, quicker and catch the light from more points */
+@keyframes fx-sparkle-diamond {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(2) rotate(45deg);
+  }
+  60% {
+    opacity: 0.9;
+    transform: scale(1.4) rotate(70deg);
+  }
+}
+.fx-sparkle-diamond {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fx-sparkle-diamond 1.3s ease-in-out infinite both;
 }
 
 /* Flare: the only tier that pulses, calm enough for several muscles at once */
@@ -557,14 +594,18 @@ nav button[aria-current='page'] svg {
 
 @media (prefers-reduced-motion: reduce) {
   .fx-flare,
-  .halo-strong,
   .halo-silver,
   .halo-gold,
-  .fx-sparkle {
+  .halo-diamond,
+  .fx-sparkle,
+  .fx-sparkle-diamond {
     animation: none !important;
   }
   .fx-sparkle {
     opacity: 0;
+  }
+  .fx-sparkle-diamond {
+    opacity: 0.9;
   }
 }
 
