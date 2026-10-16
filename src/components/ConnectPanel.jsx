@@ -3,6 +3,7 @@ import { createConnectCode, disconnect, fetchMyPros, fetchNotes, professionLabel
 import { me } from '../lib/me.js'
 import { buttonPrimary, buttonSecondary } from './ui.jsx'
 import { ask, toast } from './Feedback.jsx'
+import { PackageLine } from './Packages.jsx'
 
 const shortDate = (value) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
@@ -90,6 +91,7 @@ export default function ConnectPanel() {
           ))}
         </ul>
       )}
+      {pros?.length > 0 && <PackageLine proId={pros[0].id} />}
 
       {pros?.length > 0 ? (
         <p className="mt-3 text-sm text-muted">
