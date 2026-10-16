@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase.js'
 import InjuryEditor from './components/InjuryEditor.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import ConnectPanel from './components/ConnectPanel.jsx'
+import { PrivacyPanel } from './components/Legal.jsx'
 import { ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
@@ -119,7 +120,7 @@ function ProfileScreen() {
   return (
     <>
       <div onClick={onTitleTap} className="select-none">
-        <ScreenHeader title="Profile" intro="Your goals, settings and professional connection." />
+        <ScreenHeader title="Profile" intro="Your settings, professional connection and data." />
       </div>
       {dev && (
         <p className="-mt-4 mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-gold">
@@ -130,6 +131,7 @@ function ProfileScreen() {
         <AccountPanel />
         <ThemeToggle />
         <ConnectPanel />
+        <PrivacyPanel />
       </div>
     </>
   )
