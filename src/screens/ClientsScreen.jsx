@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import InjuryEditor from '../components/InjuryEditor.jsx'
 import LivingMap from '../components/LivingMap.jsx'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary, inputBase } from '../components/ui.jsx'
@@ -25,6 +25,8 @@ import LiveSession from './LiveSession.jsx'
 import TemplatesScreen from './TemplatesScreen.jsx'
 import { loadLive } from '../lib/live.js'
 import { fetchSetHistory, shortDate } from '../lib/progress.js'
+import { useWide } from '../lib/useWide.js'
+import { PackageCard } from '../components/Packages.jsx'
 
 // #clients is the list, #clients/<id>/<section> is one client
 const hashParts = () => window.location.hash.replace('#', '').split('/')
@@ -588,7 +590,7 @@ function LiveButton({ clientId }) {
   )
 }
 
-function ClientDetail({ clientId, section }) {
+function ClientDetail({ clientId, section, desk = false }) {
   const [client, setClient] = useState(null)
   const setSection = (id) => (window.location.hash = `clients/${clientId}/${id}`)
 
@@ -646,10 +648,12 @@ function ClientDetail({ clientId, section }) {
 
   return (
     <>
-      <a href="#clients" className="text-sm font-semibold text-muted hover:text-white">
-        ‹ All clients
-      </a>
-      <div className="mt-3">
+      {!desk && (
+        <a href="#clients" className="text-sm font-semibold text-muted hover:text-white">
+          ‹ All clients
+        </a>
+      )}
+      <div className={desk ? '' : 'mt-3'}>
         <ScreenHeader
           title={client.display_name ?? 'Client'}
           intro={
@@ -659,7 +663,10 @@ function ClientDetail({ clientId, section }) {
           }
         />
       </div>
-      <LiveButton clientId={clientId} />
+      <div className={desk ? 'grid max-w-3xl items-start gap-x-4 xl:grid-cols-2' : undefined}>
+        <LiveButton clientId={clientId} />
+        <PackageCard clientId={clientId} clientName={client.display_name} />
+      </div>
       <div className="-mx-5 mb-5 flex gap-2 overflow-x-auto px-5 pb-1" role="group" aria-label="Client sections">
         {SECTIONS.map(([id, label]) => (
           <button
@@ -675,7 +682,19 @@ function ClientDetail({ clientId, section }) {
           </button>
         ))}
       </div>
-      {section === 'map' && <LivingMap key={clientId} userId={clientId} />}
+      {section === 'map' &&
+        (desk ? (
+          // On a laptop the map and recent check-ins sit side by side
+          <div className="grid items-start gap-8 xl:grid-cols-2">
+            <LivingMap key={clientId} userId={clientId} />
+            <div>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-muted">Recent check-ins</h2>
+              <CheckIns clientId={clientId} />
+            </div>
+          </div>
+        ) : (
+          <LivingMap key={clientId} userId={clientId} />
+        ))}
       {section === 'assessment' && (
         <AssessmentPanel key={clientId} clientId={clientId} clientName={client.display_name} />
       )}
@@ -700,7 +719,297 @@ function ClientDetail({ clientId, section }) {
   )
 }
 
+/* ---------- Pro desk: the laptop layout ----------
+   Clients down the left, always in reach, with whoever is open (or the overview) on the right. */
+
+const initials = (name) =>
+  (name ?? '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
+
+const lastTrainedText = (client) =>
+  client.lastTrained ? `Trained ${daysAgo(client.lastTrained).toLowerCase()}` : 'No training in 2 weeks'
+
+// The one most important thing about a client, as a coloured dot
+function StatusDot({ client }) {
+  const live = loadLive(client.id)
+  const [colour, label, pulse] = client.flagged
+    ? ['var(--pain-severe)', 'Flaring up', true]
+    : live
+      ? ['#ef4444', 'Live session running', true]
+      : client.openRequests || client.toReview.length
+        ? ['var(--color-gold)', 'Waiting on you', false]
+        : client.quiet
+          ? ['var(--color-muted)', 'Quiet this week', false]
+          : null
+  if (!colour) return null
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      className={`h-2.5 w-2.5 shrink-0 rounded-full ${pulse ? 'live-dot' : ''}`}
+      style={{ background: colour }}
+    />
+  )
+}
+
+function ClientRail({ clients, error, selected, searchRef }) {
+  const [query, setQuery] = useState('')
+  const needle = query.trim().toLowerCase()
+  const shown = clients?.filter((c) => (c.display_name ?? '').toLowerCase().includes(needle))
+
+  return (
+    <aside className="sticky top-8 flex max-h-[calc(100dvh-4rem)] flex-col overflow-hidden rounded-2xl border border-line bg-panel">
+      <div className="border-b border-line p-4">
+        <div className="flex items-baseline justify-between">
+          <a href="#clients" className="font-display text-2xl font-semibold hover:text-gold">
+            Clients
+          </a>
+          {clients && <span className="text-sm text-muted">{clients.length}</span>}
+        </div>
+        <input
+          ref={searchRef}
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => event.key === 'Escape' && (setQuery(''), event.currentTarget.blur())}
+          placeholder="Search  ( / )"
+          aria-label="Search clients"
+          className={`mt-3 ${inputBase} py-2 text-sm`}
+        />
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        {error && <p className="p-2 text-sm text-red-400">Couldn't load your clients.</p>}
+        {!clients && !error && <LoadingCards count={4} height="h-12" label="Loading your clients" />}
+        {shown?.length === 0 && (
+          <p className="p-2 text-sm text-muted">{clients.length ? 'No one matches that.' : 'No clients yet.'}</p>
+        )}
+        <ul className="space-y-0.5">
+          {shown?.map((client) => {
+            const isSelected = client.id === selected
+            return (
+              <li key={client.id}>
+                <a
+                  href={`#clients/${client.id}`}
+                  aria-current={isSelected ? 'page' : undefined}
+                  className={`flex items-center gap-3 rounded-xl px-2.5 py-2 ${
+                    isSelected ? 'bg-gold/10' : 'hover:bg-ink/60'
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      isSelected ? 'bg-gold text-ink' : 'bg-line text-white'
+                    }`}
+                  >
+                    {initials(client.display_name)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block truncate text-sm font-semibold ${isSelected ? 'text-gold' : 'text-white'}`}>
+                      {client.display_name ?? 'Unnamed client'}
+                    </span>
+                    <span className="block truncate text-xs text-muted">{lastTrainedText(client)}</span>
+                  </span>
+                  <StatusDot client={client} />
+                </a>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+      <div className="space-y-0.5 border-t border-line p-2 text-sm font-semibold">
+        <a
+          href="#clients/templates"
+          className="block rounded-xl px-2.5 py-2 text-muted hover:bg-ink/60 hover:text-white"
+        >
+          Programme templates
+        </a>
+        <a href="#clients" className="block rounded-xl px-2.5 py-2 text-muted hover:bg-ink/60 hover:text-white">
+          + Add a client
+        </a>
+      </div>
+    </aside>
+  )
+}
+
+function Stat({ value, label, tone }) {
+  return (
+    <div className="rounded-2xl border border-line bg-panel px-5 py-4">
+      <p className="font-display text-4xl font-bold leading-none" style={{ color: tone }}>
+        {value}
+      </p>
+      <p className="mt-1 text-sm text-muted">{label}</p>
+    </div>
+  )
+}
+
+// Everyone at a glance, one row each
+function ClientTable({ clients }) {
+  const open = (id) => (window.location.hash = `clients/${id}`)
+  return (
+    <section className="overflow-hidden rounded-2xl border border-line bg-panel">
+      <h2 className="px-5 pt-4 font-display text-2xl font-semibold">Everyone</h2>
+      <div className="overflow-x-auto">
+        <table className="mt-3 w-full text-left text-sm">
+          <thead className="whitespace-nowrap text-[11px] uppercase tracking-[0.15em] text-muted">
+            <tr className="border-b border-line">
+              <th className="px-5 py-2 font-bold">Client</th>
+              <th className="px-3 py-2 font-bold">Last trained</th>
+              <th className="px-3 py-2 font-bold">Worst pain</th>
+              <th className="px-3 py-2 font-bold">Waiting</th>
+              <th className="px-5 py-2 font-bold">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {clients.map((client) => {
+              const waiting = client.openRequests + client.toReview.length
+              return (
+                <tr key={client.id} onClick={() => open(client.id)} className="cursor-pointer hover:bg-ink/50">
+                  <td className="whitespace-nowrap px-5 py-3">
+                    <a href={`#clients/${client.id}`} className="font-semibold text-white hover:text-gold">
+                      {client.display_name ?? 'Unnamed client'}
+                    </a>
+                  </td>
+                  <td className="px-3 py-3 text-neutral-300">
+                    {client.lastTrained ? daysAgo(client.lastTrained) : <span className="text-muted">2+ weeks</span>}
+                  </td>
+                  <td className="px-3 py-3">
+                    {client.worstPain == null ? (
+                      <span className="text-muted">–</span>
+                    ) : (
+                      <span className={client.worstPain >= 7 ? 'font-semibold text-red-400' : 'text-neutral-300'}>
+                        {client.worstPain}/10
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3">
+                    {waiting ? (
+                      <span className="font-semibold text-gold">{waiting}</span>
+                    ) : (
+                      <span className="text-muted">–</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3">
+                    {client.flagged ? (
+                      <span className="rounded-full bg-red-950 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-red-400">
+                        Flare
+                      </span>
+                    ) : client.quiet ? (
+                      <span className="text-muted">Quiet</span>
+                    ) : (
+                      <span className="text-neutral-300">On track</span>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
+
+function Overview({ clients, error, reload }) {
+  const toLookAt = clients ? attentionItems(clients).length : 0
+  return (
+    <>
+      <ScreenHeader title="Your desk" intro="What needs you today, and how everyone is doing." />
+      {error && <p className="text-red-400">Couldn't load your clients. Check your connection.</p>}
+      {!clients && !error && <LoadingCards count={3} label="Loading your clients" />}
+      {clients && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <Stat value={clients.length} label={clients.length === 1 ? 'Client' : 'Clients'} />
+            <Stat value={toLookAt} label="To look at" tone={toLookAt ? 'var(--color-gold)' : undefined} />
+            <Stat
+              value={clients.filter((c) => c.flagged).length}
+              label="Flaring up"
+              tone={clients.some((c) => c.flagged) ? 'var(--pain-severe)' : undefined}
+            />
+            <Stat value={clients.filter((c) => !c.quiet).length} label="Active this week" />
+          </div>
+          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="min-w-0 space-y-6">
+              {clients.length > 0 ? (
+                <NeedsYou clients={clients} />
+              ) : (
+                <p className="text-neutral-300">No clients yet. Add your first one with their code.</p>
+              )}
+            </div>
+            <div className="space-y-4">
+              <AddClient onAdded={reload} />
+              <a
+                href="#clients/templates"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-panel px-4 py-4 hover:border-gold"
+              >
+                <span>
+                  <span className="block font-semibold text-white">Programme templates</span>
+                  <span className="block text-sm text-muted">Build a programme once, give it to any client</span>
+                </span>
+                <span aria-hidden="true" className="text-muted">
+                  ›
+                </span>
+              </a>
+            </div>
+          </div>
+          {clients.length > 0 && <ClientTable clients={clients} />}
+        </div>
+      )}
+    </>
+  )
+}
+
+function Desk({ clientId, section }) {
+  const [clients, setClients] = useState(null)
+  const [error, setError] = useState(false)
+  const searchRef = useRef(null)
+
+  const load = () =>
+    fetchMyClients()
+      .then((list) => {
+        setClients(list)
+        setError(false)
+      })
+      .catch(() => setError(true))
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  // Press / anywhere to jump to the client search
+  useEffect(() => {
+    const onKey = (event) => {
+      const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
+      if (event.key === '/' && !typing && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault()
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  return (
+    <div className="grid grid-cols-[17rem_minmax(0,1fr)] items-start gap-8">
+      <ClientRail clients={clients} error={error} selected={clientId} searchRef={searchRef} />
+      <div className="min-w-0">
+        {clientId ? (
+          <ClientDetail key={clientId} clientId={clientId} section={section} desk />
+        ) : (
+          <Overview clients={clients} error={error} reload={load} />
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function ClientsScreen() {
+  const wide = useWide()
   const [route, setRoute] = useState(() => ({ clientId: clientFromHash(), section: sectionFromHash() }))
   useEffect(() => {
     const onHashChange = () => setRoute({ clientId: clientFromHash(), section: sectionFromHash() })
@@ -708,5 +1017,7 @@ export default function ClientsScreen() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
   if (route.clientId === 'templates') return <TemplatesScreen />
+  // Live sessions always take the whole screen, so they skip the desk
+  if (wide && route.section !== 'live') return <Desk clientId={route.clientId} section={route.section} />
   return route.clientId ? <ClientDetail clientId={route.clientId} section={route.section} /> : <ClientList />
 }
