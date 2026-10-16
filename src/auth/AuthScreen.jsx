@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from './AuthProvider.jsx'
+import { useLegal } from '../components/Legal.jsx'
 
 function friendlyError(error) {
   const message = error?.message ?? ''
@@ -50,6 +51,7 @@ export default function AuthScreen() {
   const [notice, setNotice] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const passwordRef = useRef(null)
+  const { link, doc } = useLegal()
 
   const isSignUp = mode === 'signUp'
   const isReset = mode === 'reset'
@@ -210,6 +212,12 @@ export default function AuthScreen() {
                 ? 'Create account'
                 : 'Sign in'}
         </button>
+        {isSignUp && (
+          <p className="text-center text-xs leading-relaxed text-muted">
+            By creating an account you agree to the {link('terms', 'Terms of use')} and{' '}
+            {link('privacy', 'Privacy policy')}.
+          </p>
+        )}
       </form>
 
       <p className="mt-8 text-center text-sm text-muted">
@@ -222,6 +230,11 @@ export default function AuthScreen() {
           {isSignUp || isReset ? 'Sign in' : 'Create an account'}
         </button>
       </p>
+      <p className="mt-6 flex justify-center gap-4 text-xs text-muted">
+        {link('privacy', 'Privacy')}
+        {link('terms', 'Terms')}
+      </p>
+      {doc}
     </main>
   )
 }
