@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
-import TabBar, { CLIENTS_TAB, TABS } from './components/TabBar.jsx'
+import TabBar, { CLIENTS_TAB, SideBar, TABS } from './components/TabBar.jsx'
 import { SCREENS } from './screens.jsx'
 import { AuthProvider, useAuth } from './auth/AuthProvider.jsx'
 import AuthScreen, { NewPasswordScreen } from './auth/AuthScreen.jsx'
@@ -8,6 +8,8 @@ import { fetchProfile } from './lib/profile.js'
 import { setMe } from './lib/me.js'
 import { LoadingCards } from './components/ui.jsx'
 import { CrashGuard, FeedbackHost, toast } from './components/Feedback.jsx'
+import { ConsentScreen } from './components/Legal.jsx'
+import { hasConsented } from './lib/account.js'
 
 // Screens most people don't open straight away load on demand, so the app starts faster
 const Onboarding = lazy(() => import('./screens/Onboarding.jsx'))
@@ -58,11 +60,13 @@ function AppShell({ profile }) {
   }
 
   const Screen = SCREENS[activeTab]
+  // On a laptop the Clients tab becomes a full-width desk; everything else stays a comfortable reading width
+  const desk = activeTab === CLIENTS_TAB.id
 
   return (
-    <div className="min-h-dvh bg-ink text-white">
+    <div className="min-h-dvh bg-ink text-white lg:pl-60">
       <main
-        className="mx-auto max-w-xl px-5"
+        className={`mx-auto max-w-xl px-5 lg:pb-12! ${desk ? 'lg:max-w-[1400px] lg:px-10' : 'lg:max-w-2xl lg:px-8'}`}
         style={{
           paddingTop: 'calc(env(safe-area-inset-top) + 2rem)',
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 6.5rem)',
@@ -75,6 +79,7 @@ function AppShell({ profile }) {
         </CrashGuard>
       </main>
       <TabBar activeTab={activeTab} onSelect={selectTab} tabs={tabs} />
+      <SideBar activeTab={activeTab} onSelect={selectTab} tabs={tabs} />
     </div>
   )
 }
@@ -108,7 +113,7 @@ function cacheProfile(userId, profile) {
   }
 }
 
-// Signed in: everyone answers the starting questionnaire once, then gets the app for their account type
+// Signed in: everyone agrees to the privacy policy, answers the starting questionnaire once, then gets the app
 function SignedIn({ userId }) {
   // Every query for "my" training uses this, so it's set before anything loads
   setMe(userId)
@@ -145,6 +150,7 @@ function SignedIn({ userId }) {
     )
   }
   if (profile === undefined) return <div className="min-h-dvh bg-ink" />
+  if (!hasConsented(profile)) return <ConsentScreen userId={userId} profile={profile} onDone={setProfile} />
   if (!profile?.onboarded_at) {
     return (
       <Suspense fallback={<div className="min-h-dvh bg-ink" />}>
