@@ -3,7 +3,7 @@ export function ScreenHeader({ title, intro }) {
     <header className="mb-8">
       <h1 className="font-display text-6xl font-bold uppercase leading-none tracking-tight">{title}</h1>
       <div aria-hidden="true" className="mt-3 h-1 w-10 bg-gold" />
-      {intro && <p className="mt-4 text-base text-muted">{intro}</p>}
+      {intro && <p className="mt-4 text-base leading-relaxed text-neutral-300">{intro}</p>}
     </header>
   )
 }
