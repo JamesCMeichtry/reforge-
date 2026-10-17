@@ -1103,13 +1103,16 @@ export default function LivingMap({ userId = me() }) {
       )}
       {selectedStructure && <StructurePanel entry={selectedStructure} onClose={() => setSelected(null)} />}
 
-      <p className="mt-6 text-xs leading-relaxed text-muted">
-        Injury colours move with your check-ins: a bad day shows straight away, recovery needs a run of good ones.
-        Muscles level up with XP: {XP.primarySet} for every set that works them, {XP.secondarySet} when they help out,
-        and {XP.checkIn} for each check-in in a week you trained them.{' '}
-        {XP_LEVELS.map((step) => `${step.xp.toLocaleString('en-GB')} XP is ${LEVELS[step.level].label}`).join(', ')}.
-        Leave one untrained for 3 weeks and it starts to fade. An injured area can't level up until it settles.
-      </p>
+      <details className="mt-6 rounded-2xl border border-line bg-panel px-4 py-3 text-xs leading-relaxed text-muted">
+        <summary className="cursor-pointer text-sm font-semibold text-white">How the colours and levels work</summary>
+        <p className="mt-2">
+          Injury colours move with your check-ins: a bad day shows straight away, recovery needs a run of good ones.
+          Muscles level up with XP: {XP.primarySet} for every set that works them, {XP.secondarySet} when they help out,
+          and {XP.checkIn} for each check-in in a week you trained them.{' '}
+          {XP_LEVELS.map((step) => `${step.xp.toLocaleString('en-GB')} XP is ${LEVELS[step.level].label}`).join(', ')}.
+          Leave one untrained for 3 weeks and it starts to fade. An injured area can't level up until it settles.
+        </p>
+      </details>
     </div>
   )
 }
