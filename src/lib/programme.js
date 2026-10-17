@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { me } from './me.js'
+import { amountText } from './measure.js'
 
 // Local calendar date (YYYY-MM-DD), so late-evening sessions count as today
 export const todayDate = () => new Date().toLocaleDateString('en-CA')
@@ -69,7 +70,7 @@ export async function fetchPreviousSets(exerciseNames, userId = me()) {
   if (!exerciseNames.length) return {}
   const { data, error } = await supabase
     .from('set_logs')
-    .select('exercise, session_date, set_number, weight_kg, band, reps')
+    .select('exercise, session_date, set_number, weight_kg, band, reps, unit')
     .eq('user_id', userId)
     .in('exercise', exerciseNames)
     .lt('session_date', todayDate())
@@ -90,7 +91,7 @@ export async function fetchPreviousSets(exerciseNames, userId = me()) {
 export async function fetchTodaySets(programmeId, dayName, userId = me()) {
   const { data, error } = await supabase
     .from('set_logs')
-    .select('id, exercise, set_number, weight_kg, band, reps')
+    .select('id, exercise, set_number, weight_kg, band, reps, unit')
     .eq('user_id', userId)
     .eq('programme_id', programmeId)
     .eq('day_name', dayName)
@@ -130,12 +131,13 @@ export function formatPrevious(previous) {
   if (!previous?.sets.length) return null
   const sets = [...previous.sets].sort((a, b) => a.set_number - b.set_number)
   const loadOf = (s) => (s.weight_kg != null ? `${Number(s.weight_kg)} kg` : s.band ? `${s.band} band` : '')
+  const amountOf = (s) => (s.reps == null ? '–' : amountText(s.reps, s.unit))
   const loads = new Set(sets.map(loadOf))
   if (loads.size === 1) {
     const load = loadOf(sets[0])
-    return `${load ? `${load} × ` : ''}${sets.map((s) => s.reps ?? '–').join(', ')}`
+    return `${load ? `${load} × ` : ''}${sets.map(amountOf).join(', ')}`
   }
-  return sets.map((s) => `${loadOf(s)} × ${s.reps ?? '–'}`).join(', ')
+  return sets.map((s) => `${loadOf(s)} × ${amountOf(s)}`).join(', ')
 }
 
 const toDate = (value) => new Date(`${value}T12:00:00`)
