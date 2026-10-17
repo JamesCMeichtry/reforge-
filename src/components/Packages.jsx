@@ -84,13 +84,10 @@ export function PackageCard({ clientId, clientName }) {
         type="button"
         onClick={newPackage}
         disabled={busy}
-        className="mb-5 flex w-full items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-4 py-3 text-left hover:border-gold"
+        className="mb-5 flex w-full items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-4 py-2.5 text-left text-sm hover:border-gold"
       >
-        <span>
-          <span className="block text-sm font-semibold text-white">Track 1-1 sessions</span>
-          <span className="block text-xs text-muted">Count live sessions against a package, like 10 paid upfront</span>
-        </span>
-        <span aria-hidden="true" className="text-xl font-bold text-gold">
+        <span className="font-semibold text-muted">Track 1-1 sessions</span>
+        <span aria-hidden="true" className="font-bold text-gold">
           +
         </span>
       </button>
