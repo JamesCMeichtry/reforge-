@@ -140,4 +140,81 @@ const kneeFriendly = {
   ],
 }
 
-export const REFORGE_TEMPLATES = [fullBody, upperLower, kneeFriendly].map((t) => ({ ...t, builtIn: true }))
+const hyrox = {
+  id: 'rf-hyrox-prep',
+  name: 'HYROX prep',
+  description:
+    'Four days building towards a HYROX race: running engine, station strength, running on tired legs and a half-race simulation. Distances are race standard; scale the sled and wall ball weights to the client.',
+  days: [
+    day('rf-hx-1', 'Day 1', 'Running engine', [
+      ex('Warm-up', 'Rowing erg', 1, '5 min', bw, { note: 'Easy pace.' }),
+      ex('Warm-up', 'Skipping', 2, '45 s', bw, { rest: 30 }),
+      ex('Main', 'Run', 6, '800 m', bw, { rest: 90, note: 'At goal race pace or a touch quicker.' }),
+      ex('Main', 'SkiErg', 4, '500 m', bw, { rest: 90 }),
+      ex('Main', 'Plank', 3, '45 s', bw, { rest: 45 }),
+    ]),
+    day('rf-hx-2', 'Day 2', 'Station strength', [
+      ex('Warm-up', 'Bike', 1, '5 min', bw),
+      ex('Warm-up', '90/90 hip switch', 1, '8 each side', bw),
+      ex('Main', 'Sled push', 5, '25 m', kg(), { rest: 120, note: 'Low hips, drive through the balls of the feet.' }),
+      ex('Main', 'Sled pull', 5, '25 m', kg(), { rest: 120, note: 'Hand over hand, sit back into it.' }),
+      ex('Main', 'Sandbag lunge', 3, '25 m', kg(), { rest: 90 }),
+      ex('Main', 'Farmer carry', 4, '50 m', kg(), { rest: 60 }),
+      ex('Main', 'Wall ball', 4, '20', kg(), { rest: 60, note: 'Full depth squat, hit the target every rep.' }),
+    ]),
+    day('rf-hx-3', 'Day 3', 'Running on tired legs', [
+      ex('Warm-up', 'Bike', 1, '5 min', bw),
+      ex('Main', 'Run', 4, '1 km', bw, { rest: 15, note: 'Go straight from each run into the next station.' }),
+      ex('Main', 'Burpee broad jump', 4, '20 m', bw, { rest: 15 }),
+      ex('Main', 'Rowing erg', 4, '500 m', bw, { rest: 15 }),
+      ex('Main', 'Farmer carry', 4, '100 m', kg(), {
+        rest: 120,
+        note: 'Rest after the carry, then start the next round.',
+      }),
+    ]),
+    day('rf-hx-4', 'Day 4', 'Half-race simulation', [
+      ex('Warm-up', 'Run', 1, '1 km', bw, { note: 'Easy, then mobilise.' }),
+      ex('Main', 'SkiErg', 1, '1000 m', bw, { rest: 15, note: 'Run 1 km before each station.' }),
+      ex('Main', 'Sled push', 1, '50 m', kg(), { rest: 15 }),
+      ex('Main', 'Sled pull', 1, '50 m', kg(), { rest: 15 }),
+      ex('Main', 'Burpee broad jump', 1, '80 m', bw, { rest: 15 }),
+      ex('Main', 'Wall ball', 1, '50', kg(), { rest: 15, note: 'Half the race total. Note the finish time.' }),
+    ]),
+  ],
+}
+
+const hiit = {
+  id: 'rf-hiit',
+  name: 'HIIT conditioning',
+  description:
+    'Three short, hard sessions for fitness and fat loss: timed intervals, machine sprints and a strength circuit. Work hard in the work periods and take the full rest.',
+  days: [
+    day('rf-hi-1', 'Day A', 'Full-body intervals', [
+      ex('Warm-up', 'Bike', 1, '5 min', bw),
+      ex('Warm-up', 'Skipping', 2, '30 s', bw, { rest: 30 }),
+      ex('Main', 'Kettlebell swing', 5, '40 s', kg(), { rest: 20, note: 'Hips drive the bell, not the arms.' }),
+      ex('Main', 'Burpee', 5, '40 s', bw, { rest: 20 }),
+      ex('Main', 'Jump squat', 5, '30 s', bw, { rest: 30, note: 'Land soft and quiet.' }),
+      ex('Main', 'Mountain climber', 5, '40 s', bw, { rest: 20 }),
+      ex('Main', 'Plank', 3, '45 s', bw, { rest: 30 }),
+    ]),
+    day('rf-hi-2', 'Day B', 'Machine sprints', [
+      ex('Warm-up', 'Rowing erg', 1, '5 min', bw),
+      ex('Main', 'Assault bike', 8, '20 s', bw, { rest: 40, note: 'All-out every sprint.' }),
+      ex('Main', 'Rowing erg', 6, '250 m', bw, { rest: 60 }),
+      ex('Main', 'Battle ropes', 5, '30 s', bw, { rest: 30 }),
+      ex('Main', 'Farmer carry', 4, '40 m', kg(), { rest: 45 }),
+    ]),
+    day('rf-hi-3', 'Day C', 'Strength circuit', [
+      ex('Warm-up', 'Skipping', 2, '45 s', bw, { rest: 30 }),
+      ex('Main', 'Thruster', 4, '12', kg(), { rest: 30 }),
+      ex('Main', 'Push-up', 4, '15', bw, { rest: 30 }),
+      ex('Main', 'Kettlebell swing', 4, '15', kg(), { rest: 30 }),
+      ex('Main', 'Box jump', 4, '8', bw, { rest: 30, note: 'Step down, don’t jump down.' }),
+      ex('Main', 'Devil press', 3, '10', kg(), { rest: 60 }),
+      ex('Main', 'Dead bug', 3, '10 each side', bw, { rest: 30 }),
+    ]),
+  ],
+}
+
+export const REFORGE_TEMPLATES = [fullBody, upperLower, kneeFriendly, hyrox, hiit].map((t) => ({ ...t, builtIn: true }))
