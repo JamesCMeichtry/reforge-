@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import StreakCard from '../components/StreakCard.jsx'
 import { LoadingCards, ScreenHeader, buttonSecondary } from '../components/ui.jsx'
-import { fetchRecentCheckIns } from '../lib/checkins.js'
-import { feelingTimeline, fetchSetHistory, shortDate, tinyDate, topSets, weightedExercises } from '../lib/progress.js'
+import { fetchSetHistory, tinyDate, topSets, weightedExercises } from '../lib/progress.js'
 
 function Card({ title, aside, children }) {
   return (
@@ -84,88 +83,14 @@ function StrengthChart({ history }) {
   )
 }
 
-function FeelingChart({ checkIns }) {
-  const points = useMemo(() => feelingTimeline(checkIns), [checkIns])
-  if (points.length < 2) {
-    return (
-      <Card title="How you feel">
-        <p className="mt-2 text-neutral-300">
-          After a couple of check-ins, this shows the ups and downs of your recovery as one line.
-        </p>
-      </Card>
-    )
-  }
-
-  const W = 300
-  const H = 140
-  const pad = { l: 22, r: 8, t: 10, b: 22 }
-  const x = (i) => pad.l + (i / (points.length - 1)) * (W - pad.l - pad.r)
-  const y = (v) => pad.t + (1 - v / 10) * (H - pad.t - pad.b)
-  const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.feeling).toFixed(1)}`).join(' ')
-  const area = `${line} L${x(points.length - 1).toFixed(1)},${y(0)} L${x(0).toFixed(1)},${y(0)} Z`
-  const latest = points.at(-1).feeling
-  const trend = latest - points.at(-2).feeling
-
-  return (
-    <Card title="How you feel" aside={`${latest}/10 ${trend > 0 ? '▲' : trend < 0 ? '▼' : ''}`}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" aria-label="Overall feeling over time">
-        <defs>
-          <linearGradient id="feel-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" style={{ stopColor: 'var(--color-gold)', stopOpacity: 0.35 }} />
-            <stop offset="100%" style={{ stopColor: 'var(--color-gold)', stopOpacity: 0 }} />
-          </linearGradient>
-        </defs>
-        {[0, 5, 10].map((v) => (
-          <g key={v}>
-            <line
-              x1={pad.l}
-              x2={W - pad.r}
-              y1={y(v)}
-              y2={y(v)}
-              style={{ stroke: 'var(--chart-grid)' }}
-              strokeDasharray={v === 5 ? '3 3' : undefined}
-            />
-            <text x={pad.l - 6} y={y(v) + 3} style={{ fill: 'var(--color-muted)' }} fontSize="9" textAnchor="end">
-              {v}
-            </text>
-          </g>
-        ))}
-        <path d={area} fill="url(#feel-fill)" />
-        <path
-          d={line}
-          fill="none"
-          style={{ stroke: 'var(--color-gold)' }}
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          className="draw-line"
-        />
-        {points.map((p, i) => (
-          <circle key={p.date} cx={x(i)} cy={y(p.feeling)} r={p.flag ? 4 : 2.5} style={{ fill: p.flag ? '#dc2626' : 'var(--color-gold)' }} />
-        ))}
-        <text x={pad.l} y={H - 6} style={{ fill: 'var(--color-muted)' }} fontSize="9">
-          {shortDate(points[0].date)}
-        </text>
-        <text x={W - pad.r} y={H - 6} style={{ fill: 'var(--color-muted)' }} fontSize="9" textAnchor="end">
-          {shortDate(points.at(-1).date)}
-        </text>
-      </svg>
-      <p className="mt-2 text-sm text-muted">
-        10 is pain-free, averaged across your injuries. Red dots mark days with warning signs. Each injury's detail is
-        on the Rehab tab.
-      </p>
-    </Card>
-  )
-}
-
 export default function ProgressScreen() {
   const [state, setState] = useState({ status: 'loading' })
 
   useEffect(() => {
     if (state.status !== 'loading') return
     let cancelled = false
-    Promise.all([fetchSetHistory(), fetchRecentCheckIns(120)])
-      .then(([history, checkIns]) => !cancelled && setState({ status: 'ready', history, checkIns }))
+    fetchSetHistory()
+      .then((history) => !cancelled && setState({ status: 'ready', history }))
       .catch(() => !cancelled && setState({ status: 'error' }))
     return () => {
       cancelled = true
@@ -174,7 +99,10 @@ export default function ProgressScreen() {
 
   return (
     <>
-      <ScreenHeader title="Progress" intro="Your streak, how you feel and your strength, over time." />
+      <ScreenHeader
+        title="Progress"
+        intro="Your streak and your strength over time. How each injury is going lives on Rehab."
+      />
       <div className="mb-4">
         <StreakCard />
       </div>
@@ -187,12 +115,7 @@ export default function ProgressScreen() {
           </button>
         </div>
       )}
-      {state.status === 'ready' && (
-        <div className="space-y-4">
-          <FeelingChart checkIns={state.checkIns} />
-          <StrengthChart history={state.history} />
-        </div>
-      )}
+      {state.status === 'ready' && <StrengthChart history={state.history} />}
     </>
   )
 }
