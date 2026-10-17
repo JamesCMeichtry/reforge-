@@ -207,6 +207,7 @@ export function setRow(session, exercise, set) {
     weight_kg: set.weight_kg ?? null,
     band: set.band ?? null,
     reps: set.reps ?? null,
+    unit: set.unit ?? null,
     rpe: set.rpe ?? null,
     pain: set.pain ?? null,
     pain_area: set.pain != null ? (set.pain_area ?? null) : null,
@@ -225,7 +226,7 @@ export function historyByExercise(rows, excludeIds = new Set()) {
     const entry = map.get(row.exercise) ?? { best: null, last: null }
     const weight = row.weight_kg != null ? Number(row.weight_kg) : null
     if (weight != null && (!entry.best || weight > entry.best.weight)) {
-      entry.best = { weight, reps: row.reps ?? 0, date: row.session_date }
+      entry.best = { weight, reps: row.reps ?? 0, unit: row.unit ?? null, date: row.session_date }
     }
     if (!entry.last || row.session_date > entry.last.date) entry.last = { date: row.session_date, sets: [row] }
     else if (row.session_date === entry.last.date) entry.last.sets.push(row)
