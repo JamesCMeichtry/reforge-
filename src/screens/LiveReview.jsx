@@ -14,6 +14,7 @@ import {
 import { recordChange } from '../lib/coaching.js'
 import { applyChanges, flush, historyByExercise, newId, persistLive, queueWrite } from '../lib/live.js'
 import { fetchActiveProgramme, saveProgrammeDays } from '../lib/programme.js'
+import { amountText, countsReps } from '../lib/measure.js'
 
 // The end of a live session: what happened, which changes to keep, and a message for the client
 /* ---------- Review and finish ---------- */
@@ -24,7 +25,10 @@ function summarise(session, history, sites) {
     return { exercise, sets, status: statusOf(exercise, sets), notes: session.notes[exercise.id] ?? [] }
   })
   const allSets = exercises.flatMap((e) => e.sets.map((s) => ({ ...s, exercise: e.exercise.name })))
-  const volume = Math.round(allSets.reduce((sum, s) => sum + (Number(s.weight_kg) || 0) * (Number(s.reps) || 0), 0))
+  // Kg moved counts rep sets only: a 50 m sled push isn't 50 reps
+  const volume = Math.round(
+    allSets.filter(countsReps).reduce((sum, s) => sum + (Number(s.weight_kg) || 0) * (Number(s.reps) || 0), 0),
+  )
   const ids = new Set(allSets.map((s) => s.id))
   const past = historyByExercise(history, ids)
   const pbs = []
@@ -32,7 +36,13 @@ function summarise(session, history, sites) {
     const best = past.get(e.exercise.name)?.best
     const top = e.sets.filter((s) => s.weight_kg != null).sort((a, b) => b.weight_kg - a.weight_kg)[0]
     if (best && top && top.weight_kg > best.weight) {
-      pbs.push({ exercise: e.exercise.name, weight: top.weight_kg, reps: top.reps, previous: best.weight })
+      pbs.push({
+        exercise: e.exercise.name,
+        weight: top.weight_kg,
+        reps: top.reps,
+        unit: top.unit ?? null,
+        previous: best.weight,
+      })
     }
   }
   const painByArea = new Map()
@@ -158,7 +168,7 @@ export function Review({ session, history, sites, clientName, onBack, onFinished
               >
                 <span className="font-semibold text-white">{pb.exercise}</span>
                 <span className="text-sm font-bold text-gold">
-                  {fmt(pb.weight)} kg × {pb.reps}{' '}
+                  {fmt(pb.weight)} kg × {amountText(pb.reps, pb.unit)}{' '}
                   <span className="font-normal text-muted">(was {fmt(pb.previous)})</span>
                 </span>
               </li>
