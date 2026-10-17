@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { buttonPrimary, inputBase } from './ui.jsx'
 import { searchExercises, similarExercises } from '../data/exerciseLibrary.js'
+import { UNITS, unitOf, unitToSave } from '../lib/measure.js'
 import {
   BANDS,
   ChipPicker,
@@ -11,7 +12,6 @@ import {
   Sheet,
   Stepper,
   fmt,
-  isTimed,
   toNumber,
 } from './LiveParts.jsx'
 
@@ -31,10 +31,11 @@ export function TargetFields({ value, onChange }) {
         />
       </label>
       <label className="text-xs font-medium text-muted">
-        Reps
+        Reps, time or distance
         <input
           value={value.reps}
           onChange={(event) => set({ reps: event.target.value })}
+          placeholder="10, 40 s, 50 m, 15 cal"
           className={`mt-1 ${inputBase}`}
         />
       </label>
@@ -322,7 +323,7 @@ export function NoteSheet({ title, chips, initial = '', onClose, onSave }) {
 
 export function SetSheet({ exercise, set, sites, onClose, onSave, onDelete }) {
   const kind = exercise.load?.kind ?? 'bodyweight'
-  const timed = isTimed(exercise.reps)
+  const unit = set.unit ?? unitOf(exercise.reps)
   const [entry, setEntry] = useState({
     weight: set.weight_kg != null ? fmt(Number(set.weight_kg)) : '',
     band: set.band,
@@ -341,9 +342,9 @@ export function SetSheet({ exercise, set, sites, onClose, onSave, onDelete }) {
           <Stepper label="kg" value={entry.weight} step={2.5} onChange={(weight) => change({ weight })} />
         )}
         <Stepper
-          label={timed ? 'seconds' : 'reps'}
+          label={UNITS[unit].label}
           value={entry.reps}
-          step={timed ? 5 : 1}
+          step={UNITS[unit].step}
           numeric
           onChange={(reps) => change({ reps })}
         />
@@ -366,6 +367,7 @@ export function SetSheet({ exercise, set, sites, onClose, onSave, onDelete }) {
             weight_kg: kind === 'kg' && Number.isFinite(weight) ? weight : null,
             band: kind === 'band' ? entry.band : null,
             reps: parseInt(entry.reps, 10) || 0,
+            unit: unitToSave(unit),
             rpe: entry.rpe,
             pain: entry.pain,
             pain_area: entry.pain != null ? area : null,
