@@ -554,7 +554,6 @@ const SECTIONS = [
   ['assessment', 'Assessment'],
   ['injuries', 'Injuries'],
   ['rehab', 'Rehab'],
-  ['checkins', 'Check-ins'],
   ['sessions', 'Sessions'],
   ['programme', 'Programme'],
   ['notes', 'Notes'],
@@ -592,7 +591,9 @@ function LiveButton({ clientId }) {
   )
 }
 
-function ClientDetail({ clientId, section, desk = false }) {
+function ClientDetail({ clientId, section: requested, desk = false }) {
+  // Check-ins now live inside Rehab, so older links to them land there
+  const section = requested === 'checkins' ? 'rehab' : requested
   const [client, setClient] = useState(null)
   const setSection = (id) => (window.location.hash = `clients/${clientId}/${id}`)
 
@@ -669,14 +670,14 @@ function ClientDetail({ clientId, section, desk = false }) {
         <LiveButton clientId={clientId} />
         <PackageCard clientId={clientId} clientName={client.display_name} />
       </div>
-      <div className="-mx-5 mb-5 flex gap-2 overflow-x-auto px-5 pb-1" role="group" aria-label="Client sections">
+      <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Client sections">
         {SECTIONS.map(([id, label]) => (
           <button
             key={id}
             type="button"
             onClick={() => setSection(id)}
             aria-pressed={section === id}
-            className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold ${
+            className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${
               section === id ? 'border-gold text-gold' : 'border-line text-muted hover:text-white'
             }`}
           >
@@ -690,7 +691,7 @@ function ClientDetail({ clientId, section, desk = false }) {
           <div className="grid items-start gap-8 xl:grid-cols-2">
             <LivingMap key={clientId} userId={clientId} />
             <div>
-              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-muted">Recent check-ins</h2>
+              <h2 className="mb-3 font-display text-2xl font-semibold">Latest check-ins</h2>
               <CheckIns clientId={clientId} />
             </div>
           </div>
@@ -702,7 +703,6 @@ function ClientDetail({ clientId, section, desk = false }) {
       )}
       {section === 'injuries' && <InjuryEditor key={clientId} userId={clientId} />}
       {section === 'rehab' && <CoachRehab key={clientId} clientId={clientId} clientName={client.display_name} />}
-      {section === 'checkins' && <CheckIns clientId={clientId} />}
       {section === 'sessions' && <Sessions clientId={clientId} />}
       {section === 'programme' && (
         <ProgrammeView
