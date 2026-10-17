@@ -37,14 +37,28 @@ function Flame({ lit }) {
         strokeWidth="1.4"
         strokeLinejoin="round"
       />
-      {lit && <path d="M12 12.4c.5 1.6 2.4 2.5 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1.6 1.1-2.8 2.4-4.6Z" fill="#fff6d8" opacity="0.85" />}
+      {lit && (
+        <path
+          d="M12 12.4c.5 1.6 2.4 2.5 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1.6 1.1-2.8 2.4-4.6Z"
+          fill="#fff6d8"
+          opacity="0.85"
+        />
+      )}
     </svg>
   )
 }
 
 function Snowflake() {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4 shrink-0"
+      fill="none"
+      stroke="#38bdf8"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
       <path d="M12 2v20M4.9 6.5l14.2 11M4.9 17.5l14.2-11M9.5 3.8 12 6l2.5-2.2M9.5 20.2 12 18l2.5 2.2" />
     </svg>
   )
@@ -129,9 +143,7 @@ export default function StreakCard() {
             <span className={`font-display text-6xl font-bold leading-none ${doneToday ? 'text-gold' : 'text-white'}`}>
               {current}
             </span>
-            <span className="font-display text-xl font-semibold uppercase tracking-wide text-muted">
-              day streak
-            </span>
+            <span className="font-display text-xl font-semibold uppercase tracking-wide text-muted">day streak</span>
           </p>
           <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted">Best {best}</p>
         </div>
@@ -139,8 +151,11 @@ export default function StreakCard() {
 
       <p className={`mt-4 text-sm ${atRisk ? 'font-semibold text-white' : 'text-muted'}`}>{message}</p>
       {atRisk && (
-        <a href="#rehab" className="mt-3 inline-block rounded-xl border border-gold px-4 py-2 text-sm font-semibold text-gold">
-          Quick check-in
+        <a
+          href="#today"
+          className="mt-3 inline-block rounded-xl border border-gold px-4 py-2 text-sm font-semibold text-gold"
+        >
+          Check in on Today
         </a>
       )}
 
@@ -151,7 +166,10 @@ export default function StreakCard() {
             <span>{target - current} to go</span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-line">
-            <div className="h-full rounded-full bg-gold transition-[width] duration-700" style={{ width: `${Math.max(progress * 100, 4)}%` }} />
+            <div
+              className="h-full rounded-full bg-gold transition-[width] duration-700"
+              style={{ width: `${Math.max(progress * 100, 4)}%` }}
+            />
           </div>
         </div>
       )}
