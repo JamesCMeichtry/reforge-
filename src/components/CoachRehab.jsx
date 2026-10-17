@@ -52,6 +52,10 @@ function AreaPlan({ clientId, clientName, site, checkIns, saved }) {
   const scores = checkIns.map(score).filter((v) => v != null)
   const direction = trend(scores)
   const latest = checkIns.at(-1)
+  const flagged = checkIns
+    .slice(-5)
+    .filter((c) => c.red_flag)
+    .at(-1)
   const dirty = () => setState('idle')
 
   async function save() {
@@ -80,8 +84,11 @@ function AreaPlan({ clientId, clientName, site, checkIns, saved }) {
             ? `Last check-in ${daysAgo(latest.session_date).toLowerCase()}: ${score(latest) ?? latest.pain_during ?? '–'}/10`
             : 'No check-ins yet.'}
           {direction && <span className={`font-semibold ${direction.tone}`}> · {direction.label}</span>}
-          {checkIns.slice(-5).some((c) => c.red_flag) && (
-            <span className="font-semibold text-red-400"> · Warning signs reported</span>
+          {flagged && (
+            <span className="font-semibold text-red-400">
+              {' '}
+              · {flagged.notes ?? 'Warning signs reported'} ({daysAgo(flagged.session_date).toLowerCase()})
+            </span>
           )}
         </p>
         <PainChart checkIns={checkIns} />
