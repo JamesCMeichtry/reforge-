@@ -87,7 +87,6 @@ export default function TodayScreen() {
     <>
       <ScreenHeader title="Today" intro={`${greeting()}. ${date}.`} />
       <div className="space-y-4">
-        <MorningCheck />
         {state.status === 'loading' && <LoadingCards count={2} height="h-36" label="Loading today" />}
         {state.status === 'error' && (
           <div>
@@ -139,6 +138,7 @@ export default function TodayScreen() {
             </a>
           </section>
         )}
+        <MorningCheck />
         {state.status === 'ready' && <WeekStrip trainedDates={state.recent.dates} />}
       </div>
     </>
