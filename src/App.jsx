@@ -1,4 +1,8 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useLayoutEffect, useState } from 'react'
+// Page transitions first, so it hears address changes before any screen does
+import './lib/transitions.js'
+import './motion.css'
+import { startMotion } from './lib/motion.js'
 import TabBar, { CLIENTS_TAB, SideBar, TABS } from './components/TabBar.jsx'
 import { SCREENS } from './screens.jsx'
 import { AuthProvider, useAuth } from './auth/AuthProvider.jsx'
@@ -10,6 +14,8 @@ import { LoadingCards } from './components/ui.jsx'
 import { CrashGuard, FeedbackHost, toast } from './components/Feedback.jsx'
 import { ConsentScreen } from './components/Legal.jsx'
 import { hasConsented } from './lib/account.js'
+
+startMotion()
 
 // Screens most people don't open straight away load on demand, so the app starts faster
 const Onboarding = lazy(() => import('./screens/Onboarding.jsx'))
@@ -43,7 +49,8 @@ function AppShell({ profile }) {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [tabs.length])
 
-  useEffect(() => {
+  // Before the screen is drawn, so a page transition starts from the top of the new page
+  useLayoutEffect(() => {
     window.scrollTo(0, 0)
   }, [route])
 
