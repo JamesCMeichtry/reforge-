@@ -58,6 +58,16 @@ main > :nth-child(n + 4) {
   animation-delay: 150ms;
 }
 
+/* Section titles: every card heading in the display font is bold and in capitals, so each new section is obvious.
+   Small gold labels above a title (like "CHECK-IN · 30 SECONDS") stay as they are. */
+h2.font-display,
+h3.font-display.text-2xl {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+}
+
 /* Buttons press down slightly when tapped */
 button:not(:disabled):active {
   transform: scale(0.97);
