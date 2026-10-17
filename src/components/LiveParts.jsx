@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { subscribeSync } from '../lib/live.js'
+import { amountText } from '../lib/measure.js'
 
 // Shared pieces of the live session screens: helpers, steppers, set details and bottom sheets
 /* ---------- Small helpers ---------- */
@@ -53,7 +54,9 @@ export const painColour = (value) =>
 
 export function setSummary(set, kind) {
   const load = set.weight_kg != null ? `${fmt(Number(set.weight_kg))} kg × ` : set.band ? `${set.band} × ` : ''
-  return `${load}${set.reps ?? '✓'}${kind === 'timed' ? ' s' : ''}`
+  // Sets saved with a unit say so; older timed sets fall back to the exercise's target
+  const unit = set.unit ?? (kind === 'timed' ? 's' : 'reps')
+  return `${load}${set.reps == null ? '✓' : amountText(set.reps, unit)}`
 }
 
 export function statusOf(exercise, sets) {
