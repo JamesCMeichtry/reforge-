@@ -27,6 +27,7 @@ import { loadLive } from '../lib/live.js'
 import { fetchSetHistory, shortDate } from '../lib/progress.js'
 import { useWide } from '../lib/useWide.js'
 import { PackageCard } from '../components/Packages.jsx'
+import { UNITS, amountText } from '../lib/measure.js'
 
 // #clients is the list, #clients/<id>/<section> is one client
 const hashParts = () => window.location.hash.replace('#', '').split('/')
@@ -263,7 +264,8 @@ function SetChip({ set, onChanged, onDeleted, onRestored }) {
   const [weight, setWeight] = useState(set.weight_kg != null ? String(Number(set.weight_kg)) : '')
   const [reps, setReps] = useState(set.reps != null ? String(set.reps) : '')
   const [busy, setBusy] = useState(false)
-  const label = `${set.weight_kg != null ? `${Number(set.weight_kg)} kg × ` : ''}${set.reps ?? '–'}`
+  const label = `${set.weight_kg != null ? `${Number(set.weight_kg)} kg × ` : ''}${set.reps == null ? '–' : amountText(set.reps, set.unit)}`
+  const measure = UNITS[set.unit ?? 'reps']
 
   async function save() {
     setBusy(true)
@@ -320,8 +322,8 @@ function SetChip({ set, onChanged, onDeleted, onRestored }) {
         value={reps}
         onChange={(event) => setReps(event.target.value.replace(/\D/g, ''))}
         inputMode="numeric"
-        placeholder="reps"
-        aria-label="Reps"
+        placeholder={measure.short}
+        aria-label={measure.label.charAt(0).toUpperCase() + measure.label.slice(1)}
         className={`${inputBase} w-14 text-center`}
       />
       <button type="button" onClick={save} disabled={busy} className="px-1 text-sm font-semibold text-gold">
