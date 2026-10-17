@@ -1,20 +1,8 @@
 import { useEffect, useState } from 'react'
 import { buttonPrimary, buttonSecondary } from './ui.jsx'
-import {
-  BANDS,
-  SET_NOTES,
-  SetExtras,
-  Stepper,
-  buzz,
-  clock,
-  firstNumber,
-  fmt,
-  isTimed,
-  targetSets,
-  toNumber,
-  useNow,
-} from './LiveParts.jsx'
+import { BANDS, SET_NOTES, SetExtras, Stepper, buzz, clock, fmt, targetSets, toNumber, useNow } from './LiveParts.jsx'
 import { NoteSheet } from './LiveSheets.jsx'
+import { UNITS, amountText, targetAmount, unitOf, unitToSave } from '../lib/measure.js'
 
 /* ---------- Logging a set ---------- */
 
@@ -22,7 +10,7 @@ function prefill(exercise, sets, past) {
   const kind = exercise.load?.kind ?? 'bodyweight'
   const lastHere = sets[sets.length - 1]
   const lastTime = past?.last?.sets[sets.length] ?? past?.last?.sets[past.last.sets.length - 1]
-  const target = firstNumber(exercise.reps)
+  const target = targetAmount(exercise.reps)
   return {
     weight:
       kind !== 'kg'
@@ -33,7 +21,7 @@ function prefill(exercise, sets, past) {
             ? fmt(Number(lastTime.weight_kg))
             : fmt(toNumber(exercise.load.value) || 0),
     band: kind === 'band' ? (lastHere?.band ?? exercise.load.value ?? 'Medium') : null,
-    reps: String(lastHere?.reps ?? lastTime?.reps ?? (Number.isFinite(target) ? target : 10)),
+    reps: String(lastHere?.reps ?? lastTime?.reps ?? target ?? 10),
     rpe: null,
     pain: null,
     form: null,
@@ -43,7 +31,7 @@ function prefill(exercise, sets, past) {
 
 // When every set last time hit the top of the rep target, suggest the next jump in load
 function progression(exercise, past) {
-  if (exercise.load?.kind !== 'kg' || !past?.last?.sets.length) return null
+  if (exercise.load?.kind !== 'kg' || unitOf(exercise.reps) !== 'reps' || !past?.last?.sets.length) return null
   const top = Math.max(...(String(exercise.reps).match(/\d+/g) ?? ['0']).map(Number))
   const sets = past.last.sets.filter((s) => s.weight_kg != null)
   if (!top || sets.length < targetSets(exercise) || sets.some((s) => (s.reps ?? 0) < top)) return null
@@ -57,7 +45,7 @@ export function EntryPanel({ exercise, sets, past, sites, rest, onRestChange, on
   const [noteOpen, setNoteOpen] = useState(false)
   const [extra, setExtra] = useState(false)
   const kind = exercise.load?.kind ?? 'bodyweight'
-  const timed = isTimed(exercise.reps)
+  const unit = unitOf(exercise.reps)
   const done = sets.length >= targetSets(exercise)
   const suggestion = sets.length === 0 ? progression(exercise, past) : null
   const set = (changes) => setEntry((current) => ({ ...current, ...changes }))
@@ -68,6 +56,7 @@ export function EntryPanel({ exercise, sets, past, sites, rest, onRestChange, on
       weight_kg: kind === 'kg' && Number.isFinite(weight) ? weight : null,
       band: kind === 'band' ? entry.band : null,
       reps: parseInt(entry.reps, 10) || 0,
+      unit: unitToSave(unit),
       rpe: entry.rpe,
       pain: entry.pain,
       pain_area: entry.pain != null ? area : null,
@@ -134,9 +123,9 @@ export function EntryPanel({ exercise, sets, past, sites, rest, onRestChange, on
               </div>
             )}
             <Stepper
-              label={timed ? 'seconds' : 'reps'}
+              label={UNITS[unit].label}
               value={entry.reps}
-              step={timed ? 5 : 1}
+              step={UNITS[unit].step}
               numeric
               onChange={(reps) => set({ reps })}
             />
@@ -226,7 +215,7 @@ export function PbBurst({ pb }) {
       <div className="pb-burst rounded-3xl border-2 border-gold bg-ink px-8 py-6 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.3em] text-gold">New personal best</p>
         <p className="mt-2 whitespace-nowrap font-display text-4xl font-bold uppercase leading-none text-white">
-          {fmt(pb.weight)} kg × {pb.reps}
+          {fmt(pb.weight)} kg × {amountText(pb.reps, pb.unit)}
         </p>
         <p className="mt-2 text-sm text-muted">
           {pb.name} · was {fmt(pb.previous.weight)} kg
