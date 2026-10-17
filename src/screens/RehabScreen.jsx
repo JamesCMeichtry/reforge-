@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import CheckInForm from '../components/CheckInForm.jsx'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary } from '../components/ui.jsx'
 import { fetchInjurySites, fetchRecentCheckIns, painWord } from '../lib/checkins.js'
 import { fetchMyPros, fetchRehabPlans } from '../lib/pro.js'
@@ -333,7 +332,7 @@ function AreaCard({ site, checkIns, coach, coachPlan }) {
           </>
         ) : (
           <p className="mt-4 text-sm text-muted">
-            No check-ins yet. Do a quick one above, or one after your next session.
+            No check-ins yet. Check in from the Today tab, or after your next session.
           </p>
         )}
       </div>
@@ -372,7 +371,6 @@ function HowItWorks({ coach }) {
 
 export default function RehabScreen() {
   const [state, setState] = useState({ status: 'loading' })
-  const [checkingIn, setCheckingIn] = useState(false)
 
   useEffect(() => {
     if (state.status !== 'loading') return
@@ -432,36 +430,19 @@ export default function RehabScreen() {
       )}
       {ready && state.sites.length > 0 && (
         <div className="space-y-4">
-          {checkingIn ? (
-            <CheckInForm
-              sites={state.sites}
-              title="Quick check-in"
-              quick
-              onSaved={() =>
-                setTimeout(() => {
-                  setCheckingIn(false)
-                  setState({ status: 'loading' })
-                }, 1500)
-              }
-            />
-          ) : (
-            <section className="rounded-2xl border border-line bg-panel p-5">
-              <p className="text-sm text-muted">
-                {checkedToday
-                  ? "You've checked in today. Nice."
-                  : lastDate
-                    ? `Last check-in ${daysAgo(lastDate).toLowerCase()}. 30 seconds keeps ${state.coach ? (state.coach.display_name ?? 'your coach') : 'your stages and streak'} up to date.`
-                    : 'Your first check-in takes 30 seconds and starts your recovery ladder.'}
-              </p>
-              <button
-                type="button"
-                onClick={() => setCheckingIn(true)}
-                className={`mt-4 w-full ${checkedToday ? buttonSecondary : buttonPrimary}`}
-              >
-                {checkedToday ? 'Check in again' : 'Check in now'}
-              </button>
-            </section>
-          )}
+          <a
+            href="#today"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-panel px-5 py-4 text-sm hover:border-gold"
+          >
+            <span className="text-neutral-300">
+              {checkedToday
+                ? "You've checked in today. Nice."
+                : lastDate
+                  ? `Last check-in ${daysAgo(lastDate).toLowerCase()}`
+                  : 'No check-ins yet'}
+            </span>
+            {!checkedToday && <span className="shrink-0 font-semibold text-gold">Check in on Today ›</span>}
+          </a>
           {cards.map(({ site, checkIns, coachPlan }) => (
             <AreaCard key={site.areaId} site={site} checkIns={checkIns} coach={state.coach} coachPlan={coachPlan} />
           ))}
