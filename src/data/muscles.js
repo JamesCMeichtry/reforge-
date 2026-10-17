@@ -77,6 +77,25 @@ export const MUSCLES = {
 
 // Which muscles each exercise trains, matched from its name. First matching rule wins.
 const RULES = [
+  // HYROX stations, HIIT and conditioning. These come first so a rowing machine isn't read as a back row.
+  [/ski-?erg|\bski\b/, ['lats', 'triceps-long'], ['abs', 'glute-max', 'rear-delt']],
+  [/rower|rowing|row erg|\berg\b/, ['quad-front', 'glute-max', 'lats'], ['hamstring-outer', 'mid-traps', 'biceps-long']],
+  [/sled push/, ['quad-front', 'quad-outer', 'glute-max'], ['calf-inner', 'calf-outer', 'front-delt', 'triceps-lateral']],
+  [/sled pull|sled drag|rope pull/, ['lats', 'hamstring-outer', 'hamstring-inner', 'glute-max'], ['biceps-long', 'forearm-flexors', 'mid-traps']],
+  [/burpee/, ['mid-chest', 'quad-front', 'glute-max'], ['front-delt', 'triceps-lateral', 'abs', 'calf-inner']],
+  [/wall ?ball|thruster/, ['quad-front', 'glute-max', 'front-delt'], ['triceps-long', 'quad-outer', 'abs']],
+  [/devil press|man ?maker/, ['front-delt', 'glute-max', 'mid-chest'], ['triceps-long', 'hamstring-outer', 'quad-front']],
+  [/sandbag/, ['quad-front', 'glute-max', 'upper-trap'], ['quad-outer', 'glute-med', 'abs']],
+  [/farmer|suitcase carry|\bcarry\b/, ['forearm-flexors', 'upper-trap'], ['obliques', 'abs', 'glute-med']],
+  [/swing/, ['glute-max', 'hamstring-outer', 'hamstring-inner'], ['lower-back', 'abs', 'forearm-flexors']],
+  [/clean|snatch/, ['glute-max', 'hamstring-outer', 'upper-trap', 'quad-front'], ['front-delt', 'lower-back', 'calf-inner']],
+  [/box jump|jump squat|squat jump|broad jump|tuck jump/, ['quad-front', 'glute-max', 'calf-inner', 'calf-outer'], ['quad-outer', 'hamstring-outer']],
+  [/\brun|\bjog|sprint|treadmill|shuttle/, ['quad-front', 'hamstring-outer', 'calf-inner', 'calf-outer'], ['glute-max', 'hip-flexor', 'soleus']],
+  [/\bbike|assault|echo bike|cycling|spin bike/, ['quad-front', 'quad-outer'], ['glute-max', 'hamstring-outer', 'calf-inner']],
+  [/battle rope/, ['front-delt', 'side-delt'], ['forearm-flexors', 'abs', 'upper-trap']],
+  [/mountain climber/, ['abs', 'hip-flexor'], ['front-delt', 'quad-front', 'obliques']],
+  [/bear crawl/, ['front-delt', 'abs'], ['quad-front', 'triceps-lateral', 'serratus']],
+  [/jumping jack|star jump|skipping|jump rope|double.?under/, ['calf-inner', 'calf-outer'], ['side-delt', 'quad-outer', 'soleus']],
   [/scapular push/, ['serratus'], ['front-delt']],
   [/prone t\b|t raise/, ['mid-traps'], ['rear-delt', 'infraspinatus']],
   [/face pull/, ['rear-delt', 'infraspinatus'], ['mid-traps', 'upper-trap']],
