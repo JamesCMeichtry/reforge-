@@ -97,6 +97,23 @@ const rows = [
   ['Rower', 'Warm-up', bw, 'Conditioning'],
   ['Sled push', 'Main', kg, 'Conditioning'],
   ['Box jump', 'Main', bw, 'Conditioning'],
+  // HYROX stations and HIIT
+  ['Run', 'Main', bw, 'Conditioning'],
+  ['SkiErg', 'Main', bw, 'Conditioning'],
+  ['Rowing erg', 'Main', bw, 'Conditioning'],
+  ['Sled pull', 'Main', kg, 'Conditioning'],
+  ['Burpee broad jump', 'Main', bw, 'Conditioning'],
+  ['Sandbag lunge', 'Main', kg, 'Conditioning'],
+  ['Wall ball', 'Main', kg, 'Conditioning'],
+  ['Assault bike', 'Main', bw, 'Conditioning'],
+  ['Burpee', 'Main', bw, 'Conditioning'],
+  ['Thruster', 'Main', kg, 'Conditioning'],
+  ['Kettlebell clean', 'Main', kg, 'Conditioning'],
+  ['Devil press', 'Main', kg, 'Conditioning'],
+  ['Jump squat', 'Main', bw, 'Conditioning'],
+  ['Mountain climber', 'Main', bw, 'Conditioning'],
+  ['Battle ropes', 'Main', bw, 'Conditioning'],
+  ['Skipping', 'Warm-up', bw, 'Conditioning'],
 ]
 
 export const EXERCISE_LIBRARY = rows.map(([name, section, load, group]) => ({ name, section, load, group }))
