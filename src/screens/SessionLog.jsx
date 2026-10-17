@@ -5,6 +5,7 @@ import CheckInForm from '../components/CheckInForm.jsx'
 import { fetchInjurySites } from '../lib/checkins.js'
 import { deleteSet, fetchPreviousSets, fetchTodaySets, formatLoad, formatPrevious, logSet } from '../lib/programme.js'
 import { me } from '../lib/me.js'
+import { UNITS, amountText, countsReps, targetAmount, unitOf, unitToSave } from '../lib/measure.js'
 
 const SECTION_ORDER = ['Warm-up', 'Physio', 'Rehab', 'Main']
 const REST_SECONDS = { 'Warm-up': 30, Physio: 45, Rehab: 45, Main: 90 }
@@ -182,7 +183,9 @@ export default function SessionLog({ programme, day, userId = me(), backHash = '
       sets: rows.length,
       exercisesDone: day.exercises.filter((e) => names.has(e.name)).length,
       exercisesTotal: day.exercises.length,
-      volume: Math.round(rows.reduce((sum, r) => sum + (Number(r.weight_kg) || 0) * (Number(r.reps) || 0), 0)),
+      volume: Math.round(
+        rows.filter(countsReps).reduce((sum, r) => sum + (Number(r.weight_kg) || 0) * (Number(r.reps) || 0), 0),
+      ),
     }
   }, [logged, day.exercises])
 
@@ -279,9 +282,12 @@ export default function SessionLog({ programme, day, userId = me(), backHash = '
 function ExerciseLog({ programme, day, userId, exercise, previous, todaySets, onLogged }) {
   const setCount = Math.max(1, Number(exercise.sets) || 1)
   const hasReps = /\d/.test(exercise.reps)
-  const repsUnit = /\bs\b/.test(exercise.reps) ? 's' : 'reps'
+  // Reps, seconds, metres or calories, from the target ("10", "40 s", "50 m", "15 cal")
+  const unit = unitOf(exercise.reps)
+  const measure = UNITS[unit]
   const kind = exercise.load?.kind ?? 'bodyweight'
-  const targetReps = exercise.reps.replace(/[^\d-]/g, '') || '0'
+  const targetReps =
+    unit === 'reps' ? exercise.reps.replace(/[^\d-]/g, '') || '0' : String(targetAmount(exercise.reps) ?? '')
 
   const [rows, setRows] = useState(() =>
     Array.from({ length: setCount }, (_, index) => {
@@ -326,7 +332,7 @@ function ExerciseLog({ programme, day, userId, exercise, previous, todaySets, on
     const row = rows[index]
     setError('')
     if (hasReps && !row.id && !row.reps.trim()) {
-      setError(`Enter the ${repsUnit === 's' ? 'seconds' : 'reps'} for set ${index + 1} first.`)
+      setError(`Enter the ${measure.label} for set ${index + 1} first.`)
       repsRefs.current[index]?.focus()
       return
     }
@@ -347,6 +353,7 @@ function ExerciseLog({ programme, day, userId, exercise, previous, todaySets, on
         weight_kg: Number.isFinite(weight) ? weight : null,
         band: kind === 'band' ? row.band.trim() || null : null,
         reps: hasReps ? parseInt(row.reps, 10) || 0 : null,
+        unit: hasReps ? unitToSave(unit) : null,
       }
       const id = await logSet(saved, userId)
       // Carry this set's load forward to later sets you haven't changed yourself
@@ -373,7 +380,10 @@ function ExerciseLog({ programme, day, userId, exercise, previous, todaySets, on
   }
 
   const summary = rows
-    .map((row) => (kind === 'kg' ? `${row.weight}×${row.reps || '–'}` : hasReps ? row.reps || '–' : '✓'))
+    .map((row) => {
+      const amount = row.reps ? amountText(Number(row.reps), unit) : '–'
+      return kind === 'kg' ? `${row.weight}×${amount}` : hasReps ? amount : '✓'
+    })
     .join(', ')
 
   return (
@@ -452,9 +462,9 @@ function ExerciseLog({ programme, day, userId, exercise, previous, todaySets, on
                         onChange={(event) => update(index, { reps: event.target.value.replace(/\D/g, '') })}
                         onKeyDown={(event) => event.key === 'Enter' && toggle(index)}
                         className={`${inputBase} text-center disabled:opacity-60`}
-                        aria-label={`Set ${index + 1} ${repsUnit === 's' ? 'seconds' : 'reps'}`}
+                        aria-label={`Set ${index + 1} ${measure.label}`}
                       />
-                      <span className="w-6 text-xs text-muted">{repsUnit}</span>
+                      <span className="w-6 text-xs text-muted">{measure.short}</span>
                     </label>
                   )}
                   <button
