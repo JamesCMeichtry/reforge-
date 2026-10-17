@@ -53,14 +53,15 @@ export function TemplateDays({ days, flagged = new Set() }) {
    suggestions for the professional: nothing is changed or blocked. */
 
 const TRIGGER_PATTERNS = {
-  Kneeling: /split squat|lunge|kneeling/i,
-  Stairs: /step-up|step-down|lunge/i,
-  Squatting: /squat|lunge|leg press|wall sit/i,
-  Running: /run|sprint/i,
-  Jumping: /jump|hop|bound/i,
-  Twisting: /twist|rotation|woodchop/i,
-  Overhead: /overhead|pull-up|chin-up|lateral raise|wall slide|seated dumbbell press|landmine press/i,
-  Lifting: /deadlift|row|carry|good morning|swing/i,
+  Kneeling: /split squat|lunge|kneeling|burpee/i,
+  Stairs: /step-up|step-down|lunge|box jump/i,
+  Squatting: /squat|lunge|leg press|wall sit|wall ball|thruster|burpee|clean|snatch/i,
+  Running: /\brun|sprint|shuttle|treadmill/i,
+  Jumping: /jump|hop|bound|burpee|skipping|double.?under/i,
+  Twisting: /twist|rotation|woodchop|russian/i,
+  Overhead:
+    /overhead|pull-up|chin-up|lateral raise|wall slide|seated dumbbell press|landmine press|wall ball|thruster|ski-?erg|snatch|devil press/i,
+  Lifting: /deadlift|row|carry|good morning|swing|sled|sandbag|clean|devil press/i,
 }
 
 function avoidWords(text) {
