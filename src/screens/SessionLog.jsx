@@ -125,8 +125,16 @@ function SessionSummary({ day, stats, onDone, ownSession }) {
   )
 }
 
-// Logs a session for you, or for a client when their professional passes the client's id
-export default function SessionLog({ programme, day, userId = me(), backHash = 'programme' }) {
+// Logs a session for you, or for a client when their professional passes the client's id.
+// Training with a friend: extra is saved with every set, and partner's sets show under each exercise.
+export default function SessionLog({
+  programme,
+  day,
+  userId = me(),
+  backHash = 'programme',
+  extra = null,
+  partner = null,
+}) {
   const ownSession = userId === me()
   const [previous, setPrevious] = useState({})
   const [todaySets, setTodaySets] = useState([])
@@ -246,6 +254,9 @@ export default function SessionLog({ programme, day, userId = me(), backHash = '
                 previous={previous[exercise.name]}
                 todaySets={todaySets.filter((s) => s.exercise === exercise.name)}
                 onLogged={(setNumber, row) => handleLogged(exercise, setNumber, row)}
+                extra={extra}
+                partnerName={partner?.name}
+                partnerSets={partner ? partner.sets.filter((s) => s.exercise === exercise.name) : null}
               />
             ))}
           </div>
@@ -279,7 +290,18 @@ export default function SessionLog({ programme, day, userId = me(), backHash = '
   )
 }
 
-function ExerciseLog({ programme, day, userId, exercise, previous, todaySets, onLogged }) {
+function ExerciseLog({
+  programme,
+  day,
+  userId,
+  exercise,
+  previous,
+  todaySets,
+  onLogged,
+  extra,
+  partnerName,
+  partnerSets,
+}) {
   const setCount = Math.max(1, Number(exercise.sets) || 1)
   const hasReps = /\d/.test(exercise.reps)
   // Reps, seconds, metres or calories, from the target ("10", "40 s", "50 m", "15 cal")
@@ -354,6 +376,7 @@ function ExerciseLog({ programme, day, userId, exercise, previous, todaySets, on
         band: kind === 'band' ? row.band.trim() || null : null,
         reps: hasReps ? parseInt(row.reps, 10) || 0 : null,
         unit: hasReps ? unitToSave(unit) : null,
+        ...extra,
       }
       const id = await logSet(saved, userId)
       // Carry this set's load forward to later sets you haven't changed yourself
@@ -399,6 +422,20 @@ function ExerciseLog({ programme, day, userId, exercise, previous, todaySets, on
             <>
               <p className="mt-1 text-sm text-neutral-300">{targetLine(exercise)}</p>
               {lastTime && <p className="mt-1 text-sm text-gold">Last time: {lastTime}</p>}
+              {partnerSets && (
+                <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--lvl-building)' }}>
+                  {partnerName}:{' '}
+                  {partnerSets.length
+                    ? [...partnerSets]
+                        .sort((a, b) => a.set_number - b.set_number)
+                        .map((s) => {
+                          const amount = s.reps == null ? '✓' : amountText(s.reps, s.unit)
+                          return s.weight_kg != null ? `${Number(s.weight_kg)}×${amount}` : amount
+                        })
+                        .join(', ')
+                    : 'not started'}
+                </p>
+              )}
             </>
           )}
         </div>
