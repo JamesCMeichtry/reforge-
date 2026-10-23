@@ -428,6 +428,7 @@ function Sessions({ clientId }) {
         {days.map(([date, exercises]) => {
           const all = [...exercises.values()].flat()
           const solo = all.some((set) => set.logged_by !== me())
+          const partner = all.find((set) => set.with_name)?.with_name
           const review = reviews.find((r) => r.session_date === date)
           return (
             <li
@@ -439,7 +440,7 @@ function Sessions({ clientId }) {
                   {shortDate(date)} · {daysAgo(date)}
                 </p>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                  {solo ? 'Solo' : 'With you'}
+                  {partner ? `With ${partner}` : solo ? 'Solo' : 'With you'}
                 </span>
               </div>
               <ul className="mt-2 space-y-2">
