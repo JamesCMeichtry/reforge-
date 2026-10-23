@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary } from '../components/ui.jsx'
 import MorningCheck from '../components/MorningCheck.jsx'
+import { TrainTogether, WorkoutInvites, useHashParts } from '../components/Friends.jsx'
 import {
   currentWeek,
   daysAgo,
@@ -58,6 +59,7 @@ function WeekStrip({ trainedDates }) {
 
 export default function TodayScreen() {
   const [state, setState] = useState({ status: 'loading' })
+  const [, page, inviteId] = useHashParts()
 
   useEffect(() => {
     if (state.status !== 'loading') return
@@ -82,6 +84,9 @@ export default function TodayScreen() {
 
   const date = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
   const lastDone = state.upNext && state.recent?.lastByDay[state.upNext.name]
+
+  // #today/train/<invite> is a workout with a friend
+  if (page === 'train' && inviteId) return <TrainTogether key={inviteId} inviteId={inviteId} />
 
   return (
     <>
@@ -138,6 +143,7 @@ export default function TodayScreen() {
             </a>
           </section>
         )}
+        <WorkoutInvites />
         <MorningCheck />
         {state.status === 'ready' && <WeekStrip trainedDates={state.recent.dates} />}
       </div>
