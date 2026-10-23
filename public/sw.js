@@ -56,3 +56,43 @@ self.addEventListener('fetch', (event) => {
   }
   // Everything else (including all Supabase requests) goes straight to the network
 })
+
+/* ---------- Notifications ---------- */
+
+// The server sends a title, a line of text and where in the app to open, encrypted so only this phone can read it
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = { body: event.data ? event.data.text() : '' }
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Reforge', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: data.tag,
+      renotify: Boolean(data.tag),
+      data: { url: data.url || '' },
+    }),
+  )
+})
+
+// Tapping a notification opens Reforge on the right screen, reusing the app if it's already open
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const target = new URL(`/${event.notification.data?.url || ''}`, self.location.origin).href
+  event.waitUntil(
+    (async () => {
+      const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      const app = open.find((client) => new URL(client.url).origin === self.location.origin)
+      if (app) {
+        app.postMessage({ type: 'open', url: event.notification.data?.url || '' })
+        await app.focus().catch(() => {})
+        return
+      }
+      await self.clients.openWindow(target)
+    })(),
+  )
+})
