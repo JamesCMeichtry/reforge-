@@ -41,9 +41,9 @@ const pageStyle = {
   paddingBottom: 'calc(env(safe-area-inset-bottom) + 2rem)',
 }
 
-export default function AuthScreen() {
+export default function AuthScreen({ initialMode = 'signIn' }) {
   const { linkError, clearLinkError } = useAuth()
-  const [mode, setMode] = useState('signIn')
+  const [mode, setMode] = useState(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -116,6 +116,9 @@ export default function AuthScreen() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6" style={pageStyle}>
+      <a href="#welcome" className="mb-8 self-start text-sm font-semibold text-muted hover:text-white">
+        ‹ About Reforge
+      </a>
       <Brand
         intro={
           isReset
