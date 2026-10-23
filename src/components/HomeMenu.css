@@ -1,0 +1,70 @@
+/* ---------- Today's main menu ----------
+   Tiles press in under your thumb with a gold glow, then the page grows out of the tile you tapped.
+   Everything here switches off with Reduce Motion. */
+
+.menu-tile {
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    border-color 160ms,
+    box-shadow 200ms;
+}
+.menu-tile .menu-icon {
+  transition:
+    transform 220ms cubic-bezier(0.3, 1.6, 0.5, 1),
+    background-color 160ms,
+    color 160ms;
+}
+.menu-tile:hover {
+  border-color: var(--color-gold);
+}
+/* (Doubled class so it wins over the gentler press other cards get) */
+html.motion main a.menu-tile.menu-tile:active,
+.menu-tile.pressed {
+  transform: scale(0.95);
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-gold) 22%, transparent);
+}
+.menu-tile:active .menu-icon,
+.menu-tile.pressed .menu-icon {
+  transform: scale(1.15) rotate(-6deg);
+  background-color: var(--color-gold);
+  color: var(--color-ink);
+}
+
+/* The new page opens out of the tile: it starts clipped to the tile's edges and grows to fill the screen */
+@keyframes page-from-tile {
+  from {
+    clip-path: inset(var(--tile-top) var(--tile-right) var(--tile-bottom) var(--tile-left) round 16px);
+    opacity: 0.6;
+  }
+  to {
+    clip-path: inset(0 0 0 0 round 0);
+    opacity: 1;
+  }
+}
+@keyframes page-behind-tile {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+:root[data-nav='zoom']::view-transition-new(root) {
+  animation: page-from-tile 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+:root[data-nav='zoom']::view-transition-old(root) {
+  animation: page-behind-tile 300ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-tile,
+  .menu-tile .menu-icon {
+    transition: none;
+  }
+  .menu-tile:active,
+  .menu-tile.pressed,
+  .menu-tile:active .menu-icon,
+  .menu-tile.pressed .menu-icon {
+    transform: none;
+  }
+}
