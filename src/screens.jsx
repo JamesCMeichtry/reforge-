@@ -7,6 +7,8 @@ import ConnectPanel from './components/ConnectPanel.jsx'
 import { FriendPage, FriendsPanel, useHashParts } from './components/Friends.jsx'
 import { MessagesPage } from './components/Chat.jsx'
 import { PrivacyPanel } from './components/Legal.jsx'
+import { NotificationsPanel, PushKeysTool } from './components/Notifications.jsx'
+import { disablePush } from './lib/push.js'
 import { ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
@@ -58,6 +60,8 @@ function AccountPanel() {
 
   async function handleSignOut() {
     setSigningOut(true)
+    // This phone stops getting your notifications, so whoever signs in next doesn't see them
+    await disablePush().catch(() => {})
     const { error } = await supabase.auth.signOut()
     if (error) setSigningOut(false)
   }
@@ -138,9 +142,11 @@ function ProfileScreen() {
       <div className="space-y-4">
         <AccountPanel />
         <ThemeToggle />
+        <NotificationsPanel />
         <ConnectPanel />
         <FriendsPanel />
         <PrivacyPanel />
+        {dev && <PushKeysTool />}
       </div>
     </>
   )
