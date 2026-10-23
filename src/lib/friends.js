@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { me } from './me.js'
+import { notify } from './push.js'
 
 // Friends and training together. Friends connect with the same code as physios and PTs, and only ever see
 // training (sets, PBs, training days, strength): the database functions behind these pick out those fields.
@@ -17,7 +18,11 @@ export const fetchFriends = () => call('my_friends')
 export const fetchFriendCard = (friend) => call('friend_card', { friend })
 export const fetchFriendSets = (friend, days = 365) => call('friend_sets', { friend, days })
 export const fetchPartnerSets = (invite) => call('partner_sets', { invite })
-export const answerInvite = (invite, answer) => call('answer_invite', { invite, answer })
+export async function answerInvite(invite, answer) {
+  const result = await call('answer_invite', { invite, answer })
+  notify('invite', invite)
+  return result
+}
 
 // A friend's profile as the body map needs it. Their starting lifts arrive as multiples of bodyweight,
 // so bodyweight counts as 1 and their real bodyweight never leaves the database.
@@ -32,12 +37,17 @@ export const friendProfile = (card) => ({
 
 // The session to do together is copied into the invite, so it stays the same even if the programme changes
 export async function sendInvite(toId, startsAt, day) {
-  const { error } = await supabase.from('workout_invites').insert({
-    to_id: toId,
-    starts_at: startsAt.toISOString(),
-    day: { name: day.name, focus: day.focus ?? '', exercises: day.exercises },
-  })
+  const { data, error } = await supabase
+    .from('workout_invites')
+    .insert({
+      to_id: toId,
+      starts_at: startsAt.toISOString(),
+      day: { name: day.name, focus: day.focus ?? '', exercises: day.exercises },
+    })
+    .select('id')
+    .single()
   if (error) throw error
+  notify('invite', data.id)
 }
 
 const withNames = (invites, names) =>
