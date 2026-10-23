@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import StreakCard from '../components/StreakCard.jsx'
+import { MyTargets } from '../components/Plans.jsx'
 import { LoadingCards, ScreenHeader, buttonSecondary } from '../components/ui.jsx'
 import { fetchSetHistory, tinyDate, topSets, weightedExercises } from '../lib/progress.js'
 
@@ -101,10 +102,11 @@ export default function ProgressScreen() {
     <>
       <ScreenHeader
         title="Progress"
-        intro="Your streak and your strength over time. How each injury is going lives on Rehab."
+        intro="Your streak, targets and strength over time. How each injury is going lives on Rehab."
       />
-      <div className="mb-4">
+      <div className="mb-4 space-y-4">
         <StreakCard />
+        <MyTargets />
       </div>
       {state.status === 'loading' && <LoadingCards count={2} height="h-56" label="Loading your progress" />}
       {state.status === 'error' && (
