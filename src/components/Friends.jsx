@@ -22,6 +22,7 @@ import { computeStreak } from '../lib/streak.js'
 import { daysAgo, fetchActiveProgramme, todayDate } from '../lib/programme.js'
 import { shortDate } from '../lib/progress.js'
 import { amountText } from '../lib/measure.js'
+import { AddToCalendar } from './Plans.jsx'
 
 const LivingMap = lazy(() => import('./LivingMap.jsx'))
 
@@ -561,6 +562,17 @@ export function WorkoutInvites() {
                   Can't make it
                 </button>
               </div>
+            ) : null}
+            {accepted ? (
+              <AddToCalendar
+                event={{
+                  id: invite.id,
+                  title: `${day.name} with ${invite.partnerName}`,
+                  start: new Date(invite.starts_at),
+                  minutes: 60,
+                  details: 'Training together in Reforge',
+                }}
+              />
             ) : invite.incoming ? (
               <div className="mt-4 flex gap-2">
                 <button type="button" onClick={() => answer(invite, 'accepted')} className={`flex-1 ${buttonPrimary}`}>
