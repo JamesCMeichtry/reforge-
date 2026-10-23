@@ -4,6 +4,7 @@ import MorningCheck from '../components/MorningCheck.jsx'
 import { TrainTogether, WorkoutInvites, useHashParts } from '../components/Friends.jsx'
 import { NextSessions } from '../components/Plans.jsx'
 import { NewMessages } from '../components/Chat.jsx'
+import { InstallCard } from '../components/Install.jsx'
 import HomeMenu from '../components/HomeMenu.jsx'
 import {
   currentWeek,
@@ -152,6 +153,7 @@ export default function TodayScreen() {
         <MorningCheck />
         <HomeMenu upNext={state.status === 'loading' ? undefined : (state.upNext ?? null)} />
         {state.status === 'ready' && <WeekStrip trainedDates={state.recent.dates} />}
+        <InstallCard />
       </div>
     </>
   )
