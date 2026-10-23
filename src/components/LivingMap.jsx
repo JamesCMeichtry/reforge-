@@ -272,9 +272,10 @@ function writeSeen(levels) {
   }
 }
 
-// Your own map, or a client's when a professional passes their id
-export default function LivingMap({ userId = me() }) {
-  const isOwn = userId === me()
+// Your own map, or a client's when a professional passes their id.
+// A friend's map passes load instead: their training only, so it shows strength and never injuries.
+export default function LivingMap({ userId = me(), load }) {
+  const isOwn = !load && userId === me()
   const [view, setView] = useState('front')
   const [state, setState] = useState({ status: 'loading' })
   const [selected, setSelected] = useState(null)
@@ -299,14 +300,17 @@ export default function LivingMap({ userId = me() }) {
   useEffect(() => {
     if (state.status !== 'loading') return
     let cancelled = false
-    Promise.all([
-      fetchInjuryRows(userId),
-      fetchRecentCheckIns(365, userId),
-      fetchSetHistory(365, userId),
-      fetchActiveProgramme(userId),
-      fetchProfile(userId).catch(() => null),
-    ])
-      .then(([rows, checkIns, history, programme, profile]) => {
+    const request = load
+      ? load()
+      : Promise.all([
+          fetchInjuryRows(userId),
+          fetchRecentCheckIns(365, userId),
+          fetchSetHistory(365, userId),
+          fetchActiveProgramme(userId),
+          fetchProfile(userId).catch(() => null),
+        ]).then(([rows, checkIns, history, programme, profile]) => ({ rows, checkIns, history, programme, profile }))
+    request
+      .then(({ rows, checkIns, history, programme, profile }) => {
         if (cancelled) return
         const start = profile?.onboarded_at
           ? { xp: startingXp(profile), date: profile.onboarded_at.slice(0, 10) }
@@ -324,7 +328,7 @@ export default function LivingMap({ userId = me() }) {
     return () => {
       cancelled = true
     }
-  }, [state.status, userId])
+  }, [state.status, userId, load])
 
   const display = useMemo(() => {
     if (state.status !== 'ready') return {}
