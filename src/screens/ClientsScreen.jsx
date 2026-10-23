@@ -27,6 +27,7 @@ import { loadLive } from '../lib/live.js'
 import { fetchSetHistory, shortDate } from '../lib/progress.js'
 import { useWide } from '../lib/useWide.js'
 import { PackageCard } from '../components/Packages.jsx'
+import { BookingCard, TargetsPanel } from '../components/Plans.jsx'
 import { UNITS, amountText } from '../lib/measure.js'
 
 // #clients is the list, #clients/<id>/<section> is one client
@@ -555,6 +556,7 @@ const SECTIONS = [
   ['assessment', 'Assessment'],
   ['injuries', 'Injuries'],
   ['rehab', 'Rehab'],
+  ['targets', 'Targets'],
   ['sessions', 'Sessions'],
   ['programme', 'Programme'],
   ['notes', 'Notes'],
@@ -670,6 +672,7 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
       <div className={desk ? 'grid max-w-3xl items-start gap-x-4 xl:grid-cols-2' : undefined}>
         <LiveButton clientId={clientId} />
         <PackageCard clientId={clientId} clientName={client.display_name} />
+        <BookingCard clientId={clientId} clientName={client.display_name} />
       </div>
       <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Client sections">
         {SECTIONS.map(([id, label]) => (
@@ -704,6 +707,7 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
       )}
       {section === 'injuries' && <InjuryEditor key={clientId} userId={clientId} />}
       {section === 'rehab' && <CoachRehab key={clientId} clientId={clientId} clientName={client.display_name} />}
+      {section === 'targets' && <TargetsPanel key={clientId} clientId={clientId} clientName={client.display_name} />}
       {section === 'sessions' && <Sessions clientId={clientId} />}
       {section === 'programme' && (
         <ProgrammeView
