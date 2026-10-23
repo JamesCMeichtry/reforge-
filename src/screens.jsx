@@ -5,6 +5,7 @@ import InjuryEditor from './components/InjuryEditor.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import ConnectPanel from './components/ConnectPanel.jsx'
 import { FriendPage, FriendsPanel, useHashParts } from './components/Friends.jsx'
+import { MessagesPage } from './components/Chat.jsx'
 import { PrivacyPanel } from './components/Legal.jsx'
 import { ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
@@ -121,6 +122,8 @@ function ProfileScreen() {
 
   // #profile/friends/<id> is one friend's page
   if (page === 'friends' && friendId) return <FriendPage key={friendId} friendId={friendId} />
+  // #profile/messages is the conversation with your physio or PT
+  if (page === 'messages') return <MessagesPage />
 
   return (
     <>
