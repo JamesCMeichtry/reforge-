@@ -3,6 +3,7 @@ import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary } from '../c
 import MorningCheck from '../components/MorningCheck.jsx'
 import { TrainTogether, WorkoutInvites, useHashParts } from '../components/Friends.jsx'
 import { NextSessions } from '../components/Plans.jsx'
+import { NewMessages } from '../components/Chat.jsx'
 import {
   currentWeek,
   daysAgo,
@@ -144,6 +145,7 @@ export default function TodayScreen() {
             </a>
           </section>
         )}
+        <NewMessages />
         <NextSessions />
         <WorkoutInvites />
         <MorningCheck />
