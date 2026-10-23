@@ -14,6 +14,8 @@ import { LoadingCards } from './components/ui.jsx'
 import { CrashGuard, FeedbackHost, toast } from './components/Feedback.jsx'
 import { ConsentScreen } from './components/Legal.jsx'
 import { hasConsented } from './lib/account.js'
+import Landing from './components/Landing.jsx'
+import { isInstalled, markSeen, seenBefore } from './lib/install.js'
 
 startMotion()
 
@@ -124,6 +126,8 @@ function cacheProfile(userId, profile) {
 function SignedIn({ userId }) {
   // Every query for "my" training uses this, so it's set before anything loads
   setMe(userId)
+  // Next time on this phone, skip the landing page and go straight to sign-in
+  useEffect(() => markSeen(), [])
   const [profile, setProfileState] = useState(() => cachedProfile(userId))
   const [failed, setFailed] = useState(false)
   const setProfile = (data) => {
@@ -168,8 +172,28 @@ function SignedIn({ userId }) {
   return <AppShell profile={profile} />
 }
 
+// Signed out: #welcome is the landing page, #signin and #signup the account forms
+const useHash = () => {
+  const [hash, setHash] = useState(() => window.location.hash)
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', onChange)
+    return () => window.removeEventListener('hashchange', onChange)
+  }, [])
+  return hash
+}
+
+function SignedOut({ hash, linkError }) {
+  const wantsForm = hash === '#signin' || hash === '#signup'
+  // New visitors see the landing page; the installed app, returning visitors and email links go to sign-in
+  const landing = hash === '#welcome' || (!wantsForm && !linkError && !isInstalled() && !seenBefore())
+  if (landing) return <Landing />
+  return <AuthScreen key={hash} initialMode={hash === '#signup' ? 'signUp' : 'signIn'} />
+}
+
 function Gate() {
-  const { session, loading, recovering, finishRecovery } = useAuth()
+  const { session, loading, recovering, finishRecovery, linkError } = useAuth()
+  const hash = useHash()
   if (loading) return <div className="min-h-dvh bg-ink" />
   if (session && recovering) {
     return (
@@ -181,7 +205,7 @@ function Gate() {
       />
     )
   }
-  return session ? <SignedIn userId={session.user.id} /> : <AuthScreen />
+  return session ? <SignedIn userId={session.user.id} /> : <SignedOut hash={hash} linkError={linkError} />
 }
 
 export default function App() {
