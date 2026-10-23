@@ -4,6 +4,7 @@ import { me } from '../lib/me.js'
 import { buttonPrimary, buttonSecondary } from './ui.jsx'
 import { ask, toast } from './Feedback.jsx'
 import { PackageLine } from './Packages.jsx'
+import { MessagesLink } from './Chat.jsx'
 
 const shortDate = (value) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
@@ -91,6 +92,7 @@ export default function ConnectPanel() {
           ))}
         </ul>
       )}
+      {pros?.length > 0 && <MessagesLink proId={pros[0].id} proName={pros[0].display_name} />}
       {pros?.length > 0 && <PackageLine proId={pros[0].id} />}
 
       {pros?.length > 0 ? (
