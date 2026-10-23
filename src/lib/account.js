@@ -20,6 +20,8 @@ const MY_DATA = [
   ['session_packages', 'session_packages', ['client_id', 'pro_id']],
   ['friends', 'friendships', ['user_id']],
   ['workout_invites', 'workout_invites', ['from_id', 'to_id']],
+  ['targets', 'targets', ['client_id', 'pro_id']],
+  ['booked_sessions', 'booked_sessions', ['client_id', 'pro_id']],
 ]
 
 export const hasConsented = (profile) => profile?.consent_version === VERSION && Boolean(profile?.consented_at)
