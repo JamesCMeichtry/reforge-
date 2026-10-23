@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase.js'
 import InjuryEditor from './components/InjuryEditor.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import ConnectPanel from './components/ConnectPanel.jsx'
+import { FriendPage, FriendsPanel, useHashParts } from './components/Friends.jsx'
 import { PrivacyPanel } from './components/Legal.jsx'
 import { ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
@@ -116,6 +117,10 @@ function ProfileScreen() {
     window.setTimeout(() => window.location.reload(), 700)
   }
   const onTitleTap = useSecretTaps(toggleDev)
+  const [, page, friendId] = useHashParts()
+
+  // #profile/friends/<id> is one friend's page
+  if (page === 'friends' && friendId) return <FriendPage key={friendId} friendId={friendId} />
 
   return (
     <>
@@ -131,6 +136,7 @@ function ProfileScreen() {
         <AccountPanel />
         <ThemeToggle />
         <ConnectPanel />
+        <FriendsPanel />
         <PrivacyPanel />
       </div>
     </>
