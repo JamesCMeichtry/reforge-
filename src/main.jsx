@@ -21,4 +21,8 @@ createRoot(document.getElementById('root')).render(
 // Keeps the app itself on the phone, so it opens and logs sets even with no signal
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}))
+  // Tapping a notification while Reforge is open jumps to the right screen
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'open') window.location.hash = String(event.data.url ?? '').replace(/^#/, '')
+  })
 }
