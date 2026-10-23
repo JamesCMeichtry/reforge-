@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom'
 // Page transitions. When the address changes, the old page slides out and the new one slides in, in the
 // direction you're going: deeper (a day, a client) slides in from the right, Back slides out to the right,
 // and tabs slide the way they sit on the tab bar. Uses the browser's View Transitions; phones without them,
-// or with Reduce Motion on, switch pages instantly as before.
+// or with Reduce Motion on, switch pages instantly as before. Tiles on Today's menu open their page out of the tile.
 
 const TAB_ORDER = ['today', 'programme', 'body-map', 'progress', 'rehab', 'profile', 'clients']
 const replays = new WeakSet()
@@ -33,13 +33,17 @@ if (typeof window !== 'undefined' && typeof document.startViewTransition === 'fu
   // Registered before any screen listens, so it can hold the change back and replay it inside the transition:
   // the browser photographs the old page, every screen updates at once, then the two pages slide.
   window.addEventListener('hashchange', (event) => {
-    if (replays.has(event) || reduce.matches || document.visibilityState !== 'visible') return
+    if (replays.has(event)) return
+    const root = document.documentElement
+    // A tile on Today's menu asked for its page to open out of the tile
+    const fromTile = root.dataset.zoom === '1'
+    delete root.dataset.zoom
+    if (reduce.matches || document.visibilityState !== 'visible') return
     event.stopImmediatePropagation()
     const replay = new HashChangeEvent('hashchange', { oldURL: event.oldURL, newURL: event.newURL })
     replays.add(replay)
-    const root = document.documentElement
     const id = ++latest
-    root.dataset.nav = direction(event.oldURL, event.newURL)
+    root.dataset.nav = fromTile ? 'zoom' : direction(event.oldURL, event.newURL)
     try {
       const transition = document.startViewTransition(() => flushSync(() => window.dispatchEvent(replay)))
       transition.finished.finally(() => {
