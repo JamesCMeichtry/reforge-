@@ -88,14 +88,16 @@ export async function fetchPreviousSets(exerciseNames, userId = me()) {
   return previous
 }
 
+// Sessions done with a friend aren't part of a programme, so they have no programme id
 export async function fetchTodaySets(programmeId, dayName, userId = me()) {
-  const { data, error } = await supabase
+  let query = supabase
     .from('set_logs')
     .select('id, exercise, set_number, weight_kg, band, reps, unit')
     .eq('user_id', userId)
-    .eq('programme_id', programmeId)
     .eq('day_name', dayName)
     .eq('session_date', todayDate())
+  query = programmeId ? query.eq('programme_id', programmeId) : query.is('programme_id', null)
+  const { data, error } = await query
   if (error) throw error
   return data
 }
