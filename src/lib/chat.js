@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { me } from './me.js'
+import { notify } from './push.js'
 
 // Messages between a client and their physio or PT. Each conversation is one client and one professional.
 
@@ -25,6 +26,7 @@ export async function sendMessage(clientId, proId, body) {
     .select(FIELDS)
     .single()
   if (error) throw error
+  notify('message', data.id)
   return data
 }
 
