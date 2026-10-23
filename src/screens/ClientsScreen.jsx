@@ -28,6 +28,8 @@ import { fetchSetHistory, shortDate } from '../lib/progress.js'
 import { useWide } from '../lib/useWide.js'
 import { PackageCard } from '../components/Packages.jsx'
 import { BookingCard, TargetsPanel } from '../components/Plans.jsx'
+import { ChatThread } from '../components/Chat.jsx'
+import { fetchUnread } from '../lib/chat.js'
 import { UNITS, amountText } from '../lib/measure.js'
 
 // #clients is the list, #clients/<id>/<section> is one client
@@ -142,6 +144,11 @@ function ClientList() {
                       <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-gold">
                         <span className="live-dot h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
                         Live session running
+                      </p>
+                    )}
+                    {client.unread > 0 && (
+                      <p className="mt-0.5 text-sm font-semibold text-gold">
+                        {client.unread} new {client.unread === 1 ? 'message' : 'messages'}
                       </p>
                     )}
                     {client.openRequests > 0 && (
@@ -559,6 +566,7 @@ const SECTIONS = [
   ['targets', 'Targets'],
   ['sessions', 'Sessions'],
   ['programme', 'Programme'],
+  ['messages', 'Messages'],
   ['notes', 'Notes'],
 ]
 
@@ -598,7 +606,18 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
   // Check-ins now live inside Rehab, so older links to them land there
   const section = requested === 'checkins' ? 'rehab' : requested
   const [client, setClient] = useState(null)
+  const [unread, setUnread] = useState(0)
   const setSection = (id) => (window.location.hash = `clients/${clientId}/${id}`)
+
+  useEffect(() => {
+    fetchUnread()
+      .then((list) => setUnread(list.find((u) => u.otherId === clientId)?.count ?? 0))
+      .catch(() => {})
+  }, [clientId])
+  // Opening the conversation reads them
+  useEffect(() => {
+    if (section === 'messages') setUnread(0)
+  }, [section])
 
   useEffect(() => {
     fetchClient(clientId)
@@ -686,6 +705,11 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
             }`}
           >
             {label}
+            {id === 'messages' && unread > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1 text-[11px] font-bold text-ink">
+                {unread}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -718,6 +742,9 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
           clientName={client.display_name}
         />
       )}
+      {section === 'messages' && (
+        <ChatThread key={clientId} clientId={clientId} proId={me()} otherName={client.display_name ?? 'your client'} />
+      )}
       {section === 'notes' && <Notes clientId={clientId} />}
       <button type="button" onClick={remove} className="mt-10 text-sm font-semibold text-muted hover:text-red-400">
         Remove client
@@ -748,7 +775,7 @@ function StatusDot({ client }) {
     ? ['var(--pain-severe)', 'Flaring up', true]
     : live
       ? ['#ef4444', 'Live session running', true]
-      : client.openRequests || client.toReview.length
+      : client.unread || client.openRequests || client.toReview.length
         ? ['var(--color-gold)', 'Waiting on you', false]
         : client.quiet
           ? ['var(--color-muted)', 'Quiet this week', false]
@@ -873,7 +900,7 @@ function ClientTable({ clients }) {
           </thead>
           <tbody className="divide-y divide-line">
             {clients.map((client) => {
-              const waiting = client.openRequests + client.toReview.length
+              const waiting = (client.unread ?? 0) + client.openRequests + client.toReview.length
               return (
                 <tr key={client.id} onClick={() => open(client.id)} className="cursor-pointer hover:bg-ink/50">
                   <td className="whitespace-nowrap px-5 py-3">
