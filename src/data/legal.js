@@ -51,6 +51,7 @@ export const PRIVACY = [
       [
         'You.',
         'A physio, PT or coach, only after you connect with them using their code. You can disconnect at any time from your profile.',
+        'Friends you add with a code. They see your training (sessions, sets, personal bests and the days you trained) and how strong each muscle is on your body map. They never see your injuries, pain, check-ins, notes or bodyweight. You can remove a friend at any time.',
         'The companies that host Reforge: Supabase (the database) and Vercel (the website). They store data for us under contract and cannot use it for anything else.',
       ],
       'Nobody else, unless the law requires it.',
