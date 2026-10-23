@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { me } from './me.js'
+import { notify } from './push.js'
 
 // Targets a physio or PT sets for a client, and 1-1 sessions they book, plus adding events to a calendar
 
@@ -87,6 +88,7 @@ export async function bookSession(clientId, { startsAt, minutes, place }) {
     .select('id, pro_id, starts_at, minutes, place')
     .single()
   if (error) throw error
+  notify('booking', data.id)
   return data
 }
 
@@ -96,6 +98,7 @@ export async function cancelBooking(id) {
     .update({ cancelled_at: new Date().toISOString() })
     .eq('id', id)
   if (error) throw error
+  notify('booking', id)
 }
 
 /* ---------- Calendar ---------- */
