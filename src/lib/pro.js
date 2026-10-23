@@ -48,7 +48,7 @@ export async function fetchMyClients() {
   const ids = data.map((row) => row.client_id)
   const profiles = await profilesFor(ids)
   const none = { data: [] }
-  const [recent, requests, sets, reviews] = ids.length
+  const [recent, requests, sets, reviews, unread] = ids.length
     ? await Promise.all([
         supabase
           .from('check_ins')
@@ -68,8 +68,18 @@ export async function fetchMyClients() {
           .select('client_id, session_date')
           .in('client_id', ids)
           .gte('session_date', dateDaysAgo(14)),
+        supabase
+          .from('messages')
+          .select('client_id, body, created_at')
+          .eq('pro_id', me())
+          .neq('sender_id', me())
+          .is('read_at', null)
+          .order('created_at', { ascending: false })
+          .limit(500),
       ])
-    : [none, none, none, none]
+    : [none, none, none, none, none]
+  // Messages are new, so if that table isn't there yet the rest still loads
+  if (unread.error) unread.data = []
   for (const result of [recent, requests, sets, reviews]) if (result.error) throw result.error
   const weekAgo = dateDaysAgo(7)
 
@@ -84,6 +94,7 @@ export async function fetchMyClients() {
         ...thisWeek.map((c) => Math.max(c.next_morning ?? -1, c.pain_after ?? -1, c.pain_during ?? -1)),
       )
       const theirSets = sets.data.filter((s) => s.user_id === id)
+      const theirUnread = unread.data.filter((m) => m.client_id === id)
       const reviewed = new Set(reviews.data.filter((r) => r.client_id === id).map((r) => r.session_date))
       // Solo sessions this week: days the client logged sets themselves, not yet looked at by the coach
       const soloDates = [
@@ -105,6 +116,8 @@ export async function fetchMyClients() {
         worstPain: worst >= 0 ? worst : null,
         highPain: worstWeek >= 7 ? worstWeek : null,
         openRequests: requests.data.filter((r) => r.client_id === id).length,
+        unread: theirUnread.length,
+        lastMessage: theirUnread[0]?.body ?? null,
         toReview: soloDates
           .filter((d) => !reviewed.has(d))
           .sort()
@@ -163,6 +176,15 @@ export function attentionItems(clients) {
         title: `${name}'s pain hit ${c.highPain}/10`,
         detail: 'In the last 7 days.',
         href: `#clients/${c.id}/rehab`,
+      })
+    }
+    if (c.unread) {
+      items.push({
+        client: c,
+        level: 1,
+        title: `${name} sent you ${c.unread === 1 ? 'a message' : `${c.unread} messages`}`,
+        detail: c.lastMessage.length > 70 ? `“${c.lastMessage.slice(0, 70).trimEnd()}…”` : `“${c.lastMessage}”`,
+        href: `#clients/${c.id}/messages`,
       })
     }
     if (c.openRequests) {
