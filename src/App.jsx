@@ -191,10 +191,20 @@ function SignedOut({ hash, linkError }) {
   return <AuthScreen key={hash} initialMode={hash === '#signup' ? 'signUp' : 'signIn'} />
 }
 
+// Testing tools (turned on from Profile) can preview the landing page while signed in
+const testingTools = () => {
+  try {
+    return localStorage.getItem('reforge.dev') === '1'
+  } catch {
+    return false
+  }
+}
+
 function Gate() {
   const { session, loading, recovering, finishRecovery, linkError } = useAuth()
   const hash = useHash()
   if (loading) return <div className="min-h-dvh bg-ink" />
+  if (session && hash === '#welcome' && testingTools()) return <Landing preview />
   if (session && recovering) {
     return (
       <NewPasswordScreen
