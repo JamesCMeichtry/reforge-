@@ -86,6 +86,25 @@ function AccountPanel() {
 
 const DEV_KEY = 'reforge.dev'
 
+// Testing tools: see the landing page as a new visitor would, without signing out
+function LandingPreviewTool() {
+  return (
+    <section className="rounded-2xl border border-dashed border-gold/60 bg-panel p-5">
+      <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Testing tools</p>
+      <h2 className="mt-2 font-display text-2xl font-semibold">Landing page</h2>
+      <p className="mt-2 text-sm text-neutral-300">
+        Shows the page new visitors see before they sign up. You stay signed in; tap Back to app when you're done.
+      </p>
+      <a
+        href="#welcome"
+        className="mt-4 block rounded-xl border border-line px-4 py-2.5 text-center text-sm font-semibold text-white hover:border-gold"
+      >
+        Open landing page
+      </a>
+    </section>
+  )
+}
+
 function readDev() {
   try {
     return localStorage.getItem(DEV_KEY) === '1'
@@ -146,6 +165,7 @@ function ProfileScreen() {
         <ConnectPanel />
         <FriendsPanel />
         <PrivacyPanel />
+        {dev && <LandingPreviewTool />}
         {dev && <PushKeysTool />}
       </div>
     </>
