@@ -22,6 +22,7 @@ import { AddSheet, EditSheet, NoteSheet, SetSheet, SkipSheet, SwapSheet } from '
 import { fetchInjurySites, fetchRecentCheckIns } from '../lib/checkins.js'
 import { fetchRequests } from '../lib/coaching.js'
 import { me } from '../lib/me.js'
+import { useWakeLock } from '../lib/wakeLock.js'
 import {
   clearLive,
   fetchLatestSession,
@@ -390,6 +391,8 @@ function Live({ session, update, history, sites, clientName, onMinimise, onRevie
   const [sheet, setSheet] = useState(null)
   const [rest, setRest] = useState(null)
   const [pb, setPb] = useState(null)
+  // The screen stays on while the session is running, so the phone doesn't lock between sets
+  useWakeLock(true)
   const sessionSetIds = useMemo(
     () => new Set(Object.values(session.sets).flatMap((list) => list.map((s) => s.id))),
     [session.sets],
