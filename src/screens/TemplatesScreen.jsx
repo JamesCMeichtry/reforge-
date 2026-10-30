@@ -239,7 +239,7 @@ function TemplateDetail({ templateId, dayId }) {
           href={`#clients/templates/${template.id}`}
           className="mb-4 inline-block text-sm font-semibold text-muted hover:text-white"
         >
-          ← {template.name}
+          ‹ {template.name}
         </a>
         <h2 className="mb-6 font-display text-4xl font-bold uppercase leading-none">Edit {day.name}</h2>
         <DayEditor
