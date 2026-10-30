@@ -6,6 +6,7 @@ import { NextSessions } from '../components/Plans.jsx'
 import { NewMessages } from '../components/Chat.jsx'
 import { InstallCard } from '../components/Install.jsx'
 import HomeMenu from '../components/HomeMenu.jsx'
+import { ReportReady } from '../components/MonthReport.jsx'
 import {
   currentWeek,
   daysAgo,
@@ -151,6 +152,7 @@ export default function TodayScreen() {
         <NextSessions />
         <WorkoutInvites />
         <MorningCheck />
+        <ReportReady />
         <HomeMenu upNext={state.status === 'loading' ? undefined : (state.upNext ?? null)} />
         {state.status === 'ready' && <WeekStrip trainedDates={state.recent.dates} />}
         <InstallCard />
