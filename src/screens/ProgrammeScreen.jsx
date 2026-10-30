@@ -496,7 +496,7 @@ function DayView({ programme, day, userId, basePath, role, clientName, coachName
   return (
     <>
       <a href={`#${basePath}`} className="mb-4 inline-block text-sm font-semibold text-muted hover:text-white">
-        ← All days
+        ‹ All days
       </a>
       {role === 'coach' ? (
         <div className="mb-6">
