@@ -29,6 +29,7 @@ import { useWide } from '../lib/useWide.js'
 import { PackageCard } from '../components/Packages.jsx'
 import { BookingCard, TargetsPanel } from '../components/Plans.jsx'
 import { ChatThread } from '../components/Chat.jsx'
+import MonthReport from '../components/MonthReport.jsx'
 import { fetchUnread } from '../lib/chat.js'
 import { UNITS, amountText } from '../lib/measure.js'
 
@@ -564,6 +565,7 @@ const SECTIONS = [
   ['injuries', 'Injuries'],
   ['rehab', 'Rehab'],
   ['targets', 'Targets'],
+  ['report', 'Report'],
   ['sessions', 'Sessions'],
   ['programme', 'Programme'],
   ['messages', 'Messages'],
@@ -732,6 +734,9 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
       {section === 'injuries' && <InjuryEditor key={clientId} userId={clientId} />}
       {section === 'rehab' && <CoachRehab key={clientId} clientId={clientId} clientName={client.display_name} />}
       {section === 'targets' && <TargetsPanel key={clientId} clientId={clientId} clientName={client.display_name} />}
+      {section === 'report' && (
+        <MonthReport key={clientId} userId={clientId} name={client.display_name} viewer="coach" />
+      )}
       {section === 'sessions' && <Sessions clientId={clientId} />}
       {section === 'programme' && (
         <ProgrammeView
