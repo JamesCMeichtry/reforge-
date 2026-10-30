@@ -222,7 +222,7 @@ function Wizard({ assessment, injuries, clientName, onChange, onDone }) {
       <div className="mt-8 flex gap-2">
         {step > 0 && (
           <button type="button" onClick={() => go(step - 1)} className={`flex-1 ${buttonSecondary}`}>
-            ← Back
+            ‹ Back
           </button>
         )}
         {step < SECTIONS.length - 1 ? (
