@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import StreakCard from '../components/StreakCard.jsx'
 import { MyTargets } from '../components/Plans.jsx'
+import MonthReport, { ReportLink } from '../components/MonthReport.jsx'
+import { useHashParts } from '../components/Friends.jsx'
 import { LoadingCards, ScreenHeader, buttonSecondary } from '../components/ui.jsx'
 import { fetchSetHistory, tinyDate, topSets, weightedExercises } from '../lib/progress.js'
 
@@ -84,7 +86,30 @@ function StrengthChart({ history }) {
   )
 }
 
+// #progress/report is the monthly report
 export default function ProgressScreen() {
+  const [, page] = useHashParts()
+  if (page === 'report') return <ReportPage />
+  return <ProgressOverview />
+}
+
+function ReportPage() {
+  // Opens at the top, not wherever Progress was scrolled to
+  useEffect(() => window.scrollTo(0, 0), [])
+  return (
+    <>
+      <a href="#progress" className="text-sm font-semibold text-muted hover:text-white">
+        ‹ Progress
+      </a>
+      <div className="mt-3">
+        <ScreenHeader title="Your month" intro="Training, new bests, injuries and targets, a month at a time." />
+      </div>
+      <MonthReport />
+    </>
+  )
+}
+
+function ProgressOverview() {
   const [state, setState] = useState({ status: 'loading' })
 
   useEffect(() => {
@@ -106,6 +131,7 @@ export default function ProgressScreen() {
       />
       <div className="mb-4 space-y-4">
         <StreakCard />
+        <ReportLink />
         <MyTargets />
       </div>
       {state.status === 'loading' && <LoadingCards count={2} height="h-56" label="Loading your progress" />}
