@@ -16,6 +16,7 @@ const WHAT = [
   'Messages from your physio, PT or clients',
   'Workout invites and replies',
   '1-1 sessions booked or cancelled',
+  'New targets and programme changes from your coach',
   'Reminders you choose below',
 ]
 
