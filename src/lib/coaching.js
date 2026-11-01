@@ -1,12 +1,17 @@
 import { supabase } from './supabase.js'
 import { me } from './me.js'
+import { notify } from './push.js'
 
 // Programme history: every change, who made it and why. The AI coach will read this later.
+// A professional changing a client's programme also lets the client know (at most once a day)
 export async function recordChange(clientId, programmeId, summary, reason) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('programme_changes')
     .insert({ client_id: clientId, programme_id: programmeId, summary, reason: reason?.trim() || null })
+    .select('id')
+    .single()
   if (error) throw error
+  if (clientId !== me()) notify('programme', data.id)
 }
 
 export async function fetchChanges(clientId = me(), limit = 20) {
