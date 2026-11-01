@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { isInstalled, platform } from './install.js'
+import { me } from './me.js'
 
 // Push notifications: turning them on for this phone, and telling the server something happened.
 // The server (the "notify" function in Supabase) decides who hears about it and sends it.
@@ -67,6 +68,33 @@ export async function disablePush() {
 export function notify(type, id) {
   if (!id) return
   supabase.functions.invoke('notify', { body: { type, id } }).catch(() => {})
+}
+
+/* ---------- Reminders ---------- */
+
+export const REMINDERS = [
+  ['bookings', '1-1 reminder', 'The evening before a booked session'],
+  ['morning', 'Morning check-in', 'At 9am, the day after a check-in'],
+  ['report', 'Monthly report', 'On the 1st, when last month is ready'],
+]
+const ALL_ON = { bookings: true, morning: true, report: true }
+
+// Which reminders you get. Everything is on until you turn something off.
+export async function fetchReminderSettings() {
+  const { data, error } = await supabase
+    .from('reminder_settings')
+    .select('bookings, morning, report')
+    .eq('user_id', me())
+    .maybeSingle()
+  if (error) throw error
+  return { ...ALL_ON, ...(data ?? {}) }
+}
+
+export async function saveReminderSettings(settings) {
+  const { error } = await supabase
+    .from('reminder_settings')
+    .upsert({ user_id: me(), ...settings, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
+  if (error) throw error
 }
 
 // Testing tools: makes the pair of keys the server needs, here on this phone. The private one is never sent anywhere.
