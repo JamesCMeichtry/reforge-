@@ -2,18 +2,86 @@ import { useEffect, useState } from 'react'
 import { buttonPrimary, buttonSecondary } from './ui.jsx'
 import { toast } from './Feedback.jsx'
 import { InstallSteps } from './Install.jsx'
-import { disablePush, enablePush, makeKeys, pushStatus } from '../lib/push.js'
+import {
+  REMINDERS,
+  disablePush,
+  enablePush,
+  fetchReminderSettings,
+  makeKeys,
+  pushStatus,
+  saveReminderSettings,
+} from '../lib/push.js'
 
 const WHAT = [
   'Messages from your physio, PT or clients',
   'Workout invites and replies',
   '1-1 sessions booked or cancelled',
+  'Reminders you choose below',
 ]
 
 const PROBLEMS = {
   blocked: "Your phone said no to notifications. Turn them on in your phone's settings, then come back here.",
   'not-set-up': "Notifications aren't switched on for Reforge yet. Try again soon.",
   'no-worker': 'Close Reforge completely, open it again, then try once more.',
+}
+
+// One switch per reminder. Saved to your account, so it applies on every phone you use.
+function Reminders() {
+  const [settings, setSettings] = useState(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    fetchReminderSettings()
+      .then(setSettings)
+      .catch(() => setFailed(true))
+  }, [])
+
+  async function flip(id) {
+    const before = settings
+    const next = { ...settings, [id]: !settings[id] }
+    setSettings(next)
+    try {
+      await saveReminderSettings(next)
+    } catch {
+      setSettings(before)
+      toast("Couldn't save that. Check your connection.", { tone: 'error' })
+    }
+  }
+
+  if (failed) return <p className="mt-4 text-sm text-muted">Couldn't load your reminders. Check your connection.</p>
+  if (!settings) return null
+  return (
+    <div className="mt-5 border-t border-line pt-4">
+      <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-muted">Reminders</h3>
+      <ul className="mt-2 divide-y divide-line">
+        {REMINDERS.map(([id, label, detail]) => (
+          <li key={id} className="flex items-center gap-3 py-3">
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-white">{label}</span>
+              <span className="block text-sm text-muted">{detail}</span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings[id]}
+              aria-label={label}
+              onClick={() => flip(id)}
+              className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${
+                settings[id] ? 'bg-gold' : 'bg-line'
+              }`}
+            >
+              <span
+                aria-hidden="true"
+                className={`absolute top-1 left-1 h-6 w-6 rounded-full shadow transition-transform ${
+                  settings[id] ? 'translate-x-6' : ''
+                }`}
+                style={{ background: '#fff' }}
+              />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 // Profile: turn notifications on or off for this phone
@@ -78,6 +146,7 @@ export function NotificationsPanel() {
         screen.
       </p>
 
+      {status === 'on' && <Reminders />}
       {status === 'on' && (
         <button type="button" onClick={turnOff} disabled={busy} className={`mt-4 ${buttonSecondary}`}>
           Turn off on this phone
