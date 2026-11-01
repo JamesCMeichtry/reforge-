@@ -23,6 +23,7 @@ export async function addTarget(clientId, { title, detail, dueOn }) {
     .select('id, pro_id, title, detail, due_on, done_at, created_at')
     .single()
   if (error) throw error
+  notify('target', data.id)
   return data
 }
 
