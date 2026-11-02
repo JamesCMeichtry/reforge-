@@ -37,7 +37,11 @@ function tabFromHash(tabs) {
 
 // Physios, PTs and coaches get the full training app for themselves, plus a Clients tab
 function AppShell({ profile }) {
-  const tabs = profile?.role === 'pro' ? [...TABS, CLIENTS_TAB] : TABS
+  // Professionals get Clients just before Profile, so Profile always sits far right
+  const tabs =
+    profile?.role === 'pro'
+      ? [...TABS.filter((tab) => tab.id !== 'profile'), CLIENTS_TAB, TABS.find((tab) => tab.id === 'profile')]
+      : TABS
   const [activeTab, setActiveTab] = useState(() => tabFromHash(tabs))
   const [route, setRoute] = useState(() => window.location.hash)
 
