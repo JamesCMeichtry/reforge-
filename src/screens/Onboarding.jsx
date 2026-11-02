@@ -308,7 +308,8 @@ const EMPTY = {
   business_name: '',
 }
 
-export default function Onboarding({ userId, onDone }) {
+// preview: opened from the testing tools to see what a new account goes through. Nothing is saved.
+export default function Onboarding({ userId, onDone, preview = false }) {
   const [answers, setAnswers] = useState(EMPTY)
   const [injuries, setInjuries] = useState([])
   const [index, setIndex] = useState(0)
@@ -320,6 +321,7 @@ export default function Onboarding({ userId, onDone }) {
 
   // Injuries already on the account show up here, so they get their details instead of being added twice
   useEffect(() => {
+    if (preview) return
     let cancelled = false
     supabase
       .from('injuries')
@@ -336,7 +338,7 @@ export default function Onboarding({ userId, onDone }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [preview])
 
   const updateInjuries = (next) => {
     const gone = injuries.filter((row) => row.id && !next.includes(row)).map((row) => row.id)
@@ -639,6 +641,10 @@ export default function Onboarding({ userId, onDone }) {
   const last = index >= steps.length - 1
 
   async function finish() {
+    if (preview) {
+      onDone(null)
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -690,10 +696,21 @@ export default function Onboarding({ userId, onDone }) {
     <main
       className="mx-auto flex min-h-dvh max-w-xl flex-col px-5"
       style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 1.5rem)',
+        paddingTop: `calc(env(safe-area-inset-top) + ${preview ? '4.25rem' : '1.5rem'})`,
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 1.5rem)',
       }}
     >
+      {preview && (
+        <div
+          className="fixed inset-x-0 top-0 z-50 flex items-center justify-between gap-3 border-b border-gold/60 bg-ink/95 px-5 py-2.5 text-sm backdrop-blur"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.625rem)' }}
+        >
+          <span className="font-semibold text-gold">Preview · nothing is saved</span>
+          <a href="#profile" className="shrink-0 rounded-full bg-gold px-3 py-1 font-semibold text-ink">
+            Exit
+          </a>
+        </div>
+      )}
       <div className="flex items-center gap-3">
         {index > 0 && (
           <button
