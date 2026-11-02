@@ -25,6 +25,7 @@ const MY_DATA = [
   ['messages', 'messages', ['client_id', 'pro_id']],
   ['notification_phones', 'push_subscriptions', ['user_id']],
   ['reminder_settings', 'reminder_settings', ['user_id']],
+  ['feedback', 'feedback', ['user_id']],
 ]
 
 export const hasConsented = (profile) => profile?.consent_version === VERSION && Boolean(profile?.consented_at)
