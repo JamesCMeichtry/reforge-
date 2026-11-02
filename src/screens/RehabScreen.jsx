@@ -5,6 +5,7 @@ import { fetchMyPros, fetchRehabPlans } from '../lib/pro.js'
 import { siteStatus } from '../lib/livingMap.js'
 import { daysAgo } from '../lib/programme.js'
 import { tinyDate } from '../lib/progress.js'
+import '../components/Screens.css'
 
 // Recovery stages use the same rules as the living body map, so both always agree
 export const STAGES = [
@@ -163,40 +164,66 @@ export function PainChart({ checkIns }) {
         role="img"
         aria-label={`Pain over your last ${points.length} check-ins`}
       >
+        <defs>
+          <linearGradient id="pain-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="var(--color-muted)" stopOpacity="0.28" />
+            <stop offset="1" stopColor="var(--color-muted)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
         {band(6.5, 10, 'var(--pain-severe)')}
         {band(2.5, 6.5, 'var(--pain-moderate)')}
         {band(0, 2.5, 'var(--color-gold)')}
         {[0, 5, 10].map((v) => (
-          <text key={v} x={left - 6} y={y(v) + 3.5} textAnchor="end" fontSize="10" fill="var(--color-muted)">
-            {v}
-          </text>
-        ))}
-        {points.length > 1 && (
-          <path
-            d={line}
-            fill="none"
-            stroke="var(--color-muted)"
-            strokeWidth="2"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            className="draw-line"
-          />
-        )}
-        {points.map((c, i) => (
-          <g key={c.id ?? i}>
-            {c.red_flag && (
-              <circle cx={x(i)} cy={y(score(c))} r="7.5" fill="none" stroke="var(--pain-severe)" strokeWidth="1.5" />
-            )}
-            <circle
-              cx={x(i)}
-              cy={y(score(c))}
-              r="4"
-              fill={painColour(score(c))}
-              stroke="var(--color-panel)"
-              strokeWidth="1.5"
+          <g key={v}>
+            <line
+              x1={left}
+              x2={W - right}
+              y1={y(v)}
+              y2={y(v)}
+              stroke="var(--color-line)"
+              strokeWidth="1"
+              strokeDasharray="2 3"
             />
+            <text x={left - 6} y={y(v) + 3.5} textAnchor="end" fontSize="10" fill="var(--color-muted)">
+              {v}
+            </text>
           </g>
         ))}
+        {points.length > 1 && (
+          <>
+            <path d={`${line} L${x(points.length - 1)},${y(0)} L${x(0)},${y(0)}Z`} fill="url(#pain-fill)" />
+            <path
+              d={line}
+              fill="none"
+              stroke="var(--color-muted)"
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              className="draw-line"
+            />
+          </>
+        )}
+        {points.map((c, i) => {
+          const latest = i === points.length - 1
+          return (
+            <g key={c.id ?? i}>
+              {latest && (
+                <circle cx={x(i)} cy={y(score(c))} r="5" fill={painColour(score(c))} className="point-breathe" />
+              )}
+              {c.red_flag && (
+                <circle cx={x(i)} cy={y(score(c))} r="7.5" fill="none" stroke="var(--pain-severe)" strokeWidth="1.5" />
+              )}
+              <circle
+                cx={x(i)}
+                cy={y(score(c))}
+                r={latest ? 5 : 4}
+                fill={painColour(score(c))}
+                stroke="var(--color-panel)"
+                strokeWidth="1.5"
+              />
+            </g>
+          )
+        })}
         <text
           x={x(0)}
           y={H - 4}
@@ -212,10 +239,17 @@ export function PainChart({ checkIns }) {
           </text>
         )}
       </svg>
-      <figcaption className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
-        <span>0–2 good</span>
-        <span>3–6 manageable</span>
-        <span>7+ flare</span>
+      <figcaption className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
+        {[
+          ['0–2 good', 'var(--color-gold)'],
+          ['3–6 manageable', 'var(--pain-moderate)'],
+          ['7+ flare', 'var(--pain-severe)'],
+        ].map(([label, colour]) => (
+          <span key={label} className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: colour, opacity: 0.6 }} />
+            {label}
+          </span>
+        ))}
         <span className="flex items-center gap-1">
           <span className="h-2.5 w-2.5 rounded-full border-[1.5px]" style={{ borderColor: 'var(--pain-severe)' }} />
           warning signs
@@ -227,10 +261,21 @@ export function PainChart({ checkIns }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-xl border border-line px-3 py-2.5">
-      <p className="font-display text-2xl font-bold leading-none">{value}</p>
-      <p className="mt-1 text-[11px] uppercase tracking-wide text-muted">{label}</p>
+    <div className="rounded-xl bg-ink/40 px-3 py-2.5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted">{label}</p>
+      <p className="mt-1 font-display text-2xl font-bold leading-none text-white">{value}</p>
     </div>
+  )
+}
+
+// One pain score from the last check-in, with a dot in its pain colour
+function ScoreChip({ label, value }) {
+  return (
+    <span className="flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs">
+      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: painColour(value) }} aria-hidden="true" />
+      <span className="text-muted">{label}</span>
+      <span className="font-semibold text-white">{value}</span>
+    </span>
   )
 }
 
@@ -254,12 +299,17 @@ function AreaCard({ site, checkIns, coach, coachPlan }) {
 
   return (
     <article className="overflow-hidden rounded-2xl border border-line bg-panel">
-      <div className="h-1" style={{ backgroundColor: stage.colour }} aria-hidden="true" />
-      <div className="p-5">
+      <div
+        className="h-1"
+        style={{ background: `linear-gradient(90deg, ${stage.colour}, transparent)` }}
+        aria-hidden="true"
+      />
+      <div className="tint-glow p-5" style={{ '--tint': stage.colour }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="font-display text-3xl font-semibold leading-tight">{site.label}</h2>
-            <p className="text-xs text-muted">{site.injuries.join(' · ')}</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted">Recovery</p>
+            <h2 className="mt-1 font-display text-3xl font-semibold leading-tight">{site.label}</h2>
+            <p className="mt-0.5 text-xs text-muted">{site.injuries.join(' · ')}</p>
           </div>
           {coachStage != null && (
             <span
@@ -302,10 +352,15 @@ function AreaCard({ site, checkIns, coach, coachPlan }) {
         )}
 
         {recentFlag && (
-          <p className="mt-4 rounded-lg border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">
-            {coach
-              ? `Warning signs reported recently. Stop loading this area and tell ${coachName}. If it's getting worse, or you can't put weight through it, get medical help.`
-              : 'Warning signs reported recently. Get this area checked before loading it.'}
+          <p className="mt-4 flex gap-2 rounded-xl border border-red-500/50 bg-red-950/40 px-3 py-2.5 text-sm text-red-300">
+            <span aria-hidden="true" className="font-bold">
+              !
+            </span>
+            <span>
+              {coach
+                ? `Warning signs reported recently. Stop loading this area and tell ${coachName}. If it's getting worse, or you can't put weight through it, get medical help.`
+                : 'Warning signs reported recently. Get this area checked before loading it.'}
+            </span>
           </p>
         )}
 
@@ -313,22 +368,26 @@ function AreaCard({ site, checkIns, coach, coachPlan }) {
           <>
             <PainChart checkIns={checkIns} />
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <Stat label="Good in a row" value={goodRun(scores)} />
-              <Stat label="7-day average" value={weekAvg} />
+              <Stat label="Good run" value={goodRun(scores)} />
+              <Stat label="7-day avg" value={weekAvg} />
               <Stat label="Check-ins" value={scores.length} />
             </div>
-            <p className="mt-4 text-sm text-neutral-300">
-              Last check-in {daysAgo(latest.session_date).toLowerCase()}:{' '}
-              {[
-                latest.pain_during != null && `during ${latest.pain_during}`,
-                latest.pain_after != null && `after ${latest.pain_after}`,
-                latest.next_morning != null && `next morning ${latest.next_morning}`,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-              <span className="text-muted"> ({painWord(score(latest) ?? 0).toLowerCase()})</span>
-              {direction && <span className={`font-semibold ${direction.tone}`}> · {direction.label}</span>}
-            </p>
+            <div className="mt-4 border-t border-line pt-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted">
+                  Last check-in · {daysAgo(latest.session_date).toLowerCase()}
+                </p>
+                {direction && <span className={`text-xs font-bold ${direction.tone}`}>{direction.label}</span>}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {latest.pain_during != null && <ScoreChip label="During" value={latest.pain_during} />}
+                {latest.pain_after != null && <ScoreChip label="After" value={latest.pain_after} />}
+                {latest.next_morning != null && <ScoreChip label="Next morning" value={latest.next_morning} />}
+              </div>
+              <p className="mt-2 text-sm text-neutral-300">
+                {(score(latest) ?? 0) === 0 ? 'No pain overall.' : `${painWord(score(latest))} pain overall.`}
+              </p>
+            </div>
           </>
         ) : (
           <p className="mt-4 text-sm text-muted">
@@ -432,21 +491,29 @@ export default function RehabScreen() {
         <div className="space-y-4">
           <a
             href="#today"
-            className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-panel px-5 py-4 text-sm hover:border-gold"
+            className="rise-in flex items-center gap-3 rounded-2xl border border-line bg-panel px-5 py-4 text-sm transition-colors hover:border-gold"
           >
-            <span className="text-neutral-300">
+            <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
+              {!checkedToday && <span className="stage-pulse absolute inset-0 rounded-full bg-gold/60" />}
+              <span className={`relative h-2.5 w-2.5 rounded-full ${checkedToday ? 'bg-gold' : 'bg-gold/80'}`} />
+            </span>
+            <span className="min-w-0 flex-1 text-neutral-300">
               {checkedToday
                 ? "You've checked in today. Nice."
                 : lastDate
                   ? `Last check-in ${daysAgo(lastDate).toLowerCase()}`
                   : 'No check-ins yet'}
             </span>
-            {!checkedToday && <span className="shrink-0 font-semibold text-gold">Check in on Today ›</span>}
+            {!checkedToday && <span className="shrink-0 font-semibold text-gold">Check in ›</span>}
           </a>
-          {cards.map(({ site, checkIns, coachPlan }) => (
-            <AreaCard key={site.areaId} site={site} checkIns={checkIns} coach={state.coach} coachPlan={coachPlan} />
+          {cards.map(({ site, checkIns, coachPlan }, i) => (
+            <div key={site.areaId} className="rise-in" style={{ '--i': i + 1 }}>
+              <AreaCard site={site} checkIns={checkIns} coach={state.coach} coachPlan={coachPlan} />
+            </div>
           ))}
-          <HowItWorks coach={state.coach} />
+          <div className="rise-in" style={{ '--i': cards.length + 1 }}>
+            <HowItWorks coach={state.coach} />
+          </div>
         </div>
       )}
     </>
