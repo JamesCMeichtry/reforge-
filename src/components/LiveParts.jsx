@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { subscribeSync } from '../lib/live.js'
 import { amountText } from '../lib/measure.js'
+import { effortShort } from '../lib/effort.js'
 
 // Shared pieces of the live session screens: helpers, steppers, set details and bottom sheets
 /* ---------- Small helpers ---------- */
@@ -17,7 +18,8 @@ export const restFor = (exercise) => Number(exercise.rest) || REST_SECONDS[exerc
 export const targetSets = (exercise) => Math.max(1, Number(exercise.sets) || 1)
 export const loadText = (load) =>
   !load || load.kind === 'bodyweight' ? 'Bodyweight' : load.kind === 'band' ? `${load.value} band` : `${load.value} kg`
-export const targetLine = (e) => `${e.sets} × ${e.reps} · ${loadText(e.load)}`
+export const targetLine = (e) =>
+  [`${e.sets} × ${e.reps}`, loadText(e.load), effortShort(e), e.tempo].filter(Boolean).join(' · ')
 export const BANDS = ['Light', 'Medium', 'Heavy', 'X-Heavy']
 export const FORM = [
   ['good', 'Good'],
