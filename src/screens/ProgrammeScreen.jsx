@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary, inputBase } from '../components/ui.jsx'
 import { STARTER_PLAN } from '../data/starterPlan.js'
 import {
@@ -27,6 +27,9 @@ import {
   saveProgrammeDays,
 } from '../lib/programme.js'
 import SessionLog from './SessionLog.jsx'
+import DayPreview from '../components/DayPreview.jsx'
+import '../components/Programme.css'
+import { estimateMinutes, totalSets } from '../lib/effort.js'
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
 const shortDate = (value) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
@@ -273,31 +276,64 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
       {role !== 'self' && <LastSession clientId={userId} role={role} coachName={coachName} clientName={clientName} />}
       {role === 'coach' && <OpenRequests clientId={userId} />}
 
+      {upNext && programme.days.length > 1 && (
+        <p className="mb-3 text-sm text-muted">
+          {programme.days.length}-day rotation ·{' '}
+          <span className="font-semibold text-white">
+            Day {programme.days.findIndex((d) => d.id === upNext.id) + 1} is up next
+          </span>
+        </p>
+      )}
       <ul className="space-y-3">
-        {programme.days.map((item) => (
-          <li key={item.id}>
-            <a
-              href={`#${basePath}/${item.id}`}
-              className={`block rounded-2xl border bg-panel p-5 transition-colors hover:border-gold focus-visible:outline-2 focus-visible:outline-gold ${
-                item.id === upNext?.id ? 'border-gold/60' : 'border-line'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-3xl font-bold uppercase leading-none">{item.name}</h2>
-                {item.id === upNext?.id && (
-                  <span className="rounded-full bg-gold px-3 py-1 text-xs font-bold uppercase tracking-wide text-ink">
-                    Up next
+        {programme.days.map((item, i) => {
+          const next = item.id === upNext?.id
+          const last = lastByDay[item.name]
+          return (
+            <li key={item.id} className="card-rise" style={{ '--i': i }}>
+              <a
+                href={`#${basePath}/${item.id}`}
+                className={`day-card block rounded-2xl border bg-panel p-5 hover:border-gold focus-visible:outline-2 focus-visible:outline-gold ${
+                  next ? 'next-glow border-gold/70' : 'border-line'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span
+                    className={`text-[11px] font-bold uppercase tracking-[0.2em] ${next ? 'text-gold' : 'text-muted'}`}
+                  >
+                    Day {i + 1}
                   </span>
-                )}
-              </div>
-              {item.focus && <p className="mt-2 text-neutral-300">{item.focus}</p>}
-              <p className="mt-1 text-sm text-muted">
-                {item.exercises.length} {item.exercises.length === 1 ? 'exercise' : 'exercises'} ·{' '}
-                {lastByDay[item.name] ? `Last done ${daysAgo(lastByDay[item.name]).toLowerCase()}` : 'Not done yet'}
-              </p>
-            </a>
-          </li>
-        ))}
+                  {next ? (
+                    <span className="rounded-full bg-gold px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-ink">
+                      Up next
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted">
+                      {last ? `Done ${daysAgo(last).toLowerCase()}` : 'Not done yet'}
+                    </span>
+                  )}
+                </div>
+                <h2 className="mt-1.5 font-display text-4xl font-bold uppercase leading-none">{item.name}</h2>
+                {item.focus && <p className="mt-1.5 text-neutral-300">{item.focus}</p>}
+                <div className="mt-4 flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+                  <span className="rounded-full border border-line px-2.5 py-1 text-neutral-300">
+                    ~{estimateMinutes(item)} min
+                  </span>
+                  <span className="rounded-full border border-line px-2.5 py-1 text-neutral-300">
+                    {item.exercises.length} {item.exercises.length === 1 ? 'exercise' : 'exercises'}
+                  </span>
+                  <span className="rounded-full border border-line px-2.5 py-1 text-neutral-300">
+                    {totalSets(item)} sets
+                  </span>
+                  {next && (
+                    <span className="ml-auto text-sm font-semibold text-gold">
+                      {last ? `Last done ${daysAgo(last).toLowerCase()} · ` : ''}Open ›
+                    </span>
+                  )}
+                </div>
+              </a>
+            </li>
+          )
+        })}
       </ul>
 
       {canEdit && (
@@ -492,6 +528,12 @@ function CoachTemplates({ programme, client, onApplied }) {
 function DayView({ programme, day, userId, basePath, role, clientName, coachName, onSaveDay, onDeleteDay }) {
   const canEdit = role !== 'coached'
   const [editing, setEditing] = useState(canEdit && day.exercises.length === 0)
+  // A briefing first (what's in the day, how long, last time), then logging once Start is tapped
+  const [started, setStarted] = useState(false)
+  const start = useCallback(() => {
+    setStarted(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   return (
     <>
@@ -552,8 +594,10 @@ function DayView({ programme, day, userId, basePath, role, clientName, coachName
         />
       ) : role === 'coach' ? (
         <CoachDayPreview day={day} clientId={userId} clientName={clientName} />
-      ) : (
+      ) : started ? (
         <SessionLog programme={programme} day={day} userId={userId} backHash={basePath} />
+      ) : (
+        <DayPreview programme={programme} day={day} userId={userId} onStart={start} />
       )}
     </>
   )
