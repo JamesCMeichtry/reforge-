@@ -32,7 +32,7 @@ function BodyMapScreen() {
             : 'Add or remove injuries. Each one lights up every area it affects.'
         }
       />
-      <div className="mb-4 flex gap-2" role="group" aria-label="Map mode">
+      <div className="mb-5 flex rounded-full border border-line bg-panel p-1" role="group" aria-label="Map mode">
         {[
           ['living', 'Living map'],
           ['injuries', 'Edit injuries'],
@@ -42,8 +42,8 @@ function BodyMapScreen() {
             type="button"
             onClick={() => setMode(value)}
             aria-pressed={mode === value}
-            className={`rounded-full border px-4 py-1.5 text-sm font-semibold ${
-              mode === value ? 'border-gold text-gold' : 'border-line text-muted hover:text-white'
+            className={`flex-1 rounded-full py-2 text-sm font-semibold transition-colors duration-200 ${
+              mode === value ? 'bg-gold text-ink shadow' : 'text-muted hover:text-white'
             }`}
           >
             {label}
@@ -135,6 +135,52 @@ function useSecretTaps(onUnlock) {
   }
 }
 
+// #profile/settings: account, look and notifications. More settings arrive with the profile review.
+function SettingsPage() {
+  return (
+    <>
+      <a
+        href="#profile"
+        className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-muted hover:text-white"
+      >
+        <span aria-hidden="true">‹</span> Profile
+      </a>
+      <ScreenHeader title="Settings" intro="Your account, how Reforge looks and what it tells you." />
+      <div className="space-y-4">
+        <AccountPanel />
+        <ThemeToggle />
+        <NotificationsPanel />
+      </div>
+    </>
+  )
+}
+
+function SettingsLink() {
+  return (
+    <a
+      href="#profile/settings"
+      className="flex items-center gap-3 rounded-2xl border border-line bg-panel p-4 transition-colors hover:border-gold/60"
+    >
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/40 text-gold"
+        aria-hidden="true"
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-white">Settings</span>
+        <span className="block text-sm text-muted">Account, theme and notifications</span>
+      </span>
+      <span className="text-xl text-muted" aria-hidden="true">
+        ›
+      </span>
+    </a>
+  )
+}
+
 function ProfileScreen() {
   const [dev, setDev] = useState(readDev)
   const toggleDev = () => {
@@ -155,11 +201,12 @@ function ProfileScreen() {
   if (page === 'friends' && friendId) return <FriendPage key={friendId} friendId={friendId} />
   // #profile/messages is the conversation with your physio or PT
   if (page === 'messages') return <MessagesPage />
+  if (page === 'settings') return <SettingsPage />
 
   return (
     <>
       <div onClick={onTitleTap} className="select-none">
-        <ScreenHeader title="Profile" intro="Your settings, professional connection and data." />
+        <ScreenHeader title="Profile" intro="Your coach, friends, feedback and data." />
       </div>
       {dev && (
         <p className="-mt-4 mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-gold">
@@ -167,9 +214,7 @@ function ProfileScreen() {
         </p>
       )}
       <div className="space-y-4">
-        <AccountPanel />
-        <ThemeToggle />
-        <NotificationsPanel />
+        <SettingsLink />
         <ConnectPanel />
         <FriendsPanel />
         <FeedbackPanel />
