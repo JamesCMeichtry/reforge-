@@ -173,6 +173,8 @@ const signInButton =
 // preview: opened from the testing tools while signed in, with a way back to the app
 export default function Landing({ preview = false }) {
   const { link, doc } = useLegal()
+  // In the preview, "Get started" opens the new-account setup in preview, without making an account
+  const startHref = preview ? '#welcome/start' : '#signup'
   // Opened from Profile, so start at the top rather than wherever Profile was scrolled to
   useEffect(() => {
     window.scrollTo(0, 0)
@@ -218,7 +220,7 @@ export default function Landing({ preview = false }) {
               Reforge builds your training around your injuries and keeps your physio or PT in the loop, every session.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href="#signup" className={startButton}>
+              <a href={startHref} className={startButton}>
                 Create an account
               </a>
               <a href="#signin" className={signInButton}>
@@ -267,7 +269,7 @@ export default function Landing({ preview = false }) {
             <p className="mx-auto mt-3 max-w-md text-neutral-300">
               Set up takes about two minutes. Bring your physio or PT in whenever you're ready.
             </p>
-            <a href="#signup" className={`mt-6 ${startButton}`}>
+            <a href={startHref} className={`mt-6 ${startButton}`}>
               Create an account
             </a>
           </section>
