@@ -5,16 +5,44 @@ import MonthReport, { ReportLink } from '../components/MonthReport.jsx'
 import { useHashParts } from '../components/Friends.jsx'
 import { LoadingCards, ScreenHeader, buttonSecondary } from '../components/ui.jsx'
 import { fetchSetHistory, tinyDate, topSets, weightedExercises } from '../lib/progress.js'
+import '../components/Screens.css'
 
-function Card({ title, aside, children }) {
+function Card({ eyebrow, title, aside, children }) {
   return (
-    <section className="rounded-2xl border border-line bg-panel p-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-2xl font-semibold">{title}</h2>
-        {aside && <span className="text-sm font-semibold text-gold">{aside}</span>}
+    <section className="tint-glow rounded-2xl border border-line bg-panel p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          {eyebrow && <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">{eyebrow}</p>}
+          <h2 className="mt-1 font-display text-2xl font-semibold leading-tight">{title}</h2>
+        </div>
+        {aside}
       </div>
       {children}
     </section>
+  )
+}
+
+// The change since the first session shown, as a small coloured pill
+function ChangePill({ change }) {
+  const up = change > 0
+  const flat = change === 0
+  return (
+    <span
+      className={`shrink-0 rounded-full px-3 py-1 text-sm font-bold ${
+        flat ? 'bg-line text-muted' : up ? 'bg-gold/15 text-gold' : 'bg-red-500/15 text-red-400'
+      }`}
+    >
+      {flat ? 'Level' : `${up ? '▲ +' : '▼ '}${change} kg`}
+    </span>
+  )
+}
+
+function MiniStat({ label, value }) {
+  return (
+    <div className="rounded-xl bg-ink/40 px-3 py-2.5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted">{label}</p>
+      <p className="mt-1 font-display text-xl font-bold leading-none text-white">{value}</p>
+    </div>
   )
 }
 
@@ -26,7 +54,7 @@ function StrengthChart({ history }) {
 
   if (!exercises.length) {
     return (
-      <Card title="Strength">
+      <Card eyebrow="Your lifts" title="Strength">
         <p className="mt-2 text-neutral-300">Log a weighted set and your heaviest set each session appears here.</p>
       </Card>
     )
@@ -36,52 +64,74 @@ function StrengthChart({ history }) {
   const floor = Math.max(0, Math.min(...sessions.map((s) => s.weight)) * 0.6)
   const change = sessions.length > 1 ? sessions.at(-1).weight - sessions[0].weight : 0
   const bestSet = sessions.find((s) => s.weight === best)
+  const bestIndex = sessions.indexOf(bestSet)
 
   return (
-    <Card title="Strength" aside={sessions.length > 1 ? `${change >= 0 ? '+' : ''}${change} kg` : null}>
-      <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
+    <Card
+      eyebrow="Your lifts"
+      title="Strength"
+      aside={sessions.length > 1 ? <ChangePill change={Math.round(change * 10) / 10} /> : null}
+    >
+      <div className="chip-scroll -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1">
         {exercises.map((name) => (
           <button
             key={name}
             type="button"
             onClick={() => setPicked(name)}
             aria-pressed={exercise === name}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${
-              exercise === name ? 'border-gold bg-gold text-ink' : 'border-line text-neutral-300'
+            className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 ${
+              exercise === name ? 'border-gold bg-gold text-ink' : 'border-line text-neutral-300 hover:text-white'
             }`}
           >
             {name}
           </button>
         ))}
       </div>
-      <div
-        key={exercise}
-        className="mt-5 flex h-44 items-end gap-2"
-        role="img"
-        aria-label={`Heaviest set per session for ${exercise}`}
-      >
-        {sessions.map((s) => {
-          const isBest = s.weight === best
-          return (
-            <div key={s.date} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
-              <span className={`text-[11px] font-semibold ${isBest ? 'text-gold' : 'text-neutral-300'}`}>
-                {s.weight}
-              </span>
-              <div
-                className="bar-grow w-full max-w-9 rounded-t-md"
-                style={{
-                  height: `${Math.max(6, ((s.weight - floor) / (best - floor || 1)) * 100)}%`,
-                  backgroundColor: isBest ? 'var(--color-gold)' : 'var(--chart-dim)',
-                }}
-              />
-              <span className="w-full truncate text-center text-[10px] text-muted">{tinyDate(s.date)}</span>
-            </div>
-          )
-        })}
+      <div className="relative mt-5">
+        {/* Faint guide lines behind the bars */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-5 bottom-5 flex flex-col justify-between"
+          aria-hidden="true"
+        >
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="block border-t border-dashed border-line" />
+          ))}
+        </div>
+        <div
+          key={exercise}
+          className="relative flex h-48 items-end gap-2"
+          role="img"
+          aria-label={`Heaviest set per session for ${exercise}`}
+        >
+          {sessions.map((s, i) => {
+            const isBest = i === bestIndex
+            return (
+              <div key={s.date} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
+                <span className={`text-[11px] font-semibold ${isBest ? 'text-gold' : 'text-neutral-300'}`}>
+                  {isBest ? `★ ${s.weight}` : s.weight}
+                </span>
+                <div
+                  className={`bar-grow w-full max-w-9 rounded-t-lg ${isBest ? 'best-glow' : ''}`}
+                  style={{
+                    height: `${Math.max(6, ((s.weight - floor) / (best - floor || 1)) * 100)}%`,
+                    background: isBest
+                      ? 'linear-gradient(180deg, color-mix(in srgb, var(--color-gold) 70%, #fff), var(--color-gold))'
+                      : 'var(--chart-dim)',
+                    animationDelay: `${i * 40}ms`,
+                  }}
+                />
+                <span className="w-full truncate text-center text-[10px] text-muted">{tinyDate(s.date)}</span>
+              </div>
+            )
+          })}
+        </div>
       </div>
-      <p className="mt-3 text-sm text-muted">
-        Heaviest set each session, in kg. Best: {best} kg × {bestSet.reps}.
-      </p>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <MiniStat label="Best" value={`${best} kg`} />
+        <MiniStat label="Reps" value={`× ${bestSet.reps}`} />
+        <MiniStat label="Sessions" value={sessions.length} />
+      </div>
+      <p className="mt-3 text-xs text-muted">Heaviest set each session, in kg. ★ marks your best.</p>
     </Card>
   )
 }
@@ -98,12 +148,13 @@ function ReportPage() {
   useEffect(() => window.scrollTo(0, 0), [])
   return (
     <>
-      <a href="#progress" className="text-sm font-semibold text-muted hover:text-white">
-        ‹ Progress
+      <a
+        href="#progress"
+        className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-muted hover:text-white"
+      >
+        <span aria-hidden="true">‹</span> Progress
       </a>
-      <div className="mt-3">
-        <ScreenHeader title="Your month" intro="Training, new bests, injuries and targets, a month at a time." />
-      </div>
+      <ScreenHeader title="Your month" intro="Training, new bests, injuries and targets, a month at a time." />
       <MonthReport />
     </>
   )
@@ -125,14 +176,13 @@ function ProgressOverview() {
 
   return (
     <>
-      <ScreenHeader
-        title="Progress"
-        intro="Your streak, targets and strength over time. How each injury is going lives on Rehab."
-      />
+      <ScreenHeader title="Progress" intro="Your streak, targets and strength over time. Injuries live on Rehab." />
       <div className="mb-4 space-y-4">
-        <StreakCard />
-        <ReportLink />
-        <MyTargets />
+        {[<StreakCard key="streak" />, <ReportLink key="report" />, <MyTargets key="targets" />].map((card, i) => (
+          <div key={card.key} className="rise-in empty:hidden" style={{ '--i': i }}>
+            {card}
+          </div>
+        ))}
       </div>
       {state.status === 'loading' && <LoadingCards count={2} height="h-56" label="Loading your progress" />}
       {state.status === 'error' && (
@@ -143,7 +193,11 @@ function ProgressOverview() {
           </button>
         </div>
       )}
-      {state.status === 'ready' && <StrengthChart history={state.history} />}
+      {state.status === 'ready' && (
+        <div className="rise-in" style={{ '--i': 3 }}>
+          <StrengthChart history={state.history} />
+        </div>
+      )}
     </>
   )
 }
