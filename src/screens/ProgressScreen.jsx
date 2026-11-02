@@ -5,6 +5,7 @@ import MonthReport, { ReportLink } from '../components/MonthReport.jsx'
 import { useHashParts } from '../components/Friends.jsx'
 import { LoadingCards, ScreenHeader, buttonSecondary } from '../components/ui.jsx'
 import { fetchSetHistory, tinyDate, topSets, weightedExercises } from '../lib/progress.js'
+import { fetchActiveProgramme } from '../lib/programme.js'
 import '../components/Screens.css'
 
 function Card({ eyebrow, title, aside, children }) {
@@ -46,16 +47,44 @@ function MiniStat({ label, value }) {
   )
 }
 
-function StrengthChart({ history }) {
-  const exercises = useMemo(() => weightedExercises(history), [history])
+// The big three, and which logged exercises count as each. Variations like Romanian deadlifts,
+// dumbbell or incline bench and split or goblet squats are accessories, so they're left out.
+const BIG_LIFTS = [
+  [
+    'Squat',
+    /\bsquats?\b/i,
+    /split|goblet|jump|spanish|sissy|single|hack|bodyweight|box|bulgarian|pistol|wall|overhead/i,
+  ],
+  ['Bench', /bench press/i, /dumbbell|\bdb\b|incline|decline|close|floor/i],
+  ['Deadlift', /deadlift/i, /romanian|\brdl\b|single|stiff|snatch/i],
+]
+const bigLift = (name) => BIG_LIFTS.findIndex(([, match, skip]) => match.test(name) && !skip.test(name))
+
+// Only main lifts get a strength chart. Squat, bench and deadlift if you log them; otherwise
+// the first main exercise of each day in your programme (whatever your sport's key movement is).
+function mainLifts(history, programme) {
+  const weighted = weightedExercises(history)
+  const big = weighted.filter((name) => bigLift(name) !== -1)
+  if (big.length) return big.sort((a, b) => bigLift(a) - bigLift(b))
+  const firsts = (programme?.days ?? [])
+    .map((day) => day.exercises?.find((e) => (e.section || 'Main') === 'Main')?.name)
+    .filter(Boolean)
+  return [...new Set(firsts)].filter((name) => weighted.includes(name))
+}
+
+function StrengthChart({ history, programme }) {
+  const exercises = useMemo(() => mainLifts(history, programme), [history, programme])
   const [picked, setPicked] = useState(null)
   const exercise = picked ?? exercises[0]
   const sessions = useMemo(() => (exercise ? topSets(history, exercise).slice(-10) : []), [history, exercise])
 
   if (!exercises.length) {
     return (
-      <Card eyebrow="Your lifts" title="Strength">
-        <p className="mt-2 text-neutral-300">Log a weighted set and your heaviest set each session appears here.</p>
+      <Card eyebrow="Main lifts" title="Strength">
+        <p className="mt-2 text-neutral-300">
+          Your main lifts show here once you log a weight on them: squat, bench and deadlift, or the first main exercise
+          of each day in your programme.
+        </p>
       </Card>
     )
   }
@@ -68,7 +97,7 @@ function StrengthChart({ history }) {
 
   return (
     <Card
-      eyebrow="Your lifts"
+      eyebrow="Main lifts"
       title="Strength"
       aside={sessions.length > 1 ? <ChangePill change={Math.round(change * 10) / 10} /> : null}
     >
@@ -166,8 +195,8 @@ function ProgressOverview() {
   useEffect(() => {
     if (state.status !== 'loading') return
     let cancelled = false
-    fetchSetHistory()
-      .then((history) => !cancelled && setState({ status: 'ready', history }))
+    Promise.all([fetchSetHistory(), fetchActiveProgramme().catch(() => null)])
+      .then(([history, programme]) => !cancelled && setState({ status: 'ready', history, programme }))
       .catch(() => !cancelled && setState({ status: 'error' }))
     return () => {
       cancelled = true
@@ -195,7 +224,7 @@ function ProgressOverview() {
       )}
       {state.status === 'ready' && (
         <div className="rise-in" style={{ '--i': 3 }}>
-          <StrengthChart history={state.history} />
+          <StrengthChart history={state.history} programme={state.programme} />
         </div>
       )}
     </>
