@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { DETAILS, INJURY_STRUCTURES, NAMES, STRUCTURES, WIDTH } from '../data/anatomy.js'
 import { FIGURE_DETAILED } from '../data/anatomyDetailed.js'
 import { BODY_TYPES, FEMALE_HAIR } from '../data/bodyShapes.js'
+import './BodyMap.css'
 import { INJURIES } from '../data/injuries.js'
 import { musclesForExercise } from '../data/muscles.js'
 import { fetchRecentCheckIns } from '../lib/checkins.js'
@@ -26,7 +27,7 @@ import {
 import { LoadingCards, buttonSecondary } from './ui.jsx'
 
 const SEEN_KEY = 'reforge.levels.seen.v1'
-// Which body the map shows. For now it's picked on the map; later the starting questionnaire will set it.
+// Which body the map shows comes from the starting questionnaire. An older choice saved on this phone is only a fallback.
 const BODY_KEY = 'reforge.bodymap.body'
 
 // The Test colours tools only show for testers. Open the site once with ?dev on the end to turn them on.
@@ -256,14 +257,6 @@ function readBody() {
   }
 }
 
-function writeBody(body) {
-  try {
-    localStorage.setItem(BODY_KEY, body)
-  } catch {
-    // The choice just won't be remembered in private browsing
-  }
-}
-
 function writeSeen(levels) {
   try {
     localStorage.setItem(SEEN_KEY, JSON.stringify(levels))
@@ -288,14 +281,10 @@ export default function LivingMap({ userId = me(), load }) {
   const [testNote, setTestNote] = useState(null)
   // Muscles that just levelled up get a pop; n replays the animation
   const [pop, setPop] = useState({ keys: new Set(), n: 0 })
-  const [chosenBody, setBody] = useState(() => (isOwn ? readBody() : null))
-  // A body picked on the map wins; otherwise the one from the questionnaire
-  const body = chosenBody ?? (state.profile?.body === 'female' ? 'female' : 'male')
+  // The body from the starting questionnaire; your own map falls back to the copy saved on this phone
+  const savedBody = isOwn ? readBody() : null
+  const body = (state.profile?.body ?? savedBody) === 'female' ? 'female' : 'male'
   const figure = BODIES[body]
-  const chooseBody = (next) => {
-    setBody(next)
-    if (isOwn) writeBody(next)
-  }
 
   useEffect(() => {
     if (state.status !== 'loading') return
@@ -461,42 +450,22 @@ export default function LivingMap({ userId = me(), load }) {
         </section>
       )}
 
-      <div className="flex rounded-xl border border-line bg-panel p-1" role="group" aria-label="Body view">
+      <MapSummary counts={counts} />
+
+      <div className="mt-4 flex rounded-full border border-line bg-panel p-1" role="group" aria-label="Body view">
         {['front', 'back'].map((option) => (
           <button
             key={option}
             type="button"
             onClick={() => setView(option)}
             aria-pressed={view === option}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold capitalize ${
-              view === option ? 'bg-gold text-ink' : 'text-muted hover:text-white'
+            className={`flex-1 rounded-full py-2 text-sm font-semibold capitalize transition-colors duration-200 ${
+              view === option ? 'bg-gold text-ink shadow' : 'text-muted hover:text-white'
             }`}
           >
             {option}
           </button>
         ))}
-      </div>
-
-      <div className="mt-2 flex justify-center">
-        <div
-          className="flex rounded-full border border-line bg-panel p-0.5 text-xs"
-          role="group"
-          aria-label="Body type"
-        >
-          {BODY_TYPES.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => chooseBody(option.id)}
-              aria-pressed={body === option.id}
-              className={`rounded-full px-3 py-1 font-semibold ${
-                body === option.id ? 'bg-line text-white' : 'text-muted hover:text-white'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="relative mx-auto mt-6 w-full max-w-[300px]">
@@ -1117,6 +1086,30 @@ export default function LivingMap({ userId = me(), load }) {
           Leave one untrained for 3 weeks and it starts to fade. An injured area can't level up until it settles.
         </p>
       </details>
+    </div>
+  )
+}
+
+// Three numbers above the figure: what's hurt, what's healing and what's being trained
+function MapSummary({ counts }) {
+  const sum = (levels) => levels.reduce((total, level) => total + (counts[level] ?? 0), 0)
+  const tiles = [
+    ['Injured', sum(['flare', 'injured', 'affected']), 'var(--lvl-injured)'],
+    ['Recovering', sum(['recovering', 'watch']), 'var(--lvl-recovering)'],
+    ['Trained', sum(['active', 'building', 'silver', 'elite', 'diamond']), 'var(--lvl-active)'],
+  ]
+  return (
+    <div className="grid grid-cols-3 gap-2" aria-label="Summary">
+      {tiles.map(([label, value, colour], i) => (
+        <div key={label} className="map-tile rounded-2xl border border-line bg-panel px-3 py-3" style={{ '--i': i }}>
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: colour }} aria-hidden="true" />
+            {label}
+          </p>
+          <p className="mt-1 font-display text-3xl font-bold leading-none text-white">{value}</p>
+          <p className="text-[11px] text-muted">{value === 1 ? 'area' : 'areas'}</p>
+        </div>
+      ))}
     </div>
   )
 }
