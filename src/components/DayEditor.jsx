@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { buttonPrimary, buttonSecondary, inputBase } from './ui.jsx'
+import { EFFORTS } from '../lib/effort.js'
 
 export const SECTION_ORDER = ['Warm-up', 'Physio', 'Rehab', 'Main']
 export const REST_DEFAULTS = { 'Warm-up': 30, Physio: 45, Rehab: 45, Main: 90 }
@@ -30,6 +31,8 @@ export default function DayEditor({ day, askReason, onSave, onCancel, onDelete }
         sets: Math.min(10, Math.max(1, parseInt(e.sets, 10) || 1)),
         reps: String(e.reps).trim() || '10',
         rest: Math.min(600, parseInt(e.rest, 10) || 0) || null,
+        effort: e.effort || undefined,
+        tempo: e.tempo?.trim().slice(0, 40) || undefined,
         load:
           e.load.kind === 'bodyweight'
             ? { kind: 'bodyweight' }
@@ -152,6 +155,40 @@ export default function DayEditor({ day, askReason, onSave, onCancel, onDelete }
               </label>
             )}
           </div>
+          <div>
+            <p className="text-xs font-medium text-muted">How hard (optional)</p>
+            <div className="mt-1 grid grid-cols-4 gap-1.5" role="group" aria-label="How hard">
+              {EFFORTS.map((effort) => {
+                const on = exercise.effort === effort.id
+                return (
+                  <button
+                    key={effort.id}
+                    type="button"
+                    onClick={() => update(exercise.id, { effort: on ? undefined : effort.id })}
+                    aria-pressed={on}
+                    className={`rounded-xl border px-1 py-2 text-center ${
+                      on ? 'border-transparent text-ink' : 'border-line text-neutral-300'
+                    }`}
+                    style={on ? { background: effort.colour } : undefined}
+                  >
+                    <span className="block text-xs font-bold">{effort.label}</span>
+                    <span className={`block text-[10px] ${on ? 'opacity-80' : 'text-muted'}`}>RPE {effort.rpe}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <label className="block text-xs font-medium text-muted">
+            Tempo (optional)
+            <input
+              type="text"
+              value={exercise.tempo ?? ''}
+              onChange={(event) => update(exercise.id, { tempo: event.target.value })}
+              placeholder="e.g. 3 s down, pause at the bottom"
+              maxLength={40}
+              className={`mt-1 ${inputBase}`}
+            />
+          </label>
           <label className="block text-xs font-medium text-muted">
             Coaching note (optional)
             <input
