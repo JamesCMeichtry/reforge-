@@ -1,5 +1,6 @@
 import { Component, useEffect, useId, useRef, useState } from 'react'
 import { buttonPrimary, buttonSecondary, inputBase } from './ui.jsx'
+import { sendFeedback } from '../lib/feedback.js'
 
 /* ---------- Questions and messages, in the app's own style instead of the browser's pop-ups ----------
    ask() shows a sheet and waits for the answer; toast() shows a short message above the tab bar.
@@ -218,7 +219,22 @@ const isStaleUpdate = (error) =>
   )
 
 export class CrashGuard extends Component {
-  state = { error: null }
+  state = { error: null, report: null }
+
+  // Sends the error and where it happened, so it can be fixed
+  report = async () => {
+    this.setState({ report: 'sending' })
+    try {
+      await sendFeedback({
+        kind: 'bug',
+        body: `The app crashed on ${window.location.hash || 'the start screen'}`,
+        error: this.state.error?.stack ?? this.state.error?.message ?? this.state.error,
+      })
+      this.setState({ report: 'sent' })
+    } catch {
+      this.setState({ report: 'failed' })
+    }
+  }
 
   static getDerivedStateFromError(error) {
     return { error }
@@ -240,7 +256,7 @@ export class CrashGuard extends Component {
   }
 
   componentDidUpdate(previous) {
-    if (this.state.error && previous.resetKey !== this.props.resetKey) this.setState({ error: null })
+    if (this.state.error && previous.resetKey !== this.props.resetKey) this.setState({ error: null, report: null })
   }
 
   render() {
@@ -267,6 +283,22 @@ export class CrashGuard extends Component {
             Reload
           </button>
         </div>
+        {!update && (
+          <button
+            type="button"
+            onClick={this.report}
+            disabled={this.state.report === 'sending' || this.state.report === 'sent'}
+            className="mt-3 w-full text-sm font-semibold text-gold disabled:text-muted"
+          >
+            {this.state.report === 'sent'
+              ? 'Reported. Thank you!'
+              : this.state.report === 'sending'
+                ? 'Sending…'
+                : this.state.report === 'failed'
+                  ? "Couldn't send. Tap to try again"
+                  : 'Report this problem'}
+          </button>
+        )}
         {!update && (
           <details className="mt-4 text-xs text-muted">
             <summary className="cursor-pointer">Details for support</summary>
