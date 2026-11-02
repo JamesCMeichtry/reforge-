@@ -7,6 +7,7 @@ import ConnectPanel from './components/ConnectPanel.jsx'
 import { FriendPage, FriendsPanel, useHashParts } from './components/Friends.jsx'
 import { MessagesPage } from './components/Chat.jsx'
 import { PrivacyPanel } from './components/Legal.jsx'
+import { FeedbackPanel } from './components/FeedbackPanel.jsx'
 import { NotificationsPanel, PushKeysTool } from './components/Notifications.jsx'
 import { disablePush } from './lib/push.js'
 import { ScreenHeader } from './components/ui.jsx'
@@ -91,15 +92,22 @@ function LandingPreviewTool() {
   return (
     <section className="rounded-2xl border border-dashed border-gold/60 bg-panel p-5">
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Testing tools</p>
-      <h2 className="mt-2 font-display text-2xl font-semibold">Landing page</h2>
+      <h2 className="mt-2 font-display text-2xl font-semibold">New visitor preview</h2>
       <p className="mt-2 text-sm text-neutral-300">
-        Shows the page new visitors see before they sign up. You stay signed in; tap Back to app when you're done.
+        See what new visitors see: the landing page, then the starting questions a new account answers. You stay signed
+        in and nothing is saved.
       </p>
       <a
         href="#welcome"
         className="mt-4 block rounded-xl border border-line px-4 py-2.5 text-center text-sm font-semibold text-white hover:border-gold"
       >
         Open landing page
+      </a>
+      <a
+        href="#welcome/start"
+        className="mt-2 block rounded-xl border border-line px-4 py-2.5 text-center text-sm font-semibold text-white hover:border-gold"
+      >
+        Open new account setup
       </a>
     </section>
   )
@@ -164,6 +172,7 @@ function ProfileScreen() {
         <NotificationsPanel />
         <ConnectPanel />
         <FriendsPanel />
+        <FeedbackPanel />
         <PrivacyPanel />
         {dev && <LandingPreviewTool />}
         {dev && <PushKeysTool />}
