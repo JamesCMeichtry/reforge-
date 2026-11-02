@@ -7,6 +7,7 @@ import { deleteSet, fetchPreviousSets, fetchTodaySets, formatLoad, formatPreviou
 import { me } from '../lib/me.js'
 import { UNITS, amountText, countsReps, targetAmount, unitOf, unitToSave } from '../lib/measure.js'
 import { useWakeLock } from '../lib/wakeLock.js'
+import { effortLine, effortOf } from '../lib/effort.js'
 import { ShareWorkout } from '../components/WorkoutCard.jsx'
 
 const SECTION_ORDER = ['Warm-up', 'Physio', 'Rehab', 'Main']
@@ -573,6 +574,12 @@ function ExerciseLog({
           ) : (
             <>
               <p className="mt-1 text-sm text-neutral-300">{targetLine(exercise)}</p>
+              {effortLine(exercise) && (
+                <p className="mt-1 text-sm font-semibold" style={{ color: effortOf(exercise)?.colour ?? 'inherit' }}>
+                  {effortOf(exercise) ? 'Aim: ' : ''}
+                  {effortLine(exercise)}
+                </p>
+              )}
               {lastTime && <p className="mt-1 text-sm text-gold">Last time: {lastTime}</p>}
               {partnerSets && (
                 <p className="mt-1 text-sm font-semibold" style={{ color: 'var(--lvl-building)' }}>
