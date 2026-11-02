@@ -18,6 +18,7 @@ import {
 } from '../lib/plans.js'
 import { inviteTime } from '../lib/friends.js'
 import { fetchMyPros } from '../lib/pro.js'
+import { TARGET_TEMPLATES, fetchInjuryGroups } from '../lib/targetTemplates.js'
 import { todayDate } from '../lib/programme.js'
 
 const inWeeks = (weeks) => {
@@ -115,6 +116,66 @@ function TargetRow({ target, onToggle, onDelete }) {
   )
 }
 
+// Ready-made targets: their injury's group first, then the rest. Tapping one fills in the form to edit.
+function TargetTemplates({ clientId, clientName, onPick }) {
+  const [groups, setGroups] = useState([])
+  const [open, setOpen] = useState(null)
+  useEffect(() => {
+    fetchInjuryGroups(clientId)
+      .then((found) => {
+        setGroups(found)
+        setOpen(found[0] ?? null)
+      })
+      .catch(() => {})
+  }, [clientId])
+  const order = [...groups, ...Object.keys(TARGET_TEMPLATES).filter((g) => !groups.includes(g))]
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-medium text-muted">Start from a template (optional)</p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Template groups">
+        {order.map((group) => (
+          <button
+            key={group}
+            type="button"
+            onClick={() => setOpen(open === group ? null : group)}
+            aria-pressed={open === group}
+            aria-expanded={open === group}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+              open === group ? 'border-gold bg-gold text-ink' : 'border-line text-neutral-300'
+            }`}
+          >
+            {group}
+            {groups.includes(group) && <span className="ml-1 opacity-70">· {clientName}'s</span>}
+          </button>
+        ))}
+      </div>
+      {open && (
+        <ul className="mt-2 divide-y divide-line rounded-xl border border-line">
+          {TARGET_TEMPLATES[open].map(([title, detail, weeks]) => (
+            <li key={title}>
+              <button
+                type="button"
+                onClick={() => {
+                  onPick({ title, detail, weeks })
+                  setOpen(null)
+                }}
+                className="flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-ink/40"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-white">{title}</span>
+                  <span className="block text-xs text-muted">{detail}</span>
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-gold">{weeks} wk</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-1.5 text-[11px] text-muted">Common milestones. Edit them to suit {clientName} before saving.</p>
+    </div>
+  )
+}
+
 // Professional, on a client's page: set targets with a deadline and tick them off
 export function TargetsPanel({ clientId, clientName = 'your client' }) {
   const [targets, setTargets] = useState(null)
@@ -202,7 +263,16 @@ export function TargetsPanel({ clientId, clientName = 'your client' }) {
 
       <form onSubmit={add} className="rounded-2xl border border-line bg-panel p-5">
         <h2 className="font-display text-2xl font-semibold">New target</h2>
-        <label className="mt-3 block text-xs font-medium text-muted">
+        <TargetTemplates
+          clientId={clientId}
+          clientName={clientName}
+          onPick={(picked) => {
+            setTitle(picked.title)
+            setDetail(picked.detail)
+            setDueOn(inWeeks(picked.weeks))
+          }}
+        />
+        <label className="mt-4 block text-xs font-medium text-muted">
           Target
           <input
             value={title}
