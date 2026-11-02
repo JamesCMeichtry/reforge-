@@ -205,6 +205,21 @@ function Gate() {
   const hash = useHash()
   if (loading) return <div className="min-h-dvh bg-ink" />
   if (session && hash === '#welcome' && testingTools()) return <Landing preview />
+  // Testing tools: the starting questions a new account answers, without making one or saving anything
+  if (session && hash === '#welcome/start' && testingTools()) {
+    return (
+      <Suspense fallback={<div className="min-h-dvh bg-ink" />}>
+        <Onboarding
+          userId={session.user.id}
+          preview
+          onDone={() => {
+            window.location.hash = 'profile'
+            toast('Preview finished. Nothing was saved.')
+          }}
+        />
+      </Suspense>
+    )
+  }
   if (session && recovering) {
     return (
       <NewPasswordScreen
