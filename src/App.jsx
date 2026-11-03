@@ -16,6 +16,7 @@ import { ConsentScreen } from './components/Legal.jsx'
 import { hasConsented } from './lib/account.js'
 import Landing from './components/Landing.jsx'
 import { isInstalled, markSeen, seenBefore } from './lib/install.js'
+import { endPractice, isPractice } from './lib/practice.js'
 
 startMotion()
 
@@ -37,8 +38,26 @@ function tabFromHash(tabs) {
   return tabs.some((tab) => tab.id === id) ? id : DEFAULT_TAB
 }
 
+// A slim reminder across the top of practice accounts, with a way out
+function PracticeBar() {
+  return (
+    <div className="mb-5 flex items-center gap-3 rounded-full border border-gold/50 bg-gold/10 py-1.5 pl-4 pr-1.5 text-sm">
+      <span className="h-2 w-2 shrink-0 rounded-full bg-gold" aria-hidden="true" />
+      <span className="min-w-0 flex-1 truncate font-semibold text-gold">Practice account · deleted after 7 days</span>
+      <button
+        type="button"
+        onClick={endPractice}
+        className="shrink-0 rounded-full bg-gold px-3 py-1 text-xs font-bold text-ink"
+      >
+        End
+      </button>
+    </div>
+  )
+}
+
 // Physios, PTs and coaches get the full training app for themselves, plus a Clients tab
 function AppShell({ profile }) {
+  const { session } = useAuth()
   // Professionals get Clients just before Profile, so Profile always sits far right
   const tabs =
     profile?.role === 'pro'
@@ -87,6 +106,7 @@ function AppShell({ profile }) {
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 6.5rem)',
         }}
       >
+        {isPractice(session) && <PracticeBar />}
         <CrashGuard resetKey={route}>
           <Suspense fallback={<LoadingCards count={3} label="Loading" />}>
             <Screen />
@@ -215,7 +235,7 @@ function Gate() {
     const Page = hash === '#testers' ? TesterGuide : PlansPage
     return (
       <Suspense fallback={<div className="min-h-dvh bg-ink" />}>
-        <Page signedIn={Boolean(session)} />
+        <Page signedIn={Boolean(session)} practice={isPractice(session)} />
       </Suspense>
     )
   }
