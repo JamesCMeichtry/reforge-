@@ -32,12 +32,44 @@ import { ChatThread } from '../components/Chat.jsx'
 import MonthReport from '../components/MonthReport.jsx'
 import { fetchUnread } from '../lib/chat.js'
 import { UNITS, amountText } from '../lib/measure.js'
+import { assignClientColours, clientColour } from '../lib/clientColours.js'
+import '../components/Screens.css'
 
 // #clients is the list, #clients/<id>/<section> is one client
 const hashParts = () => window.location.hash.replace('#', '').split('/')
 const clientFromHash = () => hashParts()[1] ?? null
 const sectionFromHash = () => hashParts()[2] ?? 'map'
 const areaLabel = (areaId) => areaId.charAt(0).toUpperCase() + areaId.slice(1).replace(/-/g, ' ')
+
+const initials = (name) =>
+  (name ?? '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
+
+const AVATAR_SIZES = { sm: 'h-8 w-8 text-[11px]', md: 'h-11 w-11 text-sm', lg: 'h-16 w-16 text-xl' }
+
+// A client's initials on their own colour
+function ClientAvatar({ client, size = 'md', ring = false }) {
+  const colour = clientColour(client.id)
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex shrink-0 items-center justify-center rounded-full font-display font-bold text-ink ${AVATAR_SIZES[size]}`}
+      style={{
+        background: colour,
+        boxShadow: ring ? `0 0 0 3px var(--color-panel), 0 0 0 5px ${colour}` : undefined,
+      }}
+    >
+      {initials(client.display_name)}
+    </span>
+  )
+}
+
+const monthYear = (iso) => new Date(iso).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
 
 function AddClient({ onAdded }) {
   const [code, setCode] = useState('')
@@ -61,7 +93,8 @@ function AddClient({ onAdded }) {
 
   return (
     <form onSubmit={submit} className="rounded-2xl border border-line bg-panel p-5">
-      <h2 className="font-display text-2xl font-semibold">Add a client</h2>
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">Grow your list</p>
+      <h2 className="mt-1 font-display text-2xl font-semibold">Add a client</h2>
       <p className="mt-2 text-sm text-neutral-300">
         Ask your client to tap <span className="font-semibold text-white">Get a connect code</span> on their Profile,
         then enter it here.
@@ -103,6 +136,7 @@ function ClientList() {
   const load = () =>
     fetchMyClients()
       .then((list) => {
+        assignClientColours(list)
         setClients(list)
         setError(false)
       })
@@ -116,9 +150,17 @@ function ClientList() {
     <>
       <ScreenHeader title="Clients" intro="What needs you today, then everyone you look after." />
       <div className="space-y-4">
-        {clients?.length > 0 && <NeedsYou clients={clients} />}
+        {clients?.length > 0 && <ListSummary clients={clients} />}
         {clients?.length > 0 && (
-          <h2 className="pt-2 text-xs font-bold uppercase tracking-[0.2em] text-muted">All clients</h2>
+          <div className="rise-in" style={{ '--i': 1 }}>
+            <NeedsYou clients={clients} />
+          </div>
+        )}
+        {clients?.length > 0 && (
+          <div className="flex items-baseline justify-between pt-2">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted">All clients</h2>
+            <span className="text-xs text-muted">{clients.length}</span>
+          </div>
         )}
         {error && <p className="text-red-400">Couldn't load your clients. Check your connection.</p>}
         {!clients && !error && <LoadingCards count={2} label="Loading your clients" />}
@@ -126,67 +168,129 @@ function ClientList() {
           <p className="text-neutral-300">No clients yet. Add your first one with their code below.</p>
         )}
         {clients?.length > 0 && (
-          <ul className="space-y-2">
-            {clients.map((client) => (
-              <li key={client.id}>
-                <a
-                  href={`#clients/${client.id}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-panel px-4 py-4 hover:border-gold"
-                >
-                  <div>
-                    <p className="font-semibold text-white">{client.display_name ?? 'Unnamed client'}</p>
-                    <p className="text-sm text-muted">
-                      {client.lastTrained
-                        ? `Trained ${daysAgo(client.lastTrained).toLowerCase()}`
-                        : 'No training in 2 weeks'}
-                      {client.worstPain != null ? ` · worst pain ${client.worstPain}/10` : ''}
-                    </p>
-                    {loadLive(client.id) && (
-                      <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-gold">
-                        <span className="live-dot h-2 w-2 rounded-full bg-red-500" aria-hidden="true" />
-                        Live session running
-                      </p>
-                    )}
-                    {client.unread > 0 && (
-                      <p className="mt-0.5 text-sm font-semibold text-gold">
-                        {client.unread} new {client.unread === 1 ? 'message' : 'messages'}
-                      </p>
-                    )}
-                    {client.openRequests > 0 && (
-                      <p className="mt-0.5 text-sm font-semibold text-gold">
-                        {client.openRequests} change {client.openRequests === 1 ? 'request' : 'requests'}
-                      </p>
-                    )}
-                  </div>
-                  {client.flagged ? (
-                    <span className="rounded-full bg-red-950 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-red-400">
-                      Flare
-                    </span>
-                  ) : (
-                    <span aria-hidden="true" className="text-muted">
-                      ›
-                    </span>
-                  )}
-                </a>
+          <ul className="space-y-2.5">
+            {clients.map((client, i) => (
+              <li key={client.id} className="rise-in" style={{ '--i': i + 2 }}>
+                <ClientCard client={client} />
               </li>
             ))}
           </ul>
         )}
         <a
           href="#clients/templates"
-          className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-panel px-4 py-4 hover:border-gold"
+          className="flex items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-4 transition-colors hover:border-gold"
         >
-          <span>
+          <span
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gold/40 text-gold"
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <rect x="4" y="3" width="16" height="18" rx="2" />
+              <path d="M8 8h8M8 12h8M8 16h5" strokeLinecap="round" />
+            </svg>
+          </span>
+          <span className="min-w-0 flex-1">
             <span className="block font-semibold text-white">Programme templates</span>
             <span className="block text-sm text-muted">Build a programme once, give it to any client</span>
           </span>
-          <span aria-hidden="true" className="text-muted">
+          <span aria-hidden="true" className="text-xl text-muted">
             ›
           </span>
         </a>
         <AddClient onAdded={load} />
       </div>
     </>
+  )
+}
+
+// Three numbers at the top of the list: everyone, who needs you, who's flaring up
+function ListSummary({ clients }) {
+  const toLookAt = attentionItems(clients).length
+  const flaring = clients.filter((c) => c.flagged).length
+  const tiles = [
+    ['Clients', clients.length, 'var(--color-muted)'],
+    ['To do', toLookAt, toLookAt ? 'var(--color-gold)' : 'var(--color-muted)'],
+    ['Flaring', flaring, flaring ? 'var(--pain-severe)' : 'var(--color-muted)'],
+  ]
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {tiles.map(([label, value, colour], i) => (
+        <div key={label} className="rise-in rounded-2xl border border-line bg-panel px-3 py-3" style={{ '--i': i }}>
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-muted">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: colour }} aria-hidden="true" />
+            {label}
+          </p>
+          <p className="mt-1 font-display text-3xl font-bold leading-none text-white">{value}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// One client in the list: their colour down the side, then what's going on with them
+function ClientCard({ client }) {
+  const colour = clientColour(client.id)
+  const live = loadLive(client.id)
+  const chips = [
+    live && { key: 'live', text: 'Live now', dot: '#ef4444', pulse: true },
+    client.unread > 0 && {
+      key: 'unread',
+      text: `${client.unread} new ${client.unread === 1 ? 'message' : 'messages'}`,
+      dot: 'var(--color-gold)',
+    },
+    client.openRequests > 0 && {
+      key: 'requests',
+      text: `${client.openRequests} ${client.openRequests === 1 ? 'request' : 'requests'}`,
+      dot: 'var(--color-gold)',
+    },
+    client.toReview?.length > 0 && {
+      key: 'review',
+      text: `${client.toReview.length} to review`,
+      dot: 'var(--color-gold)',
+    },
+  ].filter(Boolean)
+  return (
+    <a
+      href={`#clients/${client.id}`}
+      className="day-card tint-glow relative flex items-center gap-3 overflow-hidden rounded-2xl border border-line bg-panel py-4 pl-5 pr-4"
+      style={{ '--tint': colour }}
+    >
+      <span className="absolute inset-y-0 left-0 w-1.5" style={{ background: colour }} aria-hidden="true" />
+      <ClientAvatar client={client} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-semibold text-white">{client.display_name ?? 'Unnamed client'}</span>
+        <span className="block text-sm text-muted">
+          {lastTrainedText(client)}
+          {client.worstPain != null ? ` · worst pain ${client.worstPain}/10` : ''}
+        </span>
+        {chips.length > 0 && (
+          <span className="mt-2 flex flex-wrap gap-1.5">
+            {chips.map((chip) => (
+              <span
+                key={chip.key}
+                className="flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-xs font-semibold text-white"
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${chip.pulse ? 'live-dot' : ''}`}
+                  style={{ background: chip.dot }}
+                  aria-hidden="true"
+                />
+                {chip.text}
+              </span>
+            ))}
+          </span>
+        )}
+      </span>
+      {client.flagged ? (
+        <span className="shrink-0 rounded-full bg-red-950 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-red-400">
+          Flare
+        </span>
+      ) : (
+        <span aria-hidden="true" className="text-xl text-muted">
+          ›
+        </span>
+      )}
+    </a>
   )
 }
 
@@ -201,10 +305,19 @@ const LEVEL_STYLE = [
 function NeedsYou({ clients }) {
   const items = attentionItems(clients)
   return (
-    <section className="rounded-2xl border border-line bg-panel">
-      <div className="flex items-baseline justify-between px-4 pt-4">
-        <h2 className="font-display text-2xl font-semibold">Needs you</h2>
-        <span className="text-sm text-muted">{items.length ? `${items.length} to look at` : 'All clear'}</span>
+    <section className="tint-glow overflow-hidden rounded-2xl border border-line bg-panel">
+      <div className="flex items-start justify-between gap-3 px-4 pt-4">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">Today</p>
+          <h2 className="mt-1 font-display text-2xl font-semibold">Needs you</h2>
+        </div>
+        <span
+          className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+            items.length ? 'bg-gold/15 text-gold' : 'bg-line text-muted'
+          }`}
+        >
+          {items.length ? `${items.length} to look at` : 'All clear'}
+        </span>
       </div>
       {items.length === 0 ? (
         <p className="px-4 pb-4 pt-1 text-sm text-neutral-300">
@@ -214,13 +327,18 @@ function NeedsYou({ clients }) {
         <ul className="mt-2 divide-y divide-line">
           {items.map((item, i) => (
             <li key={i}>
-              <a href={item.href} className="flex items-center gap-3 px-4 py-3 hover:bg-ink/40">
-                <span
-                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.level === 0 ? 'live-dot' : ''}`}
-                  style={{ background: LEVEL_STYLE[item.level].dot }}
-                  role="img"
-                  aria-label={LEVEL_STYLE[item.level].label}
-                />
+              <a href={item.href} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-ink/40">
+                <span className="relative shrink-0">
+                  <ClientAvatar client={item.client} size="sm" />
+                  <span
+                    className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-panel ${
+                      item.level === 0 ? 'live-dot' : ''
+                    }`}
+                    style={{ background: LEVEL_STYLE[item.level].dot }}
+                    role="img"
+                    aria-label={LEVEL_STYLE[item.level].label}
+                  />
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className={`block font-semibold ${item.level === 0 ? 'text-red-400' : 'text-white'}`}>
                     {item.title}
@@ -572,6 +690,46 @@ const SECTIONS = [
   ['notes', 'Notes'],
 ]
 
+// The client's sections. On a phone they sit in one row that scrolls, and the open one slides into view.
+function SectionTabs({ section, onPick, unread, colour, desk }) {
+  const rowRef = useRef(null)
+  useEffect(() => {
+    const active = rowRef.current?.querySelector('[aria-pressed="true"]')
+    active?.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+  }, [section])
+  return (
+    <div
+      ref={rowRef}
+      className={`mb-6 flex gap-2 ${desk ? 'flex-wrap' : 'chip-scroll -mx-5 overflow-x-auto px-5 pb-1'}`}
+      role="group"
+      aria-label="Client sections"
+    >
+      {SECTIONS.map(([id, label]) => {
+        const on = section === id
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onPick(id)}
+            aria-pressed={on}
+            className={`flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 ${
+              on ? 'text-ink' : 'border-line text-muted hover:text-white'
+            }`}
+            style={on ? { background: colour, borderColor: colour } : undefined}
+          >
+            {label}
+            {id === 'messages' && unread > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1 text-[11px] font-bold text-ink">
+                {unread}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // Start a live session, or get back into one that's still running on this phone
 function LiveButton({ clientId }) {
   const running = loadLive(clientId)
@@ -673,48 +831,52 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
     )
   }
 
+  const colour = clientColour(clientId)
   return (
     <>
       {!desk && (
-        <a href="#clients" className="text-sm font-semibold text-muted hover:text-white">
-          ‹ All clients
+        <a
+          href="#clients"
+          className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-muted hover:text-white"
+        >
+          <span aria-hidden="true">‹</span> All clients
         </a>
       )}
-      <div className={desk ? '' : 'mt-3'}>
-        <ScreenHeader
-          title={client.display_name ?? 'Client'}
-          intro={
-            client.flagged
-              ? 'Flaring up: recent check-ins show high pain or warning signs.'
-              : 'Changes you make here apply to their account straight away.'
-          }
+      <header
+        className="rise-in tint-glow relative mb-5 overflow-hidden rounded-2xl border border-line bg-panel p-5"
+        style={{ '--tint': colour }}
+      >
+        <span
+          className="absolute inset-x-0 top-0 h-1"
+          style={{ background: `linear-gradient(90deg, ${colour}, transparent)` }}
+          aria-hidden="true"
         />
-      </div>
+        <div className="flex items-center gap-4">
+          <ClientAvatar client={client} size="lg" ring />
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted">
+              Client{client.since ? ` since ${monthYear(client.since)}` : ''}
+            </p>
+            <h1 className="mt-1 truncate font-display text-4xl font-bold uppercase leading-none tracking-tight">
+              {client.display_name ?? 'Client'}
+            </h1>
+          </div>
+        </div>
+        {client.flagged ? (
+          <p className="mt-4 flex items-center gap-2 rounded-xl border border-red-500/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+            <span className="live-dot h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden="true" />
+            Flaring up: recent check-ins show high pain or warning signs.
+          </p>
+        ) : (
+          <p className="mt-4 text-sm text-neutral-300">Changes you make here apply to their account straight away.</p>
+        )}
+      </header>
       <div className={desk ? 'grid max-w-3xl items-start gap-x-4 xl:grid-cols-2' : undefined}>
         <LiveButton clientId={clientId} />
         <PackageCard clientId={clientId} clientName={client.display_name} />
         <BookingCard clientId={clientId} clientName={client.display_name} />
       </div>
-      <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Client sections">
-        {SECTIONS.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setSection(id)}
-            aria-pressed={section === id}
-            className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${
-              section === id ? 'border-gold text-gold' : 'border-line text-muted hover:text-white'
-            }`}
-          >
-            {label}
-            {id === 'messages' && unread > 0 && (
-              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1 text-[11px] font-bold text-ink">
-                {unread}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <SectionTabs section={section} onPick={setSection} unread={unread} colour={colour} desk={desk} />
       {section === 'map' &&
         (desk ? (
           // On a laptop the map and recent check-ins sit side by side
@@ -760,15 +922,6 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
 
 /* ---------- Pro desk: the laptop layout ----------
    Clients down the left, always in reach, with whoever is open (or the overview) on the right. */
-
-const initials = (name) =>
-  (name ?? '?')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase()
 
 const lastTrainedText = (client) =>
   client.lastTrained ? `Trained ${daysAgo(client.lastTrained).toLowerCase()}` : 'No training in 2 weeks'
@@ -835,20 +988,13 @@ function ClientRail({ clients, error, selected, searchRef }) {
                 <a
                   href={`#clients/${client.id}`}
                   aria-current={isSelected ? 'page' : undefined}
-                  className={`flex items-center gap-3 rounded-xl px-2.5 py-2 ${
-                    isSelected ? 'bg-gold/10' : 'hover:bg-ink/60'
+                  className={`flex items-center gap-3 rounded-xl px-2.5 py-2 transition-colors ${
+                    isSelected ? 'bg-ink/60' : 'hover:bg-ink/60'
                   }`}
                 >
-                  <span
-                    aria-hidden="true"
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                      isSelected ? 'bg-gold text-ink' : 'bg-line text-white'
-                    }`}
-                  >
-                    {initials(client.display_name)}
-                  </span>
+                  <ClientAvatar client={client} size="sm" ring={isSelected} />
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-sm font-semibold ${isSelected ? 'text-gold' : 'text-white'}`}>
+                    <span className="block truncate text-sm font-semibold text-white">
                       {client.display_name ?? 'Unnamed client'}
                     </span>
                     <span className="block truncate text-xs text-muted">{lastTrainedText(client)}</span>
@@ -909,7 +1055,11 @@ function ClientTable({ clients }) {
               return (
                 <tr key={client.id} onClick={() => open(client.id)} className="cursor-pointer hover:bg-ink/50">
                   <td className="whitespace-nowrap px-5 py-3">
-                    <a href={`#clients/${client.id}`} className="font-semibold text-white hover:text-gold">
+                    <a
+                      href={`#clients/${client.id}`}
+                      className="flex items-center gap-2.5 font-semibold text-white hover:text-gold"
+                    >
+                      <ClientAvatar client={client} size="sm" />
                       {client.display_name ?? 'Unnamed client'}
                     </a>
                   </td>
@@ -1011,6 +1161,7 @@ function Desk({ clientId, section }) {
   const load = () =>
     fetchMyClients()
       .then((list) => {
+        assignClientColours(list)
         setClients(list)
         setError(false)
       })
