@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { InstallSteps } from './Install.jsx'
 import { DEMO_CLIENTS } from '../lib/demo.js'
+import { startPractice } from '../lib/practice.js'
 import './Screens.css'
 
 // Pages anyone can open, signed in or not: #plans (what each plan includes) and #testers (a guide for testers).
@@ -324,236 +324,173 @@ export function PlansPage({ signedIn }) {
 
 /* ---------- Tester guide ---------- */
 
-const GUIDES = {
-  pro: {
-    tab: "I'm a PT or physio",
-    steps: [
-      [
-        'Make your account',
-        'Tap Create an account below, then pick "I\'m a physio, PT or coach" on the first question. It takes about two minutes.',
-      ],
-      [
-        'Add the demo clients',
-        'Open Clients and tap Add demo clients. Four made-up clients appear with 6 to 8 weeks of training, check-ins and rehab (meet them below). Remove them any time.',
-      ],
-      [
-        'Coach them',
-        'Start with Needs you, then open each client: Body map, Rehab stages, Targets, Programme and Messages. Start a Live session and log sets as if they were in front of you.',
-      ],
-      [
-        "See the client's side",
-        'Optional: make a second account with another email and pick "I\'m training". On it, go to Profile, tap Get a connect code, then enter the code on your Clients page.',
-      ],
-    ],
-    tryList: [
-      'Needs you: is the order right? Is anything missing that you would want flagged?',
-      'Rehab stages and restrictions: do they match how you actually progress a patient?',
-      'Assessment: what questions would you add or remove?',
-      'Live sessions: is it quick enough to use between sets with a real client?',
-      'Programme templates: could you build your usual programmes with them?',
-    ],
-  },
-  solo: {
-    tab: 'I train myself',
-    steps: [
-      [
-        'Make your account',
-        'Tap Create an account below and pick "I\'m training". Add any injuries on the body map and answer the questions about how you train.',
-      ],
-      [
-        'Pick a programme',
-        'On Programme, start from a template or build your own days. Tap a day to see the plan before you start.',
-      ],
-      [
-        'Train and check in',
-        'Log a session. Afterwards rate how each injury felt, then again the next morning. Your body map and Rehab update from this.',
-      ],
-      [
-        'Watch it change',
-        'Over a week or two, check Progress, Rehab and the Body map. Muscles level up as you train them and injuries move through stages.',
-      ],
-    ],
-    tryList: [
-      'Logging in the gym: is it fast enough between sets?',
-      'The body map: does it make sense without explaining?',
-      'Check-ins: would you actually do one after every session?',
-      'Anything that felt confusing, slow or pointless.',
-    ],
-  },
-}
+// What Reforge does, in a line each
+const FEATURES = [
+  ['Living body map', 'Injuries and strength on one body. Colours change as you train and recover.'],
+  ['Programmes and live sessions', 'Build a plan once, then log a client’s sets as they lift.'],
+  ['Rehab stages', 'Each injury moves from Flare to Cleared, driven by pain check-ins.'],
+  ['Needs you', 'Pain spikes, warning signs, messages and requests, most urgent first.'],
+  ['Targets and reports', 'Goals with deadlines, and a monthly report ready to share.'],
+  ['Messages and bookings', 'Chat with clients, book 1-1s and count off session packages.'],
+]
 
-// Colours from the Clients page palette, just for these cards
+// Colours from the Clients page palette, just for these rows
 const DEMO_COLOURS = ['#38bdf8', '#a78bfa', '#34d399', '#f472b6']
 
 const COMING = [
-  ['AI coach', 'Builds and adjusts your plan around your injuries. Coaches get AI drafts and suggestions.'],
-  ['Plans and payments', 'Free, Plus and coach plans. See what each includes on the Plans page.'],
-  ['A full app', 'From the App Store and Google Play, after testing.'],
+  ['AI coach', 'Builds and adjusts plans around injuries.'],
+  ['Plans and payments', 'Free, Plus and coach plans.'],
+  ['A full app', 'App Store and Google Play.'],
 ]
 
-export function TesterGuide({ signedIn }) {
-  const [who, setWho] = useState('pro')
-  const guide = GUIDES[who]
+// The big button: straight into the demo app as Sam, no email needed
+function DemoButton({ signedIn, practice }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function start() {
+    setBusy(true)
+    setError('')
+    try {
+      await startPractice()
+    } catch (err) {
+      setError(err.message)
+      setBusy(false)
+    }
+  }
+
+  if (signedIn) {
+    return (
+      <a href="#today" className={`${primary} py-4 text-lg`}>
+        {practice ? 'Back to the demo app' : 'Open the app'}
+      </a>
+    )
+  }
+  return (
+    <>
+      <button type="button" onClick={start} disabled={busy} className={`${primary} py-4 text-lg`}>
+        {busy ? 'Setting up your demo…' : 'Open the demo app'}
+      </button>
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-red-400">
+          {error}
+        </p>
+      )}
+    </>
+  )
+}
+
+export function TesterGuide({ signedIn, practice }) {
   return (
     <PageFrame signedIn={signedIn}>
-      <section className="pt-12 pb-10 lg:pt-16">
-        <Eyebrow>Tester guide</Eyebrow>
+      <section className="pt-12 pb-12 lg:pt-16">
+        <Eyebrow>Tester preview</Eyebrow>
         <h1 className="mt-4 font-display text-[clamp(2.5rem,11vw,4.5rem)] font-bold uppercase leading-[0.9] tracking-tight">
-          Help shape
-          <span className="block text-gold">Reforge.</span>
+          See Reforge
+          <span className="block text-gold">in action.</span>
         </h1>
         <p className="mt-5 max-w-xl text-lg leading-relaxed text-neutral-300">
-          Thanks for testing. Reforge is injury-aware training and rehab that keeps the physio or PT in the loop. Here's
-          how to get going and what I'd most like your thoughts on.
+          Injury-aware training and rehab that keeps the physio or PT in the loop. Have a look around the demo and tell
+          me what you think.
         </p>
-        <div className="mt-7 flex max-w-md flex-col gap-3 sm:flex-row">
-          <a href={signedIn ? '#today' : '#signup'} className={primary}>
-            {signedIn ? 'Open the app' : 'Create an account'}
-          </a>
-          <a href="#plans" className={secondary}>
-            See the plans
-          </a>
-        </div>
-      </section>
-
-      <section
-        className="mb-12 flex gap-3 rounded-2xl border border-gold/50 bg-gold/10 p-5 text-sm leading-relaxed"
-        aria-label="Before you start"
-      >
-        <span aria-hidden="true" className="font-display text-2xl font-bold leading-none text-gold">
-          !
-        </span>
-        <p className="text-neutral-200">
-          <span className="font-semibold text-white">This is a test version.</span> Please use made-up clients and
-          injuries, not real patients' details. Things will change as I improve it, and nothing is charged.
-        </p>
-      </section>
-
-      <Toggle
-        label="Your role"
-        value={who}
-        onChange={setWho}
-        options={Object.entries(GUIDES).map(([id, g]) => [id, g.tab])}
-      />
-
-      <ol key={who} className="mt-6 grid gap-4 md:grid-cols-2">
-        {guide.steps.map(([title, text], i) => (
-          <li key={title} className="rise-in rounded-2xl border border-line bg-panel p-6" style={{ '--i': i }}>
-            <p className="font-display text-5xl font-bold leading-none text-gold">{i + 1}</p>
-            <h2 className="mt-3 text-lg font-semibold text-white">{title}</h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-neutral-300">{text}</p>
-          </li>
-        ))}
-      </ol>
-
-      {who === 'pro' && (
-        <section className="mt-12" aria-labelledby="demo-heading">
-          <h2 id="demo-heading" className="font-display text-4xl font-bold uppercase leading-none">
-            Meet the demo clients
-          </h2>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-300">
-            Made-up people with realistic histories, so you can see Reforge working without setting anyone up.
-          </p>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            {DEMO_CLIENTS.map((client, i) => (
-              <article
-                key={client.id}
-                className="rise-in tint-glow relative overflow-hidden rounded-2xl border border-line bg-panel p-5"
-                style={{ '--i': i, '--tint': DEMO_COLOURS[i] }}
-              >
-                <span
-                  className="absolute inset-y-0 left-0 w-1.5"
-                  style={{ background: DEMO_COLOURS[i] }}
-                  aria-hidden="true"
-                />
-                <div className="flex items-center gap-3">
-                  <span
-                    aria-hidden="true"
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold text-ink"
-                    style={{ background: DEMO_COLOURS[i] }}
-                  >
-                    {client.name
-                      .split(' ')
-                      .map((part) => part[0])
-                      .join('')}
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-white">
-                      {client.name}, {client.age}
-                    </h3>
-                    <p className="text-xs font-bold uppercase tracking-[0.15em] text-muted">{client.tag}</p>
-                  </div>
-                </div>
-                <p className="mt-3 text-sm leading-relaxed text-neutral-200">{client.about}</p>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
-                  <span className="font-semibold text-gold">Try: </span>
-                  {client.tryThis}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="mt-12 grid gap-4 md:grid-cols-2">
-        <div className="tint-glow rounded-2xl border border-line bg-panel p-6">
-          <Eyebrow>What I'd love to know</Eyebrow>
-          <ul className="mt-4 space-y-3">
-            {guide.tryList.map((item) => (
-              <li key={item} className="flex gap-2.5 text-sm leading-relaxed text-neutral-200">
-                <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                {item}
-              </li>
-            ))}
-            <li className="flex gap-2.5 text-sm leading-relaxed text-neutral-200">
-              <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-              Would you pay for it? What would make it worth paying for?
-            </li>
-          </ul>
-        </div>
-        <div className="rounded-2xl border border-line bg-panel p-6">
-          <Eyebrow>Sending feedback</Eyebrow>
-          <p className="mt-4 text-sm leading-relaxed text-neutral-200">
-            In the app, go to <span className="font-semibold text-white">Profile</span> and use{' '}
-            <span className="font-semibold text-white">Send feedback</span>. Pick bug, idea or other and say which page
-            you were on. It tells me which phone you're using, so you don't need to.
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-neutral-200">
-            If something crashes, tap <span className="font-semibold text-white">Report this problem</span> on the error
-            screen and I'll get the details.
-          </p>
-        </div>
-      </section>
-
-      <section className="mt-12" aria-labelledby="install-heading">
-        <div className="grid gap-6 md:grid-cols-2 md:items-start">
-          <div>
-            <h2 id="install-heading" className="font-display text-4xl font-bold uppercase leading-none">
-              Put it on your phone
-            </h2>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-300">
-              No app store needed yet. Add Reforge to your home screen and it opens full screen, and keeps logging sets
-              with no signal. Turn on notifications in Profile, then Settings, to hear about messages and bookings.
+        <div className="mt-8 max-w-md">
+          <DemoButton signedIn={signedIn} practice={practice} />
+          {!signedIn && (
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              No sign-up. You'll be Sam, a PT with 4 clients. The demo is deleted after 7 days.{' '}
+              <a href="#signup" className="font-semibold text-gold">
+                Make a real account
+              </a>{' '}
+              instead.
             </p>
-          </div>
-          <div className="rounded-2xl border border-line bg-panel p-6">
-            <InstallSteps />
-          </div>
+          )}
         </div>
       </section>
 
-      <section className="mt-12" aria-labelledby="coming-heading">
-        <h2 id="coming-heading" className="font-display text-4xl font-bold uppercase leading-none">
-          Coming next
+      <section aria-labelledby="inside-heading">
+        <h2 id="inside-heading" className="font-display text-4xl font-bold uppercase leading-none">
+          What's inside
         </h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
-          {COMING.map(([title, text], i) => (
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map(([title, text], i) => (
             <div key={title} className="rise-in rounded-2xl border border-line bg-panel p-5" style={{ '--i': i }}>
               <p className="font-semibold text-white">{title}</p>
               <p className="mt-1 text-sm leading-relaxed text-muted">{text}</p>
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="mt-12 grid gap-4 md:grid-cols-2" aria-labelledby="demo-heading">
+        <h2 id="demo-heading" className="font-display text-4xl font-bold uppercase leading-none md:col-span-2">
+          In the demo
+        </h2>
+        <div className="rounded-2xl border border-line bg-panel p-5">
+          <Eyebrow>Your clients</Eyebrow>
+          <ul className="mt-4 space-y-3">
+            {DEMO_CLIENTS.map((client, i) => (
+              <li key={client.id} className="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-xs font-bold text-ink"
+                  style={{ background: DEMO_COLOURS[i] }}
+                >
+                  {client.name
+                    .split(' ')
+                    .map((part) => part[0])
+                    .join('')}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-white">
+                    {client.name}, {client.age} · {client.tag}
+                  </span>
+                  <span className="block text-xs leading-relaxed text-muted">{client.about}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="tint-glow rounded-2xl border border-line bg-panel p-5">
+          <Eyebrow>Your own training</Eyebrow>
+          <p className="mt-4 text-sm leading-relaxed text-neutral-200">
+            Sam trains 4 days a week on an upper/lower split, built around a{' '}
+            <span className="font-semibold text-white">left hamstring tear</span> and a niggly{' '}
+            <span className="font-semibold text-white">right shoulder</span>. Six weeks of sessions and pain check-ins
+            are already logged, so the body map, Rehab and Progress all have something to show.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted">
+            Try: start today's session, check in afterwards, then open Clients and see who needs you.
+          </p>
+        </div>
+      </section>
+
+      <section className="mt-12 rounded-2xl border border-gold/50 bg-gold/10 p-6" aria-labelledby="feedback-heading">
+        <h2 id="feedback-heading" className="font-display text-3xl font-bold uppercase leading-none">
+          Tell me what you think
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-200">
+          In the app, go to <span className="font-semibold text-white">Profile</span> and tap{' '}
+          <span className="font-semibold text-white">Send feedback</span>. Anything that's confusing, missing or
+          brilliant helps, and so does "would you pay for this?". This is a test version, so please don't put real
+          patients' details in.
+        </p>
+      </section>
+
+      <section className="mt-12" aria-labelledby="coming-heading">
+        <h2 id="coming-heading" className="font-display text-3xl font-bold uppercase leading-none">
+          Coming next
+        </h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {COMING.map(([title, text]) => (
+            <div key={title} className="rounded-2xl border border-line bg-panel p-4">
+              <p className="font-semibold text-white">{title}</p>
+              <p className="mt-1 text-sm text-muted">{text}</p>
+            </div>
+          ))}
+        </div>
+        <a href="#plans" className="mt-4 inline-block text-sm font-semibold text-gold">
+          See the plans and planned prices ›
+        </a>
       </section>
     </PageFrame>
   )
