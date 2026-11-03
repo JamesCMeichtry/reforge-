@@ -72,7 +72,7 @@ function AccountPanel() {
     <section className="rounded-2xl border border-line bg-panel p-5">
       <h2 className="font-display text-2xl font-semibold">Account</h2>
       <p className="mt-2 text-neutral-300">
-        Signed in as <span className="font-semibold text-white">{session?.user?.email}</span>
+        Signed in as <span className="font-semibold text-white">{session?.user?.email || 'a practice account'}</span>
       </p>
       <button
         type="button"
