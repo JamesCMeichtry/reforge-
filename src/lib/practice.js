@@ -1,23 +1,23 @@
 import { supabase } from './supabase.js'
 
-// Try-it-now accounts for testers: no email, filled with practice data, deleted after 7 days.
-// kind is 'pro' (a coach with the 4 demo clients) or 'athlete' (Alex, 5 months after ACL surgery).
-export async function startPractice(kind) {
+// The demo app for testers: no email, filled in as Sam (a PT with 4 demo clients and their own training),
+// deleted after 7 days
+export async function startPractice() {
   const { error } = await supabase.auth.signInAnonymously()
   if (error) {
     throw new Error(
       /disabled/i.test(error.message)
-        ? 'Practice accounts are switched off right now.'
+        ? 'The demo is switched off right now.'
         : 'Couldn’t start. Check your connection.',
     )
   }
-  const { error: fillError } = await supabase.rpc('start_practice', { kind })
+  const { error: fillError } = await supabase.rpc('start_practice', { kind: 'pro' })
   if (fillError) {
     await supabase.auth.signOut()
-    throw new Error('Couldn’t set up the practice account. Try again in a moment.')
+    throw new Error('Couldn’t set up the demo. Try again in a moment.')
   }
   // Open the app fresh, so it loads the filled-in account
-  window.location.hash = kind === 'pro' ? 'clients' : 'today'
+  window.location.hash = 'today'
   window.location.reload()
 }
 
