@@ -33,6 +33,7 @@ import MonthReport from '../components/MonthReport.jsx'
 import { fetchUnread } from '../lib/chat.js'
 import { UNITS, amountText } from '../lib/measure.js'
 import { assignClientColours, clientColour } from '../lib/clientColours.js'
+import { addDemoClients, fetchDemoClients, removeDemoClients } from '../lib/demo.js'
 import '../components/Screens.css'
 
 // #clients is the list, #clients/<id>/<section> is one client
@@ -66,6 +67,84 @@ function ClientAvatar({ client, size = 'md', ring = false }) {
     >
       {initials(client.display_name)}
     </span>
+  )
+}
+
+// Testers can fill their list with 4 made-up clients, and clear them out again
+function DemoClientsCard({ onChange }) {
+  const [count, setCount] = useState(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    fetchDemoClients().then((rows) => setCount(rows ? rows.length : -1))
+  }, [])
+  // Hidden until the demo setup is in the database
+  if (count === null || count < 0) return null
+
+  async function add() {
+    setBusy(true)
+    try {
+      await addDemoClients()
+      setCount(4)
+      toast('4 demo clients added')
+      onChange()
+    } catch {
+      toast("Couldn't add the demo clients. Check your connection.", { tone: 'error' })
+    }
+    setBusy(false)
+  }
+
+  async function remove() {
+    const sure = await ask({
+      title: 'Remove the demo clients?',
+      body: 'Tom, Maya, Margaret and Dan go, along with everything you changed for them. Your real clients stay.',
+      confirm: 'Remove demo clients',
+      danger: true,
+    })
+    if (!sure) return
+    setBusy(true)
+    try {
+      await removeDemoClients()
+      setCount(0)
+      toast('Demo clients removed')
+      onChange()
+    } catch {
+      toast("Couldn't remove them. Check your connection.", { tone: 'error' })
+    }
+    setBusy(false)
+  }
+
+  return (
+    <section className="rounded-2xl border border-dashed border-gold/60 bg-panel p-5">
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">Try it out</p>
+      <h2 className="mt-1 font-display text-2xl font-semibold">Demo clients</h2>
+      {count > 0 ? (
+        <>
+          <p className="mt-2 text-sm text-neutral-300">
+            Tom, Maya, Margaret and Dan are in your list with weeks of history. Change anything you like, then remove
+            them when you're done.
+          </p>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy}
+            className={`mt-4 w-full ${buttonSecondary} hover:border-red-400 hover:text-red-400`}
+          >
+            {busy ? 'Removing…' : 'Remove demo clients'}
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="mt-2 text-sm text-neutral-300">
+            Add 4 made-up clients with 6 to 8 weeks of training, check-ins and rehab: a strong lifter, a Hyrox athlete
+            with shoulder and wrist niggles, a 67-year-old with a weak back and sore hip, and someone 5 months after ACL
+            surgery.
+          </p>
+          <button type="button" onClick={add} disabled={busy} className={`mt-4 w-full ${buttonPrimary}`}>
+            {busy ? 'Adding…' : 'Add demo clients'}
+          </button>
+        </>
+      )}
+    </section>
   )
 }
 
@@ -197,6 +276,7 @@ function ClientList() {
             ›
           </span>
         </a>
+        <DemoClientsCard onChange={load} />
         <AddClient onAdded={load} />
       </div>
     </>
@@ -1131,6 +1211,7 @@ function Overview({ clients, error, reload }) {
               )}
             </div>
             <div className="space-y-4">
+              <DemoClientsCard onChange={reload} />
               <AddClient onAdded={reload} />
               <a
                 href="#clients/templates"
