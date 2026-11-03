@@ -21,6 +21,8 @@ startMotion()
 
 // Screens most people don't open straight away load on demand, so the app starts faster
 const Onboarding = lazy(() => import('./screens/Onboarding.jsx'))
+const PlansPage = lazy(() => import('./components/PublicPages.jsx').then((m) => ({ default: m.PlansPage })))
+const TesterGuide = lazy(() => import('./components/PublicPages.jsx').then((m) => ({ default: m.TesterGuide })))
 const preload = (isPro) => {
   import('./components/LivingMap.jsx')
   import('./screens/ProgressScreen.jsx')
@@ -208,6 +210,15 @@ function Gate() {
   const { session, loading, recovering, finishRecovery, linkError } = useAuth()
   const hash = useHash()
   if (loading) return <div className="min-h-dvh bg-ink" />
+  // Pages anyone can open, signed in or not, so they can be shared: the plans and the tester guide
+  if (hash === '#plans' || hash === '#plans/coach' || hash === '#testers') {
+    const Page = hash === '#testers' ? TesterGuide : PlansPage
+    return (
+      <Suspense fallback={<div className="min-h-dvh bg-ink" />}>
+        <Page signedIn={Boolean(session)} />
+      </Suspense>
+    )
+  }
   if (session && hash === '#welcome' && testingTools()) return <Landing preview />
   // Testing tools: the starting questions a new account answers, without making one or saving anything
   if (session && hash === '#welcome/start' && testingTools()) {
