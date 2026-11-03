@@ -10,6 +10,7 @@ import { PrivacyPanel } from './components/Legal.jsx'
 import { FeedbackPanel } from './components/FeedbackPanel.jsx'
 import { NotificationsPanel, PushKeysTool } from './components/Notifications.jsx'
 import { disablePush } from './lib/push.js'
+import { toast } from './components/Feedback.jsx'
 import { ScreenHeader } from './components/ui.jsx'
 import TodayScreen from './screens/TodayScreen.jsx'
 import ProgrammeScreen from './screens/ProgrammeScreen.jsx'
@@ -109,8 +110,45 @@ function LandingPreviewTool() {
       >
         Open new account setup
       </a>
+      <p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-muted">For testers</p>
+      <p className="mt-1 text-sm text-neutral-300">
+        A page for PTs, physios and friends: how to get set up, what to try and how to send feedback. Anyone can open
+        it, signed in or not.
+      </p>
+      <a
+        href="#testers"
+        className="mt-3 block rounded-xl border border-line px-4 py-2.5 text-center text-sm font-semibold text-white hover:border-gold"
+      >
+        Open tester guide
+      </a>
+      <button
+        type="button"
+        onClick={shareTesterGuide}
+        className="mt-2 block w-full rounded-xl bg-gold px-4 py-2.5 text-center text-sm font-semibold text-ink"
+      >
+        Share tester guide
+      </button>
     </section>
   )
+}
+
+// The phone's share sheet where there is one (iPhone, Android), otherwise copy the link
+async function shareTesterGuide() {
+  const url = `${window.location.origin}${window.location.pathname}#testers`
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'Test Reforge', text: 'Help me test Reforge. Here is how to get started:', url })
+      return
+    } catch (err) {
+      if (err?.name === 'AbortError') return
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url)
+    toast('Link copied')
+  } catch {
+    toast(url)
+  }
 }
 
 function readDev() {
@@ -152,6 +190,34 @@ function SettingsPage() {
         <NotificationsPanel />
       </div>
     </>
+  )
+}
+
+function PlansLink() {
+  return (
+    <a
+      href="#plans"
+      className="flex items-center gap-3 rounded-2xl border border-line bg-panel p-4 transition-colors hover:border-gold/60"
+    >
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/40 text-gold"
+        aria-hidden="true"
+      >
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path
+            d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9L12 3Z"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-white">Plans</span>
+        <span className="block text-sm text-muted">Free, Plus with the AI coach, and coach plans</span>
+      </span>
+      <span className="text-xl text-muted" aria-hidden="true">
+        ›
+      </span>
+    </a>
   )
 }
 
@@ -215,6 +281,7 @@ function ProfileScreen() {
       )}
       <div className="space-y-4">
         <SettingsLink />
+        <PlansLink />
         <ConnectPanel />
         <FriendsPanel />
         <FeedbackPanel />
