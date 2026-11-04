@@ -11,7 +11,7 @@ export const TOUR_EVENT = 'reforge:tour'
 const STEPS = [
   {
     hash: 'today',
-    title: 'Welcome, Sam',
+    title: 'Welcome to the demo',
     text: "You're a PT with 4 clients, and you train too. Here's a one-minute tour of the main parts.",
   },
   {
