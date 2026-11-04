@@ -17,6 +17,7 @@ import { hasConsented } from './lib/account.js'
 import Landing from './components/Landing.jsx'
 import { isInstalled, markSeen, seenBefore } from './lib/install.js'
 import { endPractice, isPractice } from './lib/practice.js'
+import DemoTour, { TOUR_EVENT } from './components/DemoTour.jsx'
 
 startMotion()
 
@@ -38,12 +39,19 @@ function tabFromHash(tabs) {
   return tabs.some((tab) => tab.id === id) ? id : DEFAULT_TAB
 }
 
-// A slim reminder across the top of practice accounts, with a way out
+// A slim reminder across the top of demo accounts, with the tour and a way out
 function PracticeBar() {
   return (
     <div className="mb-5 flex items-center gap-3 rounded-full border border-gold/50 bg-gold/10 py-1.5 pl-4 pr-1.5 text-sm">
       <span className="h-2 w-2 shrink-0 rounded-full bg-gold" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate font-semibold text-gold">Practice account · deleted after 7 days</span>
+      <span className="min-w-0 flex-1 truncate font-semibold text-gold">Demo · deleted after 7 days</span>
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event(TOUR_EVENT))}
+        className="shrink-0 rounded-full border border-gold/60 px-3 py-1 text-xs font-bold text-gold"
+      >
+        Tour
+      </button>
       <button
         type="button"
         onClick={endPractice}
@@ -113,6 +121,7 @@ function AppShell({ profile }) {
           </Suspense>
         </CrashGuard>
       </main>
+      {isPractice(session) && <DemoTour />}
       <TabBar activeTab={activeTab} onSelect={selectTab} tabs={tabs} />
       <SideBar activeTab={activeTab} onSelect={selectTab} tabs={tabs} />
     </div>
