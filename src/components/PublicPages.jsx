@@ -343,7 +343,7 @@ const COMING = [
   ['A full app', 'App Store and Google Play.'],
 ]
 
-// The big button: straight into the demo app as Sam, no email needed
+// The big button: straight into the demo app, no email needed
 function DemoButton({ signedIn, practice }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -397,7 +397,7 @@ export function TesterGuide({ signedIn, practice }) {
           <DemoButton signedIn={signedIn} practice={practice} />
           {!signedIn && (
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              No sign-up. You'll be Sam, a PT with 4 clients. The demo is deleted after 7 days.{' '}
+              No sign-up. You'll be a PT with 4 clients. The demo is deleted after 7 days.{' '}
               <a href="#signup" className="font-semibold text-gold">
                 Make a real account
               </a>{' '}
@@ -453,7 +453,7 @@ export function TesterGuide({ signedIn, practice }) {
         <div className="tint-glow rounded-2xl border border-line bg-panel p-5">
           <Eyebrow>Your own training</Eyebrow>
           <p className="mt-4 text-sm leading-relaxed text-neutral-200">
-            Sam trains 4 days a week on an upper/lower split, built around a{' '}
+            You train 4 days a week on an upper/lower split, built around a{' '}
             <span className="font-semibold text-white">left hamstring tear</span> and a niggly{' '}
             <span className="font-semibold text-white">right shoulder</span>. Six weeks of sessions and pain check-ins
             are already logged, so the body map, Rehab and Progress all have something to show.
