@@ -16,6 +16,12 @@ export async function startPractice() {
     await supabase.auth.signOut()
     throw new Error('Couldn’t set up the demo. Try again in a moment.')
   }
+  // A new demo starts with the tour
+  try {
+    localStorage.removeItem('reforge.demo-tour.done')
+  } catch {
+    // The Tour button on the demo bar still plays it
+  }
   // Open the app fresh, so it loads the filled-in account
   window.location.hash = 'today'
   window.location.reload()
