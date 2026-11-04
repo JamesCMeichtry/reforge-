@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import './Screens.css'
 
-// A short guided tour for the demo app: one card above the tab bar that walks through the main screens.
+// A short guided tour for the demo app: one card above the tab bar that walks through the main screens,
+// the monthly report, and how clients and friends connect with codes.
 // Shows once on a new demo; "Tour" on the demo bar plays it again.
 
 const DONE_KEY = 'reforge.demo-tour.done'
@@ -34,9 +35,24 @@ const STEPS = [
     text: 'Each injury moves from Flare to Cleared, based on how it feels after training and the next morning.',
   },
   {
+    hash: 'progress/report',
+    title: 'Monthly report',
+    text: 'Every month gets a one-page report: sessions, new bests, how each injury went and targets met. Share yours, or send a client theirs as a message.',
+  },
+  {
     hash: 'clients',
     title: 'Clients',
     text: 'Needs you puts the urgent things first. Margaret reported a warning sign, so she is at the top. Tap any client to coach them.',
+  },
+  {
+    hash: 'clients',
+    title: 'Adding a client',
+    text: 'Clients join with a 6-letter code. They tap Get a connect code on their Profile, and you type it into Add a client at the bottom of this page. Each code works once.',
+  },
+  {
+    hash: 'profile',
+    title: 'Friends',
+    text: "Friends use codes too: tap Show my code for a friend and send it. Friends see each other's sessions and bests, never injuries or pain, and can train together live.",
   },
   {
     hash: 'profile',
@@ -75,7 +91,7 @@ export default function DemoTour() {
   useEffect(() => {
     if (step == null) return
     const hash = STEPS[step].hash
-    if (window.location.hash.replace('#', '').split('/')[0] !== hash) window.location.hash = hash
+    if (window.location.hash.replace('#', '') !== hash) window.location.hash = hash
   }, [step])
 
   if (step == null) return null
