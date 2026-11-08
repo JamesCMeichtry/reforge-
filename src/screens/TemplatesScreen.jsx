@@ -333,12 +333,17 @@ function TemplateDetail({ templateId, dayId }) {
           <ProgrammeBuilder
             title={template.name}
             subtitle="Template"
-            days={template.days}
+                        days={template.days}
+            block={template.block}
+            allowStart={false}
             draftKey={`template-${template.id}`}
-            onSave={async (days) => {
-              await updateTemplate(template.id, { days })
-              setTemplate((t) => ({ ...t, days, updated_at: new Date().toISOString() }))
+            onSave={async (days, _summary, _reason, block) => {
+              // Templates keep the block's length and lighter week; the start date is set when it's given
+              const kept = block ? { weeks: block.weeks, deload: Boolean(block.deload) } : null
+              await updateTemplate(template.id, { days, block: kept })
+              setTemplate((t) => ({ ...t, days, block: kept, updated_at: new Date().toISOString() }))
             }}
+
             onClose={() => go(`clients/templates/${template.id}`)}
           />
         </Suspense>
