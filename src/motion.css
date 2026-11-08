@@ -1,6 +1,15 @@
 /* ---------- Movement (see lib/motion.js and lib/transitions.js) ----------
    Subtle and quick: 200–400 ms, small distances. Everything here switches off with Reduce Motion. */
 
+/* One set of speeds and curves for the whole app, so everything moves the same way */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-quick: 160ms;
+  --dur-base: 260ms;
+  --dur-slow: 480ms;
+}
+
 /* Page transitions: the tab bar and side bar stay put while the page slides */
 nav.fixed.bottom-0 {
   view-transition-name: tab-bar;
@@ -36,8 +45,8 @@ nav.fixed.left-0 {
 
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 260ms;
-  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation-duration: var(--dur-base);
+  animation-timing-function: var(--ease-out);
 }
 :root[data-nav='forward']::view-transition-old(root) {
   animation-name: page-out-left;
@@ -69,7 +78,7 @@ html.motion [data-reveal='in'] {
   transform: none;
   transition:
     opacity 320ms ease-out,
-    transform 380ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    transform 380ms var(--ease-out);
   transition-delay: var(--reveal-delay, 0ms);
 }
 
@@ -82,7 +91,7 @@ html.motion [data-reveal='in'] {
 }
 html.motion [data-appear],
 html.motion main details[open] > :not(summary) {
-  animation: appear 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: appear 240ms var(--ease-out) both;
 }
 
 /* Progress bars fill from empty as their card appears */
@@ -93,7 +102,7 @@ html.motion main details[open] > :not(summary) {
 }
 html.motion [data-reveal='in'] .transition-\[width\] {
   transform-origin: left;
-  animation: bar-fill 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: bar-fill 700ms var(--ease-out) both;
   animation-delay: calc(var(--reveal-delay, 0ms) + 120ms);
 }
 
@@ -116,6 +125,30 @@ html.motion main :is(a, button).rounded-2xl {
 }
 html.motion main :is(a, button).rounded-2xl:not(:disabled):active {
   transform: scale(0.985);
+}
+
+/* Buttons press in too, a touch more than cards, and spring back */
+html.motion :is(main, .bd-root) :is(a, button).rounded-xl {
+  transition:
+    transform var(--dur-quick) var(--ease-spring),
+    border-color 150ms,
+    background-color 150ms;
+}
+html.motion :is(main, .bd-root) :is(a, button).rounded-xl:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* The compact title bar that slides down once the big screen title scrolls away */
+.compact-title {
+  transform: translateY(-110%);
+  opacity: 0;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    opacity var(--dur-quick) ease-out;
+}
+.compact-title[data-shown='true'] {
+  transform: none;
+  opacity: 1;
 }
 
 /* Loading shapes: a soft light sweeps across instead of a pulse */
@@ -146,6 +179,9 @@ html.motion .skeleton {
   html.motion [data-reveal='wait'] {
     opacity: 1;
     transform: none;
+  }
+  .compact-title {
+    transition: none;
   }
   html.motion [data-appear],
   html.motion main details[open] > :not(summary),
