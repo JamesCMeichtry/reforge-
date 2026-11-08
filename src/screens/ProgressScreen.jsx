@@ -3,9 +3,13 @@ import StreakCard from '../components/StreakCard.jsx'
 import { MyTargets } from '../components/Plans.jsx'
 import MonthReport, { ReportLink } from '../components/MonthReport.jsx'
 import { useHashParts } from '../components/Friends.jsx'
+import Collapsible from '../components/Collapsible.jsx'
 import { LoadingCards, ScreenHeader, buttonSecondary } from '../components/ui.jsx'
 import { fetchSetHistory, tinyDate, topSets, weightedExercises } from '../lib/progress.js'
 import { fetchActiveProgramme } from '../lib/programme.js'
+import { computeStreak, fetchActivityDays } from '../lib/streak.js'
+import { fetchTargets } from '../lib/plans.js'
+import { progressStory } from '../lib/story.js'
 import '../components/Screens.css'
 
 function Card({ eyebrow, title, aside, children }) {
@@ -72,13 +76,20 @@ function mainLifts(history, programme) {
   return [...new Set(firsts)].filter((name) => weighted.includes(name))
 }
 
-function StrengthChart({ history, programme }) {
+function StrengthChart({ history, programme, bare = false }) {
   const exercises = useMemo(() => mainLifts(history, programme), [history, programme])
   const [picked, setPicked] = useState(null)
   const exercise = picked ?? exercises[0]
   const sessions = useMemo(() => (exercise ? topSets(history, exercise).slice(-10) : []), [history, exercise])
 
   if (!exercises.length) {
+    const empty = (
+      <p className={bare ? 'text-neutral-300' : 'mt-2 text-neutral-300'}>
+        Your main lifts show here once you log a weight on them: squat, bench and deadlift, or the first main exercise
+        of each day in your programme.
+      </p>
+    )
+    if (bare) return empty
     return (
       <Card eyebrow="Main lifts" title="Strength">
         <p className="mt-2 text-neutral-300">
@@ -95,13 +106,11 @@ function StrengthChart({ history, programme }) {
   const bestSet = sessions.find((s) => s.weight === best)
   const bestIndex = sessions.indexOf(bestSet)
 
-  return (
-    <Card
-      eyebrow="Main lifts"
-      title="Strength"
-      aside={sessions.length > 1 ? <ChangePill change={Math.round(change * 10) / 10} /> : null}
-    >
-      <div className="chip-scroll -mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1">
+  const pill = sessions.length > 1 ? <ChangePill change={Math.round(change * 10) / 10} /> : null
+
+  const content = (
+    <>
+      <div className={`chip-scroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 ${bare ? '' : 'mt-4'}`}>
         {exercises.map((name) => (
           <button
             key={name}
@@ -161,8 +170,78 @@ function StrengthChart({ history, programme }) {
         <MiniStat label="Sessions" value={sessions.length} />
       </div>
       <p className="mt-3 text-xs text-muted">Heaviest set each session, in kg. ★ marks your best.</p>
+    </>
+  )
+
+  if (bare) {
+    return (
+      <div>
+        {pill && <div className="mb-3 flex justify-end">{pill}</div>}
+        {content}
+      </div>
+    )
+  }
+  return (
+    <Card eyebrow="Main lifts" title="Strength" aside={pill}>
+      {content}
     </Card>
   )
+}
+
+// The one big story at the top of Progress, with this week's numbers and an 8-week rhythm underneath
+function Headline({ story }) {
+  const { headline, chips, weeks } = story
+  const most = Math.max(1, ...weeks.map((w) => w.count))
+  return (
+    <section className="tint-glow rounded-3xl border border-line bg-panel p-6">
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">Last 4 weeks</p>
+      <div className="mt-3 flex items-end justify-between gap-4">
+        <p className="flex items-baseline gap-2">
+          <span className={`font-display text-7xl font-bold leading-none ${headline.achievement ? 'text-gold' : ''}`}>
+            {headline.prefix}
+            <span>{headline.value}</span>
+          </span>
+          <span className="font-display text-3xl font-bold uppercase leading-none text-neutral-300">
+            {headline.unit}
+          </span>
+        </p>
+        <div
+          className="mb-1 flex h-12 shrink-0 items-end gap-1"
+          role="img"
+          aria-label="Sessions each week, last 8 weeks"
+        >
+          {weeks.map((w, i) => (
+            <span
+              key={w.start}
+              className="bar-grow w-2 rounded-t-sm"
+              style={{
+                height: `${Math.max(8, (w.count / most) * 100)}%`,
+                background: i === weeks.length - 1 ? 'var(--color-gold)' : w.count ? '#5a5a5a' : 'var(--color-line)',
+                animationDelay: `${i * 40}ms`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      <p className="mt-2 text-lg leading-snug text-neutral-200">{headline.line}</p>
+      <ul className="mt-5 flex flex-wrap gap-2">
+        {chips.map((chip) => (
+          <li key={chip} className="rounded-full border border-line px-3 py-1 text-sm font-semibold text-neutral-200">
+            {chip}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+// Summary lines for the closed cards
+function strengthSummary(history, programme) {
+  const lift = mainLifts(history, programme)[0]
+  if (!lift) return 'No lifts logged yet'
+  const tops = topSets(history, lift).slice(-10)
+  const best = Math.max(...tops.map((t) => t.weight))
+  return `${lift} ${best} kg`
 }
 
 // #progress/report is the monthly report
@@ -191,6 +270,8 @@ function ReportPage() {
 
 function ProgressOverview() {
   const [state, setState] = useState({ status: 'loading' })
+  const [streak, setStreak] = useState(null)
+  const [targets, setTargets] = useState([])
 
   useEffect(() => {
     if (state.status !== 'loading') return
@@ -203,17 +284,29 @@ function ProgressOverview() {
     }
   }, [state.status])
 
+  // Just the numbers for the summaries; the cards load their own detail when opened
+  useEffect(() => {
+    fetchActivityDays()
+      .then((dates) => setStreak(computeStreak(dates)))
+      .catch(() => {})
+    fetchTargets()
+      .then(setTargets)
+      .catch(() => {})
+  }, [])
+
+  const story = useMemo(
+    () =>
+      state.status === 'ready'
+        ? progressStory({ history: state.history, lifts: mainLifts(state.history, state.programme), streak })
+        : null,
+    [state, streak],
+  )
+  const done = targets.filter((t) => t.done_at).length
+
   return (
     <>
-      <ScreenHeader title="Progress" intro="Your streak, targets and strength over time. Injuries live on Rehab." />
-      <div className="mb-4 space-y-4">
-        {[<StreakCard key="streak" />, <ReportLink key="report" />, <MyTargets key="targets" />].map((card, i) => (
-          <div key={card.key} className="rise-in empty:hidden" style={{ '--i': i }}>
-            {card}
-          </div>
-        ))}
-      </div>
-      {state.status === 'loading' && <LoadingCards count={2} height="h-56" label="Loading your progress" />}
+      <ScreenHeader title="Progress" intro="How your training is going. Tap a card to see the detail." />
+      {state.status === 'loading' && <LoadingCards count={3} height="h-40" label="Loading your progress" />}
       {state.status === 'error' && (
         <div>
           <p className="text-red-400">Couldn't load your progress. Check your connection.</p>
@@ -223,8 +316,47 @@ function ProgressOverview() {
         </div>
       )}
       {state.status === 'ready' && (
-        <div className="rise-in" style={{ '--i': 3 }}>
-          <StrengthChart history={state.history} programme={state.programme} />
+        <div className="space-y-3">
+          <div className="rise-in" style={{ '--i': 0 }}>
+            <Headline story={story} />
+          </div>
+          <div className="rise-in" style={{ '--i': 1 }}>
+            <Collapsible
+              id="progress-strength"
+              eyebrow="Main lifts"
+              title="Strength"
+              summary={strengthSummary(state.history, state.programme)}
+              defaultOpen
+            >
+              <StrengthChart history={state.history} programme={state.programme} bare />
+            </Collapsible>
+          </div>
+          <div className="rise-in" style={{ '--i': 2 }}>
+            <Collapsible
+              id="progress-streak"
+              eyebrow="Every day counts"
+              title="Streak"
+              summary={streak ? `${streak.current} ${streak.current === 1 ? 'day' : 'days'} · best ${streak.best}` : ''}
+            >
+              <StreakCard />
+            </Collapsible>
+          </div>
+          {targets.length > 0 && (
+            <div className="rise-in" style={{ '--i': 3 }}>
+              <Collapsible
+                id="progress-targets"
+                eyebrow="From your coach"
+                title="Targets"
+                summary={`${done} of ${targets.length} done`}
+                defaultOpen
+              >
+                <MyTargets bare />
+              </Collapsible>
+            </div>
+          )}
+          <div className="rise-in" style={{ '--i': 4 }}>
+            <ReportLink />
+          </div>
         </div>
       )}
     </>
