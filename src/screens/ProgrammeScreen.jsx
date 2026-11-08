@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary, inputBase } from '../components/ui.jsx'
 import { STARTER_PLAN } from '../data/starterPlan.js'
 import {
@@ -30,6 +30,11 @@ import SessionLog from './SessionLog.jsx'
 import DayPreview from '../components/DayPreview.jsx'
 import '../components/Programme.css'
 import { estimateMinutes, totalSets } from '../lib/effort.js'
+import { useWide } from '../lib/useWide.js'
+import { clientColour } from '../lib/clientColours.js'
+
+// The laptop builder only loads when someone opens it, so phones never download it
+const ProgrammeBuilder = lazy(() => import('../components/ProgrammeBuilder.jsx'))
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
 const shortDate = (value) => new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
@@ -73,6 +78,7 @@ export default function ProgrammeScreen() {
 export function ProgrammeView({ userId = me(), basePath = 'programme', role = 'self', coachName, clientName }) {
   const dayId = useDayFromHash(basePath)
   const canEdit = role !== 'coached'
+  const wide = useWide()
   const [programme, setProgramme] = useState(null)
   const [lastDayName, setLastDayName] = useState(null)
   const [lastByDay, setLastByDay] = useState({})
@@ -268,13 +274,33 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
   }
 
   const upNext = nextDay(programme.days, lastDayName)
+  // #…/programme/build opens the builder over the day list, on a laptop only
+  const building = dayId === 'build' && wide && canEdit
   return (
     <>
+      {building && (
+        <Suspense fallback={null}>
+          <ProgrammeBuilder
+            title={programme.name}
+            subtitle={role === 'coach' ? clientName : null}
+            colour={role === 'coach' ? clientColour(userId) : null}
+            days={programme.days}
+            userId={userId}
+            isCoach={role === 'coach'}
+            askReason={role === 'coach'}
+            draftKey={programme.id}
+            onSave={(days, summary, reason) => saveDays(days, summary, reason)}
+            onClose={() => (window.location.hash = basePath)}
+          />
+        </Suspense>
+      )}
       {title && <ScreenHeader title={title} intro={programme.name} />}
       {role === 'coach' && <p className="mb-4 font-display text-2xl font-semibold">{programme.name}</p>}
       {role === 'coached' && <CoachedBanner coachName={coachName} />}
       {role !== 'self' && <LastSession clientId={userId} role={role} coachName={coachName} clientName={clientName} />}
       {role === 'coach' && <OpenRequests clientId={userId} />}
+
+      {wide && canEdit && <BuilderPrompt href={`#${basePath}/build`} />}
 
       {upNext && programme.days.length > 1 && (
         <p className="mb-3 text-sm text-muted">
@@ -348,6 +374,32 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
 
       <History key={historyKey} clientId={userId} role={role} coachName={coachName} clientName={clientName} />
     </>
+  )
+}
+
+// On a laptop: the way into the full-screen builder
+function BuilderPrompt({ href }) {
+  return (
+    <a
+      href={href}
+      className="mb-5 flex items-center gap-4 rounded-2xl border border-line bg-panel px-5 py-4 transition-colors hover:border-neutral-500"
+    >
+      <span
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line font-display text-xl font-bold"
+        aria-hidden="true"
+      >
+        ▦
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-white">Open the builder</span>
+        <span className="block text-sm text-muted">
+          Every day side by side, the exercise library, and injuries and recent training in view.
+        </span>
+      </span>
+      <span className="font-display text-2xl text-muted" aria-hidden="true">
+        ›
+      </span>
+    </a>
   )
 }
 
