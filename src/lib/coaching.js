@@ -47,6 +47,9 @@ export function describeDayChange(before, after) {
       )
     }
     if ((old.note ?? '') !== (e.note ?? '')) bits.push('new note')
+    if (JSON.stringify(old.progress ?? null) !== JSON.stringify(e.progress ?? null)) {
+      bits.push(e.progress?.step ? `+${e.progress.step} ${e.progress.kind} a week` : 'no weekly progression')
+    }
     if (bits.length) changed.push(`${old.name} (${bits.join(', ')})`)
   }
   if (added.length) parts.push(`added ${added.join(', ')}`)
@@ -56,7 +59,7 @@ export function describeDayChange(before, after) {
 }
 
 // Templates a professional saves once and gives to any client
-const TEMPLATE_FIELDS = 'id, name, description, days, updated_at'
+const TEMPLATE_FIELDS = 'id, name, description, days, block, updated_at'
 
 export async function fetchTemplates() {
   const { data, error } = await supabase
@@ -74,10 +77,11 @@ export async function fetchTemplate(id) {
   return data
 }
 
-export async function saveTemplate(name, days, description = null) {
+// block: a template keeps the block's length and lighter week, but no start date (that's set when it's given)
+export async function saveTemplate(name, days, description = null, block = null) {
   const { data, error } = await supabase
     .from('programme_templates')
-    .insert({ name, days, description })
+    .insert({ name, days, description, block: block ? { weeks: block.weeks, deload: Boolean(block.deload) } : null })
     .select(TEMPLATE_FIELDS)
     .single()
   if (error) throw error
