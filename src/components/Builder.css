@@ -1,0 +1,151 @@
+/* The laptop programme builder */
+
+@keyframes bd-open {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+@keyframes bd-flash {
+  0% {
+    box-shadow: 0 0 0 2px var(--color-white, #fff);
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+@keyframes bd-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes bd-drop-in {
+  from {
+    transform: scaleX(0.4);
+    opacity: 0;
+  }
+}
+
+.bd-root {
+  animation: bd-open 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Thin scrollbars that suit the dark panels */
+.bd-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+.bd-strip {
+  scrollbar-width: none;
+}
+.bd-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.bd-col {
+  transition: border-color 160ms ease;
+}
+.bd-col-active {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-white, #fff) 8%, transparent);
+}
+.bd-day-tools {
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.bd-col:hover .bd-day-tools,
+.bd-col:focus-within .bd-day-tools {
+  opacity: 1;
+}
+
+/* Each exercise card, with a thin stripe for its section */
+.bd-card {
+  animation: bd-card-in 180ms ease-out;
+  transition:
+    border-color 140ms ease,
+    transform 140ms ease,
+    opacity 140ms ease;
+}
+.bd-card::before {
+  content: '';
+  position: absolute;
+  inset: 8px auto 8px 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--section);
+}
+.bd-card:hover,
+.bd-card:focus-within {
+  border-color: #3a3a3a;
+}
+.bd-card[draggable='true'] {
+  opacity: 0.6;
+}
+.bd-flash {
+  animation: bd-flash 1.1s ease-out;
+}
+.bd-dragging .bd-card {
+  transform: none;
+}
+
+/* Small inline inputs inside a card */
+.bd-cell {
+  border-radius: 0.375rem;
+  border: 1px solid transparent;
+  background: var(--color-panel);
+  padding: 0.2rem 0.35rem;
+  color: var(--color-white, #fff);
+  font-variant-numeric: tabular-nums;
+}
+.bd-cell::placeholder {
+  color: var(--color-neutral-600, #525252);
+}
+.bd-cell:hover {
+  border-color: var(--color-line);
+}
+.bd-cell:focus {
+  outline: none;
+  border-color: var(--color-neutral-500, #737373);
+}
+.bd-select {
+  appearance: none;
+  cursor: pointer;
+  color: var(--color-neutral-300, #d4d4d4);
+}
+
+/* Where a dragged exercise will land */
+.bd-drop {
+  height: 3px;
+  margin: 2px 4px 6px;
+  border-radius: 3px;
+  background: var(--color-white, #fff);
+  animation: bd-drop-in 120ms ease-out;
+}
+
+.bd-lib-item {
+  transition: background-color 120ms ease;
+}
+.bd-lib-item:hover,
+.bd-lib-item:focus-visible {
+  background: var(--color-ink);
+  outline: none;
+}
+.bd-lib-item:active {
+  transform: scale(0.99);
+}
+
+.bd-root kbd {
+  font-family: inherit;
+  font-weight: 700;
+  color: var(--color-neutral-300, #d4d4d4);
+  margin-right: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-root,
+  .bd-card,
+  .bd-flash,
+  .bd-drop {
+    animation: none;
+  }
+}
