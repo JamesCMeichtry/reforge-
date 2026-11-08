@@ -39,6 +39,10 @@ export function cleanExercise(e) {
     rest: Math.min(600, parseInt(e.rest, 10) || 0) || null,
     effort: e.effort || undefined,
     tempo: e.tempo?.trim().slice(0, 40) || undefined,
+    progress:
+      e.progress && Number(String(e.progress.step).replace(',', '.')) > 0
+        ? { kind: e.progress.kind, step: Number(String(e.progress.step).replace(',', '.')) }
+        : undefined,
     load:
       e.load.kind === 'bodyweight'
         ? { kind: 'bodyweight' }
