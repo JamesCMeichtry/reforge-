@@ -7,6 +7,7 @@ import { RED_FLAGS } from '../data/assessmentForm.js'
 import { copyDays, fetchTemplates, recordChange } from '../lib/coaching.js'
 import { fetchClientInjuries, fetchLatestAssessment } from '../lib/assessment.js'
 import { createProgramme, fetchActiveProgramme } from '../lib/programme.js'
+import { nextMonday } from '../lib/blocks.js'
 import { fetchMyClients } from '../lib/pro.js'
 
 /* ---------- Showing a template ---------- */
@@ -148,7 +149,9 @@ export function Cautions({ cautions }) {
 /* ---------- Giving a template to a client ---------- */
 
 export async function applyTemplate(template, clientId) {
-  const created = await createProgramme({ name: template.name, days: copyDays(template.days) }, clientId)
+  // A template with a block starts it on the coming Monday (or today, if today is a Monday)
+  const block = template.block?.weeks ? { ...template.block, start: nextMonday() } : null
+  const created = await createProgramme({ name: template.name, days: copyDays(template.days), block }, clientId)
   await recordChange(clientId, created.id, `Started ${template.name} from a template`).catch(() => {})
   return created
 }
