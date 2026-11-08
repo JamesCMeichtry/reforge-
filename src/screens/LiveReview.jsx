@@ -14,6 +14,7 @@ import {
 import { recordChange } from '../lib/coaching.js'
 import { applyChanges, flush, historyByExercise, newId, persistLive, queueWrite } from '../lib/live.js'
 import { fetchActiveProgramme, saveProgrammeDays } from '../lib/programme.js'
+import { baseFromWeek, blockStatus } from '../lib/blocks.js'
 import { amountText, countsReps } from '../lib/measure.js'
 
 // The end of a live session: what happened, which changes to keep, and a message for the client
@@ -62,6 +63,24 @@ function summarise(session, history, sites) {
   return { exercises, sets: allSets.length, volume, pbs, pain: [...painByArea.values()], minutes }
 }
 
+// The session ran on this week's numbers. A change that's kept goes back as week 1's numbers,
+// so the block's weekly rules don't get added twice.
+function toWeekOne(programme, changes, date) {
+  const status = blockStatus(programme.block, date)
+  if (!status || status.week <= 1) return changes
+  const day = (id) => programme.days.flatMap((d) => d.exercises).find((e) => e.id === id)
+  return changes.map((change) => {
+    if (change.type === 'edit') {
+      const base = day(change.exerciseId)
+      return base ? { ...change, after: baseFromWeek(base, change.after, status.week, programme.block) } : change
+    }
+    if ((change.type === 'swap' || change.type === 'add') && change.exercise?.progress) {
+      return { ...change, exercise: baseFromWeek(change.exercise, change.exercise, status.week, programme.block) }
+    }
+    return change
+  })
+}
+
 export function Review({ session, history, sites, clientName, onBack, onFinished }) {
   const summary = useMemo(() => summarise(session, history, sites), [session, history, sites])
   const [keep, setKeep] = useState(() => Object.fromEntries(session.changes.map((c) => [c.id, c.type !== 'skip'])))
@@ -78,7 +97,10 @@ export function Review({ session, history, sites, clientName, onBack, onFinished
       if (kept.length) {
         const current = await fetchActiveProgramme(session.clientId)
         if (current?.id === session.programmeId) {
-          await saveProgrammeDays(current.id, applyChanges(current.days, session.dayId, kept))
+          await saveProgrammeDays(
+            current.id,
+            applyChanges(current.days, session.dayId, toWeekOne(current, kept, session.date)),
+          )
           for (const change of kept) {
             await recordChange(
               session.clientId,
