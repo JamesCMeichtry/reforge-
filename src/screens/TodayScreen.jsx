@@ -10,6 +10,7 @@ import TodayHero from '../components/TodayHero.jsx'
 import { ReportReady } from '../components/MonthReport.jsx'
 import { daysAgo, fetchActiveProgramme, fetchLastDayName, fetchRecentTraining, nextDay } from '../lib/programme.js'
 import { fetchMyPros } from '../lib/pro.js'
+import { programmeThisWeek } from '../lib/blocks.js'
 
 export default function TodayScreen() {
   const [state, setState] = useState({ status: 'loading' })
@@ -19,7 +20,9 @@ export default function TodayScreen() {
     if (state.status !== 'loading') return
     let cancelled = false
     Promise.all([fetchActiveProgramme(), fetchRecentTraining(14), fetchMyPros().catch(() => [])])
-      .then(async ([programme, recent, pros]) => {
+      .then(async ([saved, recent, pros]) => {
+        // This week's numbers if the programme runs as a block
+        const programme = programmeThisWeek(saved)
         const last = programme ? await fetchLastDayName(programme.id) : null
         if (cancelled) return
         setState({
@@ -59,6 +62,9 @@ export default function TodayScreen() {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">
               Up next{state.coach ? ` · set by ${state.coach.display_name ?? 'your coach'}` : ''}
             </p>
+            {state.programme?.week && (
+              <p className="mt-1 text-xs font-semibold text-muted">{state.programme.week.label}</p>
+            )}
             <h2 className="mt-2 font-display text-5xl font-bold uppercase leading-none">{state.upNext.name}</h2>
             <p className="mt-2 text-neutral-300">
               {[
