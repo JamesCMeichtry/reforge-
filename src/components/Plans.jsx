@@ -328,7 +328,8 @@ export function TargetsPanel({ clientId, clientName = 'your client' }) {
 }
 
 // Client, on Progress: the targets their professional has set
-export function MyTargets() {
+// bare: just the list, when it sits inside a card that already says "Targets"
+export function MyTargets({ bare = false }) {
   const [state, setState] = useState(null)
 
   useEffect(() => {
@@ -343,6 +344,18 @@ export function MyTargets() {
   const open = targets.filter((t) => !t.done_at)
   const done = targets.filter((t) => t.done_at)
 
+  if (bare) {
+    return (
+      <div>
+        <p className="text-sm text-muted">Set by {coach}</p>
+        <ul className="mt-2 divide-y divide-line">
+          {[...open, ...done].map((t) => (
+            <TargetRow key={t.id} target={t} />
+          ))}
+        </ul>
+      </div>
+    )
+  }
   return (
     <section className="rounded-2xl border border-line bg-panel p-5">
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Set by {coach}</p>
