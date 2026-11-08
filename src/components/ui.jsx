@@ -1,10 +1,52 @@
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+
 export function ScreenHeader({ title, intro }) {
+  const titleRef = useRef(null)
+  const compact = useScrolledPast(titleRef)
   return (
     <header className="mb-8">
-      <h1 className="font-display text-6xl font-bold uppercase leading-none tracking-tight">{title}</h1>
+      <h1 ref={titleRef} className="font-display text-6xl font-bold uppercase leading-none tracking-tight">
+        {title}
+      </h1>
       <div aria-hidden="true" className="mt-3 h-1 w-10 bg-gold" />
       {intro && <p className="mt-4 text-base leading-relaxed text-neutral-300">{intro}</p>}
+      <CompactTitle title={title} shown={compact} />
     </header>
+  )
+}
+
+// True once an element has scrolled up out of view (not when it's still below the fold)
+function useScrolledPast(ref) {
+  const [past, setPast] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(([entry]) =>
+      setPast(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [ref])
+  return past
+}
+
+// A slim bar with the screen's name that slides down while you're scrolled into the page
+function CompactTitle({ title, shown }) {
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div
+      aria-hidden="true"
+      data-shown={shown}
+      className="compact-title pointer-events-none fixed inset-x-0 top-0 z-30 border-b border-line bg-ink/85 backdrop-blur-md lg:left-60"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
+      <div className="mx-auto flex h-12 max-w-xl items-center gap-2.5 px-5 lg:max-w-2xl lg:px-8">
+        <span className="h-3.5 w-1 rounded-full bg-gold" />
+        <span className="truncate font-display text-xl font-bold uppercase leading-none tracking-tight">{title}</span>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
