@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary, inputBase } from '../components/ui.jsx'
 import DayEditor from '../components/DayEditor.jsx'
 import { ask, toast } from '../components/Feedback.jsx'
@@ -12,6 +12,10 @@ import {
   saveTemplate,
   updateTemplate,
 } from '../lib/coaching.js'
+import { useWide } from '../lib/useWide.js'
+
+// The laptop builder only loads when it's opened
+const ProgrammeBuilder = lazy(() => import('../components/ProgrammeBuilder.jsx'))
 
 // #clients/templates is the library, #clients/templates/<id> is one template, /<dayId> edits one of its days
 const parts = () => window.location.hash.replace('#', '').split('/')
@@ -172,6 +176,7 @@ function TemplateDetail({ templateId, dayId }) {
   const [missing, setMissing] = useState(false)
   const [editingDetails, setEditingDetails] = useState(false)
   const [giving, setGiving] = useState(false)
+  const wide = useWide()
 
   useEffect(() => {
     if (builtIn) return
@@ -307,6 +312,36 @@ function TemplateDetail({ templateId, dayId }) {
             Edit name and description
           </button>
         )
+      )}
+
+      {!builtIn && wide && (
+        <a
+          href={`#clients/templates/${template.id}/build`}
+          className="mb-5 flex items-center gap-4 rounded-2xl border border-line bg-panel px-5 py-4 transition-colors hover:border-neutral-500"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold text-white">Open the builder</span>
+            <span className="block text-sm text-muted">Every day side by side with the exercise library.</span>
+          </span>
+          <span className="font-display text-2xl text-muted" aria-hidden="true">
+            ›
+          </span>
+        </a>
+      )}
+      {!builtIn && wide && dayId === 'build' && (
+        <Suspense fallback={null}>
+          <ProgrammeBuilder
+            title={template.name}
+            subtitle="Template"
+            days={template.days}
+            draftKey={`template-${template.id}`}
+            onSave={async (days) => {
+              await updateTemplate(template.id, { days })
+              setTemplate((t) => ({ ...t, days, updated_at: new Date().toISOString() }))
+            }}
+            onClose={() => go(`clients/templates/${template.id}`)}
+          />
+        </Suspense>
       )}
 
       {builtIn ? (
