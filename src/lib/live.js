@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js'
 import { me } from './me.js'
 import { todayDate } from './programme.js'
+import { blockStatus, dayForWeek } from './blocks.js'
 
 // Ids are made on the phone, so a set can be saved, edited or deleted before it ever reaches the database
 export function newId() {
@@ -175,6 +176,9 @@ export function persistLive(session) {
 }
 
 export function startLive({ clientId, programme, day }) {
+  // A programme run as a block: the session uses this week's numbers
+  const status = blockStatus(programme.block, todayDate())
+  const planned = status ? dayForWeek(day, status.week, programme.block) : day
   const session = {
     id: newId(),
     clientId,
@@ -183,7 +187,7 @@ export function startLive({ clientId, programme, day }) {
     dayName: day.name,
     date: todayDate(),
     startedAt: new Date().toISOString(),
-    plan: day.exercises.map((e) => ({ ...e, load: { ...(e.load ?? { kind: 'bodyweight' }) }, status: 'todo' })),
+    plan: planned.exercises.map((e) => ({ ...e, load: { ...(e.load ?? { kind: 'bodyweight' }) }, status: 'todo' })),
     sets: {},
     changes: [],
     notes: {},
