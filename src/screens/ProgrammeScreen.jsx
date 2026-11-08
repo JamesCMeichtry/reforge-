@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { LoadingCards, ScreenHeader, buttonPrimary, buttonSecondary, inputBase } from '../components/ui.jsx'
 import { STARTER_PLAN } from '../data/starterPlan.js'
 import {
@@ -24,8 +24,10 @@ import {
   fetchLastDayName,
   fetchRecentTraining,
   nextDay,
+  saveProgramme,
   saveProgrammeDays,
 } from '../lib/programme.js'
+import { programmeThisWeek } from '../lib/blocks.js'
 import SessionLog from './SessionLog.jsx'
 import DayPreview from '../components/DayPreview.jsx'
 import '../components/Programme.css'
@@ -148,6 +150,13 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
     if (summary) note(summary, reason)
   }
 
+  // The builder saves every day and the block together
+  async function saveAll(days, block, summary, reason) {
+    await saveProgramme(programme.id, { days, block: block ?? null })
+    setProgramme({ ...programme, days, block: block ?? null })
+    if (summary) note(summary, reason)
+  }
+
   async function saveDay(updated, reason) {
     const before = programme.days.find((day) => day.id === updated.id)
     const days = programme.days.map((day) => (day.id === updated.id ? updated : day))
@@ -169,6 +178,8 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
   }
 
   const title = role === 'coach' ? null : 'Programme'
+  // This week's numbers, worked out from week 1 and each exercise's weekly rule (same as before with no block)
+  const thisWeek = useMemo(() => programmeThisWeek(programme), [programme])
 
   if (status === 'loading') {
     return (
@@ -195,8 +206,10 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
     return (
       <DayView
         key={day.id}
-        programme={programme}
+        programme={thisWeek}
         day={day}
+        weekDay={thisWeek.days.find((item) => item.id === day.id)}
+        week={thisWeek.week}
         userId={userId}
         basePath={basePath}
         role={role}
@@ -285,11 +298,12 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
             subtitle={role === 'coach' ? clientName : null}
             colour={role === 'coach' ? clientColour(userId) : null}
             days={programme.days}
+            block={programme.block}
             userId={userId}
             isCoach={role === 'coach'}
             askReason={role === 'coach'}
             draftKey={programme.id}
-            onSave={(days, summary, reason) => saveDays(days, summary, reason)}
+            onSave={(days, summary, reason, block) => saveAll(days, block, summary, reason)}
             onClose={() => (window.location.hash = basePath)}
           />
         </Suspense>
@@ -300,6 +314,7 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
       {role !== 'self' && <LastSession clientId={userId} role={role} coachName={coachName} clientName={clientName} />}
       {role === 'coach' && <OpenRequests clientId={userId} />}
 
+      {thisWeek.week && <WeekBanner week={thisWeek.week} canEdit={canEdit} />}
       {wide && canEdit && <BuilderPrompt href={`#${basePath}/build`} />}
 
       {upNext && programme.days.length > 1 && (
@@ -311,7 +326,7 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
         </p>
       )}
       <ul className="space-y-3">
-        {programme.days.map((item, i) => {
+        {thisWeek.days.map((item, i) => {
           const next = item.id === upNext?.id
           const last = lastByDay[item.name]
           return (
@@ -374,6 +389,42 @@ export function ProgrammeView({ userId = me(), basePath = 'programme', role = 's
 
       <History key={historyKey} clientId={userId} role={role} coachName={coachName} clientName={clientName} />
     </>
+  )
+}
+
+// Where the block is up to: a segment per week, filled up to this one
+function WeekBanner({ week, canEdit }) {
+  const segments = Array.from({ length: week.weeks }, (_, i) => i + 1)
+  return (
+    <section className="rise-in mb-5 rounded-2xl border border-line bg-panel px-5 py-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="font-display text-2xl font-bold uppercase leading-none">{week.label}</p>
+        <span className="text-xs text-muted">{week.weeks}-week block</span>
+      </div>
+      <div className="mt-3 flex gap-1" aria-hidden="true">
+        {segments.map((w) => {
+          const done = !week.notStarted && (week.finished || w < week.week)
+          const now = !week.notStarted && !week.finished && w === week.week
+          return (
+            <span
+              key={w}
+              className={`h-1.5 flex-1 rounded-full ${now ? 'bg-white' : done ? 'bg-neutral-500' : 'bg-line'}`}
+            />
+          )
+        })}
+      </div>
+      <p className="mt-2 text-sm text-muted">
+        {week.finished
+          ? canEdit
+            ? 'Time to plan the next block. Sessions stay at the top week until then.'
+            : 'Sessions stay at the top week until the next block is set.'
+          : week.deload
+            ? 'Lighter week: same weights as week 1 with half the sets, so you recover before the next block.'
+            : week.notStarted
+              ? 'Week 1 numbers until it starts.'
+              : "This week's weights and reps are already in each day."}
+      </p>
+    </section>
   )
 }
 
@@ -539,7 +590,7 @@ function CoachTemplates({ programme, client, onApplied }) {
     if (!name) return
     setSaving(true)
     try {
-      await saveTemplate(name, copyDays(programme.days))
+      await saveTemplate(name, copyDays(programme.days), null, programme.block)
       toast(`Saved "${name}" to your templates`)
     } catch {
       toast("Couldn't save the template. Check your connection.", { tone: 'error' })
@@ -577,7 +628,20 @@ function CoachTemplates({ programme, client, onApplied }) {
   )
 }
 
-function DayView({ programme, day, userId, basePath, role, clientName, coachName, onSaveDay, onDeleteDay }) {
+// day: the saved (week 1) day, for editing. weekDay: this week's numbers, for running and logging it
+function DayView({
+  programme,
+  day,
+  weekDay = day,
+  week,
+  userId,
+  basePath,
+  role,
+  clientName,
+  coachName,
+  onSaveDay,
+  onDeleteDay,
+}) {
   const canEdit = role !== 'coached'
   const [editing, setEditing] = useState(canEdit && day.exercises.length === 0)
   // A briefing first (what's in the day, how long, last time), then logging once Start is tapped
@@ -603,6 +667,16 @@ function DayView({ programme, day, userId, basePath, role, clientName, coachName
       {role === 'coached' && (
         <p className="-mt-4 mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-gold">
           Set by {coachName ?? 'your coach'}
+        </p>
+      )}
+      {week && !editing && (
+        <p className="mb-4 inline-flex rounded-full border border-line px-3 py-1 text-xs font-semibold text-neutral-300">
+          {week.label}
+        </p>
+      )}
+      {week && editing && (
+        <p className="mb-4 text-sm text-muted">
+          You're editing week 1's numbers. Each exercise's weekly rule adds to them as the block goes on.
         </p>
       )}
       {canEdit && (
@@ -645,11 +719,11 @@ function DayView({ programme, day, userId, basePath, role, clientName, coachName
           }}
         />
       ) : role === 'coach' ? (
-        <CoachDayPreview day={day} clientId={userId} clientName={clientName} />
+        <CoachDayPreview day={weekDay} clientId={userId} clientName={clientName} />
       ) : started ? (
-        <SessionLog programme={programme} day={day} userId={userId} backHash={basePath} />
+        <SessionLog programme={programme} day={weekDay} userId={userId} backHash={basePath} />
       ) : (
-        <DayPreview programme={programme} day={day} userId={userId} onStart={start} />
+        <DayPreview programme={programme} day={weekDay} userId={userId} onStart={start} />
       )}
     </>
   )
