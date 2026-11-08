@@ -8,7 +8,7 @@ export const todayDate = () => new Date().toLocaleDateString('en-CA')
 export async function fetchActiveProgramme(userId = me()) {
   const { data, error } = await supabase
     .from('programmes')
-    .select('id, name, days')
+    .select('id, name, days, block')
     .eq('user_id', userId)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
@@ -19,11 +19,11 @@ export async function fetchActiveProgramme(userId = me()) {
 }
 
 // Creates a programme and makes it the active one (any older programme is kept but switched off)
-export async function createProgramme({ name, days }, userId = me()) {
+export async function createProgramme({ name, days, block = null }, userId = me()) {
   const { data, error } = await supabase
     .from('programmes')
-    .insert({ name, days, user_id: userId, updated_by: me() })
-    .select('id, name, days')
+    .insert({ name, days, block, user_id: userId, updated_by: me() })
+    .select('id, name, days, block')
     .single()
   if (error) throw error
   const { error: offError } = await supabase
