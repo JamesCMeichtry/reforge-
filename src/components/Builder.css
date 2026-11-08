@@ -149,3 +149,15 @@
     animation: none;
   }
 }
+
+
+/* A later week of a block, shown read-only */
+.bd-preview .bd-cell:disabled,
+.bd-preview input:disabled,
+.bd-preview select:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.bd-preview {
+  border-style: dashed;
+}
