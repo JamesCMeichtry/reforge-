@@ -34,6 +34,8 @@ import { fetchUnread } from '../lib/chat.js'
 import { UNITS, amountText } from '../lib/measure.js'
 import { assignClientColours, clientColour } from '../lib/clientColours.js'
 import { addDemoClients, fetchDemoClients, removeDemoClients } from '../lib/demo.js'
+import Collapsible from '../components/Collapsible.jsx'
+import { bookingSummary, fetchGlance, glanceChips } from '../lib/glance.js'
 import '../components/Screens.css'
 
 // #clients is the list, #clients/<id>/<section> is one client
@@ -757,26 +759,59 @@ function Notes({ clientId }) {
   )
 }
 
-const SECTIONS = [
+// The everyday sections first; the rest sit behind "More" so the row stays short
+const MAIN_SECTIONS = [
   ['map', 'Body map'],
+  ['programme', 'Programme'],
+  ['rehab', 'Rehab'],
+  ['sessions', 'Sessions'],
+  ['messages', 'Messages'],
+]
+const MORE_SECTIONS = [
   ['assessment', 'Assessment'],
   ['injuries', 'Injuries'],
-  ['rehab', 'Rehab'],
   ['targets', 'Targets'],
   ['report', 'Report'],
-  ['sessions', 'Sessions'],
-  ['programme', 'Programme'],
-  ['messages', 'Messages'],
   ['notes', 'Notes'],
 ]
 
 // The client's sections. On a phone they sit in one row that scrolls, and the open one slides into view.
 function SectionTabs({ section, onPick, unread, colour, desk }) {
   const rowRef = useRef(null)
+  const inMore = MORE_SECTIONS.some(([id]) => id === section)
+  const [more, setMore] = useState(inMore)
+  useEffect(() => {
+    if (inMore) setMore(true)
+  }, [inMore])
   useEffect(() => {
     const active = rowRef.current?.querySelector('[aria-pressed="true"]')
     active?.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' })
   }, [section])
+
+  const chip = ([id, label], extra = false) => {
+    const on = section === id
+    return (
+      <button
+        key={id}
+        type="button"
+        onClick={() => onPick(id)}
+        aria-pressed={on}
+        data-appear={extra ? '' : undefined}
+        className={`flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 ${
+          on ? 'text-ink' : 'border-line text-muted hover:text-white'
+        }`}
+        style={on ? { background: colour, borderColor: colour } : undefined}
+      >
+        {label}
+        {id === 'messages' && unread > 0 && (
+          <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1 text-[11px] font-bold text-ink">
+            {unread}
+          </span>
+        )}
+      </button>
+    )
+  }
+
   return (
     <div
       ref={rowRef}
@@ -784,28 +819,18 @@ function SectionTabs({ section, onPick, unread, colour, desk }) {
       role="group"
       aria-label="Client sections"
     >
-      {SECTIONS.map(([id, label]) => {
-        const on = section === id
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onPick(id)}
-            aria-pressed={on}
-            className={`flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors duration-200 ${
-              on ? 'text-ink' : 'border-line text-muted hover:text-white'
-            }`}
-            style={on ? { background: colour, borderColor: colour } : undefined}
-          >
-            {label}
-            {id === 'messages' && unread > 0 && (
-              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1 text-[11px] font-bold text-ink">
-                {unread}
-              </span>
-            )}
-          </button>
-        )
-      })}
+      {MAIN_SECTIONS.map((item) => chip(item))}
+      {more && MORE_SECTIONS.map((item) => chip(item, true))}
+      {!inMore && (
+        <button
+          type="button"
+          onClick={() => setMore((v) => !v)}
+          aria-expanded={more}
+          className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-line px-3.5 py-1.5 text-sm font-semibold text-muted hover:text-white"
+        >
+          {more ? 'Less' : `More · ${MORE_SECTIONS.length}`}
+        </button>
+      )}
     </div>
   )
 }
@@ -842,11 +867,34 @@ function LiveButton({ clientId }) {
   )
 }
 
+// Last trained, how often, sorest area and anything waiting, as a row of small chips under their name
+function GlanceChips({ glance }) {
+  if (!glance) return <div aria-hidden="true" className="skeleton mt-4 h-7 w-3/4 rounded-full bg-ink/40" />
+  const chips = glanceChips(glance)
+  if (!chips.length) return null
+  return (
+    <ul className="mt-4 flex flex-wrap gap-1.5" aria-label="At a glance">
+      {chips.map((chip) => (
+        <li
+          key={chip.key}
+          className="inline-flex items-center gap-1.5 rounded-full border border-line bg-ink/40 px-2.5 py-1 text-xs font-semibold text-neutral-200"
+        >
+          {chip.tone && (
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: chip.tone }} aria-hidden="true" />
+          )}
+          {chip.text}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function ClientDetail({ clientId, section: requested, desk = false }) {
   // Check-ins now live inside Rehab, so older links to them land there
   const section = requested === 'checkins' ? 'rehab' : requested
   const [client, setClient] = useState(null)
   const [unread, setUnread] = useState(0)
+  const [glance, setGlance] = useState(null)
   const setSection = (id) => (window.location.hash = `clients/${clientId}/${id}`)
 
   useEffect(() => {
@@ -858,6 +906,13 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
   useEffect(() => {
     if (section === 'messages') setUnread(0)
   }, [section])
+
+  // The at-a-glance line under their name, and the summary for packages and bookings
+  useEffect(() => {
+    fetchGlance(clientId)
+      .then(setGlance)
+      .catch(() => {})
+  }, [clientId])
 
   useEffect(() => {
     fetchClient(clientId)
@@ -947,14 +1002,22 @@ function ClientDetail({ clientId, section: requested, desk = false }) {
             <span className="live-dot h-2 w-2 shrink-0 rounded-full bg-red-500" aria-hidden="true" />
             Flaring up: recent check-ins show high pain or warning signs.
           </p>
-        ) : (
-          <p className="mt-4 text-sm text-neutral-300">Changes you make here apply to their account straight away.</p>
-        )}
+        ) : null}
+        <GlanceChips glance={glance} />
       </header>
       <div className={desk ? 'grid max-w-3xl items-start gap-x-4 xl:grid-cols-2' : undefined}>
         <LiveButton clientId={clientId} />
-        <PackageCard clientId={clientId} clientName={client.display_name} />
-        <BookingCard clientId={clientId} clientName={client.display_name} />
+        <div className="mb-5">
+          <Collapsible
+            id="client-bookings"
+            eyebrow="Packages and bookings"
+            title="1-1 sessions"
+            summary={bookingSummary(glance)}
+          >
+            <PackageCard clientId={clientId} clientName={client.display_name} />
+            <BookingCard clientId={clientId} clientName={client.display_name} />
+          </Collapsible>
+        </div>
       </div>
       <SectionTabs section={section} onPick={setSection} unread={unread} colour={colour} desk={desk} />
       {section === 'map' &&
