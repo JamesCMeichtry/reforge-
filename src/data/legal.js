@@ -25,6 +25,7 @@ export const PRIVACY = [
         'Health information: your injuries, how they affect you, pain scores, check-ins, rehab plans and assessments.',
         'If you work with a physio, PT or coach: the notes, assessments, plans and targets they add for you, 1-1 sessions they book with you, session packages, and the messages you send each other.',
         'Friends and training together: who your friends are and the workouts you invite each other to.',
+        'The waiting list, if you join it on the home page: your email address, whether you train, coach or work as a physio, and where you heard about Reforge if the link said so. You don’t need an account to join.',
         'Notifications, if you turn them on: an address for your phone from Apple, Google or Mozilla, so notifications reach it. It is removed when you turn notifications off or sign out on that phone.',
       ],
     ],
@@ -44,6 +45,7 @@ export const PRIVACY = [
         'To run your account and the app (so we can provide the service you signed up for).',
         'To personalise training around your injuries and goals (with your consent).',
         'To let a professional you connect with see and manage your training, and to let you message each other (with your consent, given when you connect).',
+        'To email you news about Reforge if you joined the waiting list (because you asked us to).',
         'To send notifications you have turned on, such as a new message, a workout invite or a booked 1-1.',
         'To keep Reforge secure and working, and to fix problems.',
       ],
@@ -76,6 +78,7 @@ export const PRIVACY = [
     heading: 'How long we keep it',
     body: [
       'For as long as you have an account. When you delete your account, everything is removed straight away, apart from copies in short-term backups, which are overwritten soon after.',
+      'Waiting-list emails are kept until Reforge launches fully or you ask us to remove yours, whichever comes first. Email us and we’ll remove it.',
     ],
   },
   {
