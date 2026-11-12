@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLegal } from './Legal.jsx'
 import { InstallSteps } from './Install.jsx'
+import Waitlist from './Waitlist.jsx'
 
 // The first thing someone sees before they have an account: what Reforge is, who it's for, and how to start
 
@@ -272,6 +273,8 @@ export default function Landing({ preview = false }) {
             <a href={startHref} className={`mt-6 ${startButton}`}>
               Create an account
             </a>
+            <div className="mx-auto mt-10 max-w-md border-t border-line" />
+            <Waitlist />
           </section>
         </div>
 
